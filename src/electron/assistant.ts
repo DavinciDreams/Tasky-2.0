@@ -26,6 +26,7 @@ class TaskyAssistant {
   private notificationTextColor: string;
   private bubbleVisible: boolean = false;
   private hitTestTimer: NodeJS.Timeout | null = null;
+  private draggingEnabled: boolean = true;
 
   constructor() {
     this.window = null;
@@ -174,7 +175,7 @@ class TaskyAssistant {
               inBubble = localX >= 20 && localX <= 180 && localY >= 0 && localY <= 200;
             }
           }
-          shouldCapture = inAvatar || inBubble;
+          shouldCapture = (this.draggingEnabled && inAvatar) || inBubble;
         }
         this.window.setIgnoreMouseEvents(!shouldCapture, { forward: true });
       } catch {
@@ -425,17 +426,9 @@ class TaskyAssistant {
   }
 
   setDraggingMode(enabled: boolean): void {
-    if (this.window) {
-      try {
-        // When dragging is disabled, let clicks pass through the assistant window
-        this.window.setIgnoreMouseEvents(!enabled, { forward: true });
-      } catch {
-        // no-op
-      }
-      if (this.window.webContents) {
-        // Also update DOM styles for visual feedback
-        this.window.webContents.send('set-dragging-mode', enabled);
-      }
+    this.draggingEnabled = enabled;
+    if (this.window && this.window.webContents) {
+      this.window.webContents.send('set-dragging-mode', enabled);
     }
   }
 
