@@ -17,7 +17,7 @@ export interface Settings {
   selectedAvatar: string;
   darkMode: boolean;
   enableAnimation: boolean;
-  timeFormat: '12' | '24';
+  timeFormat: '12h' | '24h';
   enableDragging: boolean;
   assistantLayer: 'above' | 'below';
   bubbleSide: 'left' | 'right';
@@ -26,6 +26,13 @@ export interface Settings {
   notificationColor: string;
   notificationFont: string;
   notificationTextColor: string;
+  // Task management settings
+  enableTasks: boolean;
+  taskNotifications: boolean;
+  autoArchiveCompleted: boolean;
+  taskSortBy: 'dueDate' | 'created' | 'status';
+  showTaskStats: boolean;
+  taskStoragePath?: string;
 }
 
 export interface CustomAvatar {
@@ -73,6 +80,24 @@ export interface ElectronAPI {
   // IPC invoke method for general purpose calls
   invoke: (channel: string, ...args: any[]) => Promise<any>;
   
+  // Task management methods
+  createTask: (task: any) => Promise<any>;
+  updateTask: (id: string, updates: any) => Promise<any>;
+  deleteTask: (id: string) => Promise<void>;
+  getTasks: (filters?: any) => Promise<any[]>;
+  getTask: (id: string) => Promise<any>;
+  getTaskStats: () => Promise<any>;
+  archiveTask: (id: string) => Promise<void>;
+  bulkUpdateTaskStatus: (taskIds: string[], status: string) => Promise<any[]>;
+  archiveCompletedTasks: () => Promise<any[]>;
+  analyzeTasksOverview: () => Promise<any>;
+  exportTasks: () => Promise<any>;
+  importTasks: (importData: any) => Promise<any[]>;
+  
+  // Task-reminder integration
+  convertReminderToTask: (reminderId: string) => Promise<any>;
+  convertTaskToReminder: (taskId: string) => Promise<any>;
+  
   // Window controls
   closeWindow: () => void;
   minimizeWindow: () => void;
@@ -90,7 +115,7 @@ export interface ReminderFormProps {
   onEditReminder: (id: string, reminder: Partial<Reminder>) => void;
   editingReminder: Reminder | null;
   onCancelEdit: () => void;
-  timeFormat: '12' | '24';
+  timeFormat: '12h' | '24h';
 }
 
 export interface ReminderItemProps {
@@ -98,7 +123,7 @@ export interface ReminderItemProps {
   onRemove: () => void;
   onEdit: () => void;
   onToggle: (enabled: boolean) => void;
-  timeFormat: '12' | '24';
+  timeFormat: '12h' | '24h';
 }
 
 export interface SettingsTabProps {
@@ -118,7 +143,7 @@ export interface RemindersTabProps {
   onRemoveReminder: (id: string) => void;
   onEditReminder: (id: string, reminder: Partial<Reminder>) => void;
   onToggleReminder: (id: string, enabled: boolean) => void;
-  timeFormat: '12' | '24';
+  timeFormat: '12h' | '24h';
 }
 
 // Global window interface extension

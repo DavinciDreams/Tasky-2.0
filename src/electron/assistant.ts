@@ -6,7 +6,7 @@
  * with customizable positioning and interactive speech bubbles.
  */
 
-import { BrowserWindow, screen } from 'electron';
+import { BrowserWindow, screen, ipcMain } from 'electron';
 import * as path from 'path';
 
 interface AvatarData {
@@ -24,6 +24,8 @@ class TaskyAssistant {
   private notificationColor: string;
   private notificationFont: string;
   private notificationTextColor: string;
+  private bubbleVisible: boolean = false;
+  private hitTestTimer: NodeJS.Timeout | null = null;
 
   constructor() {
     this.window = null;
@@ -72,6 +74,27 @@ class TaskyAssistant {
 
     this.window.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(clippyHtml)}`);
 
+    // Let renderer decide ignore/capture based on hit-testing; default capture on start
+    try { this.window.setIgnoreMouseEvents(false); } catch {}
+
+    // Register per-window mouse pass-through toggle listener (once per window)
+    const toggleIgnoreChannel = 'assistant:set-ignore-mouse-events';
+    const toggleHandler = (_event: any, ignore: boolean) => {
+      if (this.window && !this.window.isDestroyed()) {
+        try {
+          this.window.setIgnoreMouseEvents(!!ignore, { forward: true });
+        } catch {}
+      }
+    };
+    ipcMain.on(toggleIgnoreChannel, toggleHandler);
+
+    // Track bubble visibility from renderer
+    const bubbleVisChannel = 'assistant:bubble-visible';
+    const bubbleHandler = (_event: any, visible: boolean) => {
+      this.bubbleVisible = !!visible;
+    };
+    ipcMain.on(bubbleVisChannel, bubbleHandler);
+
     // Add DOM ready event to verify content loads
     this.window.webContents.once('dom-ready', () => {
       // Send initial avatar data
@@ -105,11 +128,59 @@ class TaskyAssistant {
     this.window.on('closed', () => {
       this.window = null;
       this.isVisible = false;
+      // Clean up listener for this window
+      try {
+        ipcMain.removeListener(toggleIgnoreChannel, toggleHandler);
+      } catch {}
+      try {
+        ipcMain.removeListener(bubbleVisChannel, bubbleHandler);
+      } catch {}
+      if (this.hitTestTimer) {
+        clearInterval(this.hitTestTimer);
+        this.hitTestTimer = null;
+      }
     });
 
     // DevTools removed for production
 
+    // Start main-process hit testing loop to ensure reliable capture/click-through
+    this.startHitTestLoop();
+
     return this.window;
+  }
+
+  private startHitTestLoop(): void {
+    if (this.hitTestTimer) {
+      clearInterval(this.hitTestTimer);
+    }
+    this.hitTestTimer = setInterval(() => {
+      if (!this.window || this.window.isDestroyed()) return;
+      try {
+        const bounds = this.window.getBounds();
+        const cursor = screen.getCursorScreenPoint();
+        const localX = cursor.x - bounds.x;
+        const localY = cursor.y - bounds.y;
+        const withinWindow = localX >= 0 && localY >= 0 && localX <= bounds.width && localY <= bounds.height;
+        let shouldCapture = false;
+        if (withinWindow) {
+          // Avatar area (approximate 80x80 image centered in 200x200 container at x=200..400)
+          // Centered image ~ x:260..340, y:60..140. Slight padding for usability.
+          const inAvatar = localX >= 255 && localX <= 345 && localY >= 55 && localY <= 145;
+          let inBubble = false;
+          if (this.bubbleVisible) {
+            if (this.bubbleSide === 'right') {
+              inBubble = localX >= 420 && localX <= Math.min(bounds.width - 20, 770) && localY >= 0 && localY <= 200;
+            } else {
+              inBubble = localX >= 20 && localX <= 180 && localY >= 0 && localY <= 200;
+            }
+          }
+          shouldCapture = inAvatar || inBubble;
+        }
+        this.window.setIgnoreMouseEvents(!shouldCapture, { forward: true });
+      } catch {
+        // ignore
+      }
+    }, 40);
   }
 
   private createAssistantHTML(): string {
@@ -157,7 +228,7 @@ class TaskyAssistant {
       -moz-user-select: none;
       -ms-user-select: none;
       user-select: none;
-      opacity: 1;
+      opacity: 0;
       transition: opacity 0.2s ease;
     }
     
@@ -208,7 +279,7 @@ class TaskyAssistant {
 <body>
   <div id="notification-bubble" class="notification-bubble"></div>
   <div id="tasky-container">
-    <div id="tasky-character">🤖</div>
+    <div id="tasky-character"></div>
   </div>
   
   <script src="file://${scriptPath.replace(/\\/g, '/')}"></script>
@@ -302,8 +373,8 @@ class TaskyAssistant {
       // If it's a custom avatar, also send the custom path immediately
       if (avatarName === 'Custom' || avatarName.startsWith('custom_')) {
         setTimeout(() => {
-          const TaskyStore = require('./storage');
-          const store = new TaskyStore();
+          const { Storage } = require('./storage');
+          const store = new Storage();
           const customPath = store.getSetting('customAvatarPath');
           if (customPath) {
             this.setCustomAvatarPath(customPath);
@@ -354,9 +425,17 @@ class TaskyAssistant {
   }
 
   setDraggingMode(enabled: boolean): void {
-    if (this.window && this.window.webContents) {
-      // Send dragging mode to the renderer process to handle CSS changes
-      this.window.webContents.send('set-dragging-mode', enabled);
+    if (this.window) {
+      try {
+        // When dragging is disabled, let clicks pass through the assistant window
+        this.window.setIgnoreMouseEvents(!enabled, { forward: true });
+      } catch {
+        // no-op
+      }
+      if (this.window.webContents) {
+        // Also update DOM styles for visual feedback
+        this.window.webContents.send('set-dragging-mode', enabled);
+      }
     }
   }
 

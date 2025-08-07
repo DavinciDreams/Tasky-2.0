@@ -1,6 +1,11 @@
 import React from "react";
 
-export default function CustomSwitch({ checked, onChange, ...props }) {
+interface CustomSwitchProps extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'onChange'> {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}
+
+export default function CustomSwitch({ checked, onChange, ...props }: CustomSwitchProps) {
   return (
     <button
       type="button"

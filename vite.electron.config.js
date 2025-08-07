@@ -6,11 +6,11 @@ export default defineConfig({
   build: {
     lib: {
       entry: {
-        main: 'src/main.js',
-        preload: 'src/preload.js',
-        scheduler: 'src/electron/scheduler.js',
-        storage: 'src/electron/storage.js',
-        assistant: 'src/electron/assistant.js',
+        main: 'src/main.ts',
+        preload: 'src/preload.ts',
+        scheduler: 'src/electron/scheduler.ts',
+        storage: 'src/electron/storage.ts',
+        assistant: 'src/electron/assistant.ts',
         'assistant-script': 'src/electron/assistant-script.js'
       },
       formats: ['cjs']
@@ -25,6 +25,7 @@ export default defineConfig({
         'child_process',
         'path',
         'fs',
+        'fs/promises',
         'os',
         'util'
       ],

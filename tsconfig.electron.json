@@ -17,6 +17,7 @@
     "src/main.ts",
     "src/preload.ts",
     "src/electron/**/*",
+    "src/core/**/*",
     "src/lib/**/*",
     "src/types/**/*"
   ],

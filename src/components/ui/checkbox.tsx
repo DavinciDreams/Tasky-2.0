@@ -1,7 +1,14 @@
 import React from "react";
 
-export function Checkbox({ checked, onChange, onCheckedChange, className = "", ...props }) {
-  const handleChange = (e) => {
+interface CheckboxProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange'> {
+  checked?: boolean;
+  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onCheckedChange?: (checked: boolean) => void;
+  className?: string;
+}
+
+export function Checkbox({ checked, onChange, onCheckedChange, className = "", ...props }: CheckboxProps) {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const isChecked = e.target.checked;
     if (onChange) onChange(e);
     if (onCheckedChange) onCheckedChange(isChecked);

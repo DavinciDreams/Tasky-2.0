@@ -10,8 +10,10 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Checkbox } from '../components/ui/checkbox';
 import CustomSwitch from '../components/ui/CustomSwitch';
-import { Bell, Settings, Smile, X, Plus, Edit3, Trash2, Clock, Calendar, Minus, Paperclip } from 'lucide-react';
+import { Bell, Settings, Smile, X, Plus, Edit3, Trash2, Clock, Calendar, Minus, Paperclip, CheckSquare } from 'lucide-react';
 import type { Reminder, Settings as AppSettings, CustomAvatar, DefaultAvatar } from '../types';
+import type { TaskyTask, TaskyTaskSchema } from '../types/task';
+import { TasksTab } from '../components/tasks/TasksTab';
 import '../types/css.d.ts';
 
 // Component Props Interfaces
@@ -21,7 +23,7 @@ interface RemindersTabProps {
   onRemoveReminder: (id: string) => void;
   onEditReminder: (id: string, updates: Partial<Reminder>) => void;
   onToggleReminder: (id: string, enabled: boolean) => void;
-  timeFormat: '12' | '24';
+  timeFormat: '12h' | '24h';
 }
 
 interface SettingsTabProps {
@@ -40,7 +42,7 @@ interface ReminderFormProps {
   onEditReminder?: (id: string, updates: Partial<Reminder>) => void;
   editingReminder?: Reminder | null;
   onCancelEdit?: () => void;
-  timeFormat: '12' | '24';
+  timeFormat: '12h' | '24h';
 }
 
 interface ReminderItemProps {
@@ -48,7 +50,7 @@ interface ReminderItemProps {
   onRemove: (id: string) => void;
   onEdit: (reminder: Reminder) => void;
   onToggle: (enabled: boolean) => void;
-  timeFormat: '12' | '24';
+  timeFormat: '12h' | '24h';
 }
 
 // TaskyAvatarImage Component - displays the Tasky mascot image
@@ -305,8 +307,8 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
               title="Time Format"
               description="Choose between 12-hour and 24-hour time display"
               type="switch"
-              value={settings.timeFormat === '24'}
-              onChange={(checked) => onSettingChange('timeFormat', checked ? '24' : '12')}
+              value={settings.timeFormat === '24h'}
+              onChange={(checked) => onSettingChange('timeFormat', checked ? '24h' : '12h')}
             />
           </SettingSection>
           
@@ -829,7 +831,7 @@ const ReminderForm: React.FC<ReminderFormProps> = ({ onAddReminder, onEditRemind
           <Clock size={16} />
           Time
         </Label>
-        {timeFormat === '24' ? (
+        {timeFormat === '24h' ? (
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <label className="text-xs text-muted-foreground">Hour</label>
@@ -981,7 +983,7 @@ const ReminderForm: React.FC<ReminderFormProps> = ({ onAddReminder, onEditRemind
 
 const ReminderItem: React.FC<ReminderItemProps> = ({ reminder, onRemove, onEdit, onToggle, timeFormat }) => {
   const formatTimeDisplay = (time24: string) => {
-    if (timeFormat === '24') {
+    if (timeFormat === '24h') {
       return time24;
     } else {
       const [hour, minute] = time24.split(':');
@@ -1072,6 +1074,7 @@ const ReminderItem: React.FC<ReminderItemProps> = ({ reminder, onRemove, onEdit,
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('reminders');
   const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [tasks, setTasks] = useState<TaskyTask[]>([]);
   const [settings, setSettings] = useState<Partial<AppSettings>>({
     enableSound: true,
     enableAssistant: true,
@@ -1080,7 +1083,7 @@ const App: React.FC = () => {
     notificationType: 'custom',
     selectedAvatar: 'Tasky',
     enableAnimation: true,
-    timeFormat: '24', // '12' or '24'
+    timeFormat: '24h', // '12h' or '24h'
     enableDragging: true, // false = click-through, true = draggable
     assistantLayer: 'above', // 'above' = above windows, 'below' = below windows
     bubbleSide: 'left', // 'left' or 'right' bubble position
@@ -1089,6 +1092,7 @@ const App: React.FC = () => {
   useEffect(() => {
     // Load initial data when component mounts
     loadReminders();
+    loadTasks();
     loadSettings();
     
     // Add keyboard shortcut for quitting (Ctrl+Q)
@@ -1141,13 +1145,22 @@ const App: React.FC = () => {
         notificationType: notificationType !== undefined ? notificationType : 'custom',
         selectedAvatar: selectedAvatar !== undefined ? selectedAvatar : 'Tasky',
         enableAnimation: await window.electronAPI.getSetting('enableAnimation') !== undefined ? await window.electronAPI.getSetting('enableAnimation') : true,
-        timeFormat: timeFormat !== undefined ? timeFormat : '24',
+        timeFormat: timeFormat !== undefined ? timeFormat : '24h',
         enableDragging: enableDragging !== undefined ? enableDragging : true,
         assistantLayer: assistantLayer !== undefined ? assistantLayer : 'above',
         bubbleSide: bubbleSide !== undefined ? bubbleSide : 'left',
       });
     } catch (error) {
       console.error('Failed to load settings:', error);
+    }
+  };
+
+  const loadTasks = async () => {
+    try {
+      const result = await window.electronAPI.getTasks();
+      setTasks(result || []);
+    } catch (error) {
+      console.error('Failed to load tasks:', error);
     }
   };
 
@@ -1213,6 +1226,39 @@ const App: React.FC = () => {
     window.electronAPI.testNotification();
   };
 
+  // Task management handlers
+  const handleCreateTask = async (taskInput: Omit<TaskyTaskSchema, 'id' | 'createdAt'>) => {
+    try {
+      const created = await window.electronAPI.createTask(taskInput);
+      if (created) {
+        // Reload to ensure consistency from main process
+        await loadTasks();
+      }
+    } catch (error) {
+      console.error('Failed to create task:', error);
+    }
+  };
+
+  const handleUpdateTask = async (id: string, updates: Partial<TaskyTask>) => {
+    try {
+      const updated = await window.electronAPI.updateTask(id, updates);
+      if (updated) {
+        setTasks(prev => prev.map(t => (t.schema.id === id ? updated : t)));
+      }
+    } catch (error) {
+      console.error('Failed to update task:', error);
+    }
+  };
+
+  const handleDeleteTask = async (id: string) => {
+    try {
+      await window.electronAPI.deleteTask(id);
+      setTasks(prev => prev.filter(t => t.schema.id !== id));
+    } catch (error) {
+      console.error('Failed to delete task:', error);
+    }
+  };
+
   const handleAvatarChange = async (avatar: string) => {
     const newSettings = { ...settings, selectedAvatar: avatar };
     setSettings(newSettings);
@@ -1246,6 +1292,7 @@ const App: React.FC = () => {
 
   const tabs = [
     { id: 'reminders', label: 'Reminders', icon: Bell },
+    { id: 'tasks', label: 'Tasks', icon: CheckSquare },
     { id: 'avatar', label: 'Avatar', icon: Smile },
     { id: 'settings', label: 'Settings', icon: Settings }
   ];
@@ -1328,7 +1375,7 @@ const App: React.FC = () => {
                     onRemoveReminder={handleRemoveReminder}
                     onEditReminder={handleEditReminder}
                     onToggleReminder={handleToggleReminder}
-                    timeFormat={settings.timeFormat || '24'}
+                    timeFormat={settings.timeFormat || '24h'}
                   />
                 </motion.div>
               )}
@@ -1346,6 +1393,25 @@ const App: React.FC = () => {
                     settings={settings as AppSettings}
                     onSettingChange={handleSettingChange}
                     onTestNotification={handleTestNotification}
+                  />
+                </motion.div>
+              )}
+
+              {activeTab === 'tasks' && (
+                <motion.div
+                  key="tasks"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.2 }}
+                  className="h-full"
+                >
+                  <TasksTab
+                    tasks={tasks}
+                    onCreateTask={handleCreateTask}
+                    onUpdateTask={handleUpdateTask}
+                    onDeleteTask={handleDeleteTask}
+                    settings={settings as AppSettings}
                   />
                 </motion.div>
               )}

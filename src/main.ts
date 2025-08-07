@@ -20,9 +20,10 @@ import * as os from 'os';
 import * as fs from 'fs';
 import { spawn } from 'child_process';
 import { MainWindow, TrayIcon } from './types/electron';
-import TaskyStore from './electron/storage';
+import { Storage } from './electron/storage';
 import ReminderScheduler from './electron/scheduler';
 import TaskyAssistant from './electron/assistant';
+import { ElectronTaskManager } from './electron/task-manager';
 import type { Reminder, Settings } from './types/index';
 
 // Vite globals for Electron
@@ -41,8 +42,9 @@ if (process.platform === 'win32') {
 let mainWindow: MainWindow | null = null;        // Main settings/UI window
 let tray: TrayIcon | null = null;               // System tray instance
 let scheduler: any = null;  // Reminder scheduling service (will be typed later)
-let store: any = null;      // Persistent data storage service (will be typed later)
+let store: Storage | null = null;      // Persistent data storage service
 let assistant: any = null;  // Desktop companion/assistant (will be typed later)
+let taskManager: ElectronTaskManager | null = null;  // Task management system
 
 /**
  * Creates the main application window for settings and configuration.
@@ -167,7 +169,7 @@ const createWindow = () => {
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   // Request notification permissions for Windows
   if (process.platform === 'win32') {
     app.setAppUserModelId('com.tasky.reminderapp');
@@ -180,8 +182,12 @@ app.whenReady().then(() => {
   }
   
   // Initialize storage
-  store = new TaskyStore();
+  store = new Storage();
   store.migrate(); // Run any necessary migrations
+  
+  // Initialize task manager
+  taskManager = new ElectronTaskManager();
+  await taskManager.initialize();
   
   // Initialize scheduler
   scheduler = new ReminderScheduler();
@@ -210,6 +216,7 @@ app.whenReady().then(() => {
   // Apply dragging setting
   const enableDragging = settings.enableDragging !== undefined ? settings.enableDragging : true;
   assistant.setDraggingMode(enableDragging);
+  // If dragging is disabled, allow clicks to pass through by default
   
   // Apply bubble side setting
   const bubbleSide = settings.bubbleSide || 'left';
@@ -438,6 +445,9 @@ app.on('before-quit', () => {
   if (assistant) {
     assistant.destroy();
   }
+  if (taskManager) {
+    taskManager.cleanup();
+  }
 });
 
 // Force quit all processes when app is quitting
@@ -462,9 +472,16 @@ ipcMain.handle('get-reminders', () => {
 });
 
 ipcMain.on('add-reminder', (event, reminder) => {
-  if (store && scheduler) {
-    store.addReminder(reminder);
-    scheduler.scheduleReminder(reminder);
+  try {
+    if (!reminder || typeof reminder !== 'object') return;
+    const { message, time, days } = reminder as any;
+    if (typeof message !== 'string' || typeof time !== 'string' || !Array.isArray(days)) return;
+    if (store && scheduler) {
+      store.addReminder(reminder);
+      scheduler.scheduleReminder(reminder);
+    }
+  } catch {
+    // noop
   }
 });
 
@@ -476,9 +493,14 @@ ipcMain.on('remove-reminder', (event, id) => {
 });
 
 ipcMain.on('update-reminder', (event, id, reminder) => {
-  if (store && scheduler) {
-    store.updateReminder(id, reminder);
-    scheduler.updateReminder(id, reminder);
+  try {
+    if (typeof id !== 'string' || !reminder || typeof reminder !== 'object') return;
+    if (store && scheduler) {
+      store.updateReminder(id, reminder);
+      scheduler.updateReminder(id, reminder);
+    }
+  } catch {
+    // noop
   }
 });
 
@@ -659,7 +681,7 @@ ipcMain.on('change-avatar', (event, avatar) => {
     
     // If it's a custom avatar, also send the path immediately
     if (avatar === 'Custom' || avatar.startsWith('custom_')) {
-      const customPath = store.getSetting('customAvatarPath');
+      const customPath = store?.getSetting('customAvatarPath');
       if (customPath) {
         setTimeout(() => {
           if (assistant && assistant.window) {

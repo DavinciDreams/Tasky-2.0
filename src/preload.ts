@@ -31,6 +31,23 @@ const electronAPI: ElectronAPI = {
   // IPC invoke method for general purpose calls
   invoke: (channel, ...args) => ipcRenderer.invoke(channel, ...args),
   
+  // Task management methods
+  createTask: (task) => ipcRenderer.invoke('task:create', task),
+  updateTask: (id, updates) => ipcRenderer.invoke('task:update', id, updates),
+  deleteTask: (id) => ipcRenderer.invoke('task:delete', id),
+  getTasks: (filters) => ipcRenderer.invoke('task:list', filters),
+  getTask: (id) => ipcRenderer.invoke('task:get', id),
+  getTaskStats: () => ipcRenderer.invoke('task:stats'),
+  archiveTask: (id) => ipcRenderer.invoke('task:archive', id),
+  bulkUpdateTaskStatus: (taskIds, status) => ipcRenderer.invoke('task:bulk-update-status', taskIds, status),
+  archiveCompletedTasks: () => ipcRenderer.invoke('task:archive-completed'),
+  analyzeTasksOverview: () => ipcRenderer.invoke('task:analyze'),
+  exportTasks: () => ipcRenderer.invoke('task:export'),
+  importTasks: (importData) => ipcRenderer.invoke('task:import', importData),
+  
+  // Task-reminder integration
+  // Removed per scope: no reminder↔task conversion
+  
   // Window controls
   closeWindow: () => ipcRenderer.send('close-window'),
   minimizeWindow: () => ipcRenderer.send('minimize-window'),
