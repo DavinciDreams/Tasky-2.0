@@ -1,7 +1,7 @@
 {
-  "name": "tasky",
+  "name": "tasky-2.0-task-management",
   "version": "1.0.0",
-  "description": "A cross-platform desktop reminder application with animated assistant companion. Features recurring reminders, notification sounds, and customizable desktop companion. Note: Includes fan art tribute characters for educational purposes.",
+  "description": "A cross-platform desktop task management application with animated assistant companion. Features recurring reminders, notification sounds, and customizable desktop companion.",
   "main": ".vite/build/main.js",
   "homepage": "./",
   "scripts": {
@@ -21,15 +21,15 @@
   },
   "keywords": [
     "electron",
-    "reminder",
     "desktop-app",
     "tray",
+    "tasky",
     "assistant",
     "notifications",
     "scheduler",
     "productivity",
     "cross-platform",
-    "clippy"
+    "task-management"
   ],
   "author": {
     "name": "Traves Theberge",
@@ -38,7 +38,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/tasky"
+    "url": "https://github.com/Traves-Theberge/Tasky-2.0-Task-Management"
   },
   "devDependencies": {
     "@electron-forge/cli": "^7.8.1",
@@ -48,6 +48,12 @@
     "@electron-forge/maker-zip": "^7.4.0",
     "@electron-forge/plugin-vite": "^7.8.1",
     "@tailwindcss/postcss": "^4.1.11",
+    "@types/node": "^24.2.0",
+    "@types/node-cron": "^3.0.11",
+    "@types/react": "^19.1.9",
+    "@types/react-dom": "^19.1.7",
+    "@typescript-eslint/eslint-plugin": "^8.39.0",
+    "@typescript-eslint/parser": "^8.39.0",
     "@vitejs/plugin-react": "^4.2.1",
     "autoprefixer": "^10.4.21",
     "concurrently": "^9.2.0",
@@ -58,6 +64,7 @@
     "postcss": "^8.5.6",
     "rimraf": "^6.0.1",
     "tailwindcss": "^4.1.11",
+    "typescript": "^5.9.2",
     "vite": "^7.0.6",
     "wait-on": "^8.0.4"
   },
@@ -75,8 +82,8 @@
     "tailwind-merge": "^3.3.1"
   },
   "build": {
-    "appId": "com.tasky.reminderapp",
-    "productName": "Tasky",
+    "appId": "com.tasky2.taskapp",
+    "productName": "Tasky 2.0 - Task Management",
     "directories": {
       "output": "dist"
     },

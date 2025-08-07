@@ -1,0 +1,27 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "composite": true,
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "outDir": "src/renderer/dist",
+    "rootDir": "src",
+    "noEmit": false,
+    "jsx": "react-jsx",
+    "types": ["react", "react-dom"],
+    "declaration": true,
+    "declarationMap": true
+  },
+  "include": [
+    "src/renderer/**/*",
+    "src/components/**/*",
+    "src/lib/**/*",
+    "src/types/**/*"
+  ],
+  "exclude": [
+    "src/main.ts",
+    "src/preload.ts",
+    "src/electron/**/*"
+  ]
+}

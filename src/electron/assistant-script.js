@@ -1,5 +1,5 @@
 
-const character = document.getElementById('clippy-character');
+const character = document.getElementById('tasky-character');
 const bubble = document.getElementById('notification-bubble');
 const { ipcRenderer } = require('electron');
 
@@ -12,12 +12,42 @@ let notificationTextColor = '#ffffff';
 // Simple IPC handlers
 ipcRenderer.on('set-initial-avatar', (event, data) => {
   if (character && data && data.avatars && data.selectedAvatar) {
-    const avatarChar = data.avatars[data.selectedAvatar] || data.avatars['Clippy'] || 'C';
-    character.textContent = avatarChar;
+    if (data.selectedAvatar === 'Tasky') {
+      // Use the proper Tasky image instead of emoji
+      character.innerHTML = '';
+      
+      // Request tasky.png data URL from main process
+      ipcRenderer.invoke('get-tasky-avatar-data-url').then(dataUrl => {
+        if (dataUrl) {
+          const img = document.createElement('img');
+          img.src = dataUrl;
+          img.style.width = '80px';
+          img.style.height = '80px';
+          img.style.objectFit = 'cover';
+          img.style.display = 'block';
+          img.style.webkitUserSelect = 'none';
+          img.style.mozUserSelect = 'none';
+          img.style.msUserSelect = 'none';
+          img.style.userSelect = 'none';
+          img.style.webkitAppRegion = 'drag';
+          img.draggable = false;
+          character.appendChild(img);
+        } else {
+          console.error('Failed to load Tasky image, falling back to emoji');
+          character.textContent = '🤖';
+        }
+      }).catch(error => {
+        console.error('Failed to load Tasky avatar data URL:', error);
+        character.textContent = '🤖';
+      });
+    } else {
+      const avatarChar = data.avatars[data.selectedAvatar] || '🤖';
+      character.textContent = avatarChar;
+    }
   }
 });
 
-ipcRenderer.on('clippy-speak', (event, message) => {
+ipcRenderer.on('tasky-speak', (event, message) => {
   if (bubble) {
     bubble.style.position = 'absolute';
     bubble.style.background = notificationColor;
@@ -67,35 +97,49 @@ ipcRenderer.on('clippy-speak', (event, message) => {
   }
 });
 
-ipcRenderer.on('clippy-change-avatar', (event, avatarName) => {
+ipcRenderer.on('tasky-change-avatar', (event, avatarName) => {
   if (character) {
     // Update the avatar display based on the name
-    // DISCLAIMER: The 'Clippy' character is a fan art tribute to Microsoft's Office Assistant.
-    // This is an educational/personal project not affiliated with Microsoft Corporation.
-    // All trademarks are property of their respective owners.
-    const avatars = {
-      'Clippy': '📎',
-      'Merlin': '🧙‍♂️',
-      'Rover': '🐕',
-      'Genie': '🧞‍♂️',
-      'Rocky': '🗿',
-      'Bonzi': '🐵',
-      'Peedy': '🦜',
-      'Links': '⛳',
-      'Custom': ''
-    };
-    
-    if (avatarName === 'Custom' || avatarName.startsWith('custom_')) {
+    // The Tasky assistant is the official mascot for this task management application
+    if (avatarName === 'Tasky') {
+      // Use the proper Tasky image
+      character.innerHTML = '';
+      
+      // Request tasky.png data URL from main process
+      ipcRenderer.invoke('get-tasky-avatar-data-url').then(dataUrl => {
+        if (dataUrl) {
+          const img = document.createElement('img');
+          img.src = dataUrl;
+          img.style.width = '80px';
+          img.style.height = '80px';
+          img.style.objectFit = 'cover';
+          img.style.display = 'block';
+          img.style.webkitUserSelect = 'none';
+          img.style.mozUserSelect = 'none';
+          img.style.msUserSelect = 'none';
+          img.style.userSelect = 'none';
+          img.style.webkitAppRegion = 'drag';
+          img.draggable = false;
+          character.appendChild(img);
+        } else {
+          console.error('Failed to load Tasky image, falling back to emoji');
+          character.textContent = '🤖';
+        }
+      }).catch(error => {
+        console.error('Failed to load Tasky avatar data URL:', error);
+        character.textContent = '🤖';
+      });
+    } else if (avatarName === 'Custom' || avatarName.startsWith('custom_')) {
       // Custom avatar will be handled by separate IPC message
       character.textContent = '';
     } else {
-      const avatarChar = avatars[avatarName] || avatars['Clippy'];
-      character.textContent = avatarChar;
+      // Fallback to robot emoji for other cases
+      character.textContent = '🤖';
     }
   }
 });
 
-ipcRenderer.on('clippy-set-custom-avatar', (event, filePath) => {
+ipcRenderer.on('tasky-set-custom-avatar', (event, filePath) => {
   if (character && filePath) {
     character.innerHTML = '';
     character.textContent = '';
@@ -125,7 +169,7 @@ ipcRenderer.on('clippy-set-custom-avatar', (event, filePath) => {
 });
 
 ipcRenderer.on('set-dragging-mode', (event, enabled) => {
-  const container = document.getElementById('clippy-container');
+  const container = document.getElementById('tasky-container');
   
   if (container && character) {
     if (enabled) {
@@ -159,7 +203,7 @@ ipcRenderer.on('toggle-animation', (event, enabled) => {
   }
 });
 
-ipcRenderer.on('clippy-set-bubble-side', (event, side) => {
+ipcRenderer.on('tasky-set-bubble-side', (event, side) => {
   bubbleSide = side;
   console.log('Bubble side changed to:', side);
   
@@ -175,17 +219,17 @@ ipcRenderer.on('clippy-set-bubble-side', (event, side) => {
   }
 });
 
-ipcRenderer.on('clippy-set-notification-color', (event, color) => {
+ipcRenderer.on('tasky-set-notification-color', (event, color) => {
   notificationColor = color;
   console.log('Notification color changed to:', color);
 });
 
-ipcRenderer.on('clippy-set-notification-font', (event, font) => {
+ipcRenderer.on('tasky-set-notification-font', (event, font) => {
   notificationFont = font;
   console.log('Notification font changed to:', font);
 });
 
-ipcRenderer.on('clippy-set-notification-text-color', (event, color) => {
+ipcRenderer.on('tasky-set-notification-text-color', (event, color) => {
   notificationTextColor = color;
   console.log('Notification text color changed to:', color);
 });

@@ -1,0 +1,27 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "composite": true,
+    "target": "ES2020",
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "outDir": ".vite/build",
+    "rootDir": "src",
+    "noEmit": false,
+    "jsx": "preserve",
+    "types": ["node", "electron"],
+    "declaration": true,
+    "declarationMap": true
+  },
+  "include": [
+    "src/main.ts",
+    "src/preload.ts",
+    "src/electron/**/*",
+    "src/lib/**/*",
+    "src/types/**/*"
+  ],
+  "exclude": [
+    "src/renderer/**/*",
+    "src/components/**/*"
+  ]
+}
