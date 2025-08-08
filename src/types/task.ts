@@ -23,6 +23,9 @@ export interface TaskyTaskSchema {
   affectedFiles?: string[];
   estimatedDuration?: number; // in minutes
   dependencies?: string[]; // Task IDs this task depends on
+  // Development-task specific (optional)
+  assignedAgent?: string; // e.g., "claude" | "gpt-4o" | user-defined
+  executionPath?: string; // e.g., "src/middleware"
 }
 
 // Main Task interface for Tasky
@@ -31,7 +34,6 @@ export interface TaskyTask {
   status: TaskStatus;
   humanApproved: boolean;
   result?: string;
-  notes?: string;
   completedAt?: Date;
   
   // Tasky-specific features
@@ -219,6 +221,9 @@ export interface CreateTaskInput {
   dependencies?: string[];
   reminderEnabled?: boolean;
   reminderTime?: string;
+  // Development-task extras
+  assignedAgent?: string;
+  executionPath?: string;
 }
 
 export interface UpdateTaskInput {
@@ -230,9 +235,11 @@ export interface UpdateTaskInput {
   estimatedDuration?: number;
   dependencies?: string[];
   status?: TaskStatus;
-  notes?: string;
   reminderEnabled?: boolean;
   reminderTime?: string;
+  // Development-task extras
+  assignedAgent?: string;
+  executionPath?: string;
 }
 
 // Result wrapper type

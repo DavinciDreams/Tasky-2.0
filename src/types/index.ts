@@ -93,6 +93,7 @@ export interface ElectronAPI {
   analyzeTasksOverview: () => Promise<any>;
   exportTasks: () => Promise<any>;
   importTasks: (importData: any) => Promise<any[]>;
+  executeTask: (id: string, options?: { agent?: 'claude' | 'gemini' }) => Promise<any>;
   
   // Task-reminder integration
   convertReminderToTask: (reminderId: string) => Promise<any>;

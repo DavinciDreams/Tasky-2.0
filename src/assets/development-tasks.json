@@ -1,0 +1,107 @@
+[
+  {
+    "title": "Refactor authentication middleware",
+    "description": "The current authentication middleware is tightly coupled and difficult to test. Refactor to use dependency injection and make it more modular.",
+    "assignedAgent": "claude",
+    "affectedFiles": [
+      "src/middleware/auth.middleware.ts",
+      "src/guards/jwt.guard.ts",
+      "src/decorators/roles.decorator.ts",
+      "tests/auth.middleware.test.ts"
+    ],
+    "executionPath": "src/middleware"
+    
+  },
+  {
+    "title": "Implement lazy loading for dashboard widgets",
+    "description": "Dashboard loads all widgets at once causing slow initial load. Implement lazy loading to improve performance and user experience.",
+    "assignedAgent": "auto",
+    "affectedFiles": [
+      "src/components/Dashboard.tsx",
+      "src/components/widgets/LazyWidget.tsx",
+      "src/hooks/useLazyLoad.ts",
+      "src/utils/intersection-observer.ts"
+    ],
+    "executionPath": "src/components"
+    
+  },
+  {
+    "title": "Add Redis caching layer",
+    "description": "Implement Redis caching for frequently accessed data to reduce database load and improve response times.",
+    "assignedAgent": "gemini",
+    "affectedFiles": [
+      "src/services/cache.service.ts",
+      "src/config/redis.config.ts",
+      "src/decorators/cache.decorator.ts",
+      "docker-compose.yml"
+    ],
+    "executionPath": "src/services"
+    
+  },
+  {
+    "title": "Implement WebSocket connection pooling",
+    "description": "Current WebSocket implementation doesn't handle connection pooling efficiently. Add connection pooling and reconnection logic.",
+    "assignedAgent": "claude",
+    "affectedFiles": [
+      "src/websockets/connection-pool.ts",
+      "src/websockets/websocket.gateway.ts",
+      "src/services/websocket.service.ts",
+      "client/src/hooks/useWebSocket.ts"
+    ],
+    "executionPath": "src/websockets"
+    
+  },
+  {
+    "title": "Add comprehensive error logging",
+    "description": "Implement structured logging with error tracking, performance metrics, and user activity monitoring using Winston and Sentry.",
+    "assignedAgent": "auto",
+    "affectedFiles": [
+      "src/utils/logger.ts",
+      "src/interceptors/logging.interceptor.ts",
+      "src/filters/http-exception.filter.ts",
+      "src/config/sentry.config.ts"
+    ],
+    "executionPath": "src/utils"
+    
+  },
+  {
+    "title": "Optimize bundle size with code splitting",
+    "description": "Application bundle is too large. Implement route-based code splitting and lazy loading to reduce initial bundle size.",
+    "assignedAgent": "gemini",
+    "affectedFiles": [
+      "webpack.config.js",
+      "src/routes/index.ts",
+      "src/components/LazyRoutes.tsx",
+      "package.json"
+    ],
+    "executionPath": "src/routes"
+    
+  },
+  {
+    "title": "Add internationalization (i18n) support",
+    "description": "Implement multi-language support for the application with React-i18next. Start with English, Spanish, and French.",
+    "assignedAgent": "claude",
+    "affectedFiles": [
+      "src/i18n/index.ts",
+      "src/locales/en.json",
+      "src/locales/es.json",
+      "src/locales/fr.json",
+      "src/hooks/useTranslation.ts"
+    ],
+    "executionPath": "src/i18n"
+    
+  },
+  {
+    "title": "Implement automated database migrations",
+    "description": "Set up automated database migration system with rollback capabilities for safe production deployments.",
+    "assignedAgent": "auto",
+    "affectedFiles": [
+      "src/database/migrations/",
+      "src/database/migration.service.ts",
+      "scripts/migrate.sh",
+      "package.json"
+    ],
+    "executionPath": "src/database"
+    
+  }
+]

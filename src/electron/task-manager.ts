@@ -1,5 +1,6 @@
 import { ipcMain, app, Notification } from 'electron';
 import * as path from 'path';
+import * as fs from 'fs';
 import { TaskyEngine } from '../core/task-manager/tasky-engine';
 import { TaskyTask, TaskyTaskSchema, TaskStatus, CreateTaskInput, UpdateTaskInput } from '../types/task';
 
@@ -8,8 +9,15 @@ export class ElectronTaskManager {
   private notificationManager: TaskNotificationManager;
 
   constructor() {
-    const tasksPath = path.join(app.getPath('userData'), 'tasks.json');
-    this.engine = new TaskyEngine(tasksPath);
+    // Prefer a shared path so MCP and Electron read/write the same store
+    const envTasksPath = process.env.TASKY_TASKS_PATH;
+    const resolvedTasksPath = envTasksPath
+      ? path.isAbsolute(envTasksPath)
+        ? envTasksPath
+        : path.join(process.cwd(), envTasksPath)
+      : path.join(app.getPath('userData'), 'tasky-tasks.json');
+
+    this.engine = new TaskyEngine(resolvedTasksPath);
     this.notificationManager = new TaskNotificationManager();
     this.setupIpcHandlers();
   }
@@ -75,6 +83,10 @@ export class ElectronTaskManager {
         return result.data;
       } catch (error) {
         console.error('Error deleting task:', error);
+        // Attempt a soft-reload of tasks storage and report a friendly error
+        try {
+          await this.engine.initialize();
+        } catch {}
         throw error;
       }
     });
@@ -215,6 +227,64 @@ export class ElectronTaskManager {
         return results;
       } catch (error) {
         console.error('Error importing tasks:', error);
+        throw error;
+      }
+    });
+
+    // Execute a task in an external terminal via assigned agent
+    ipcMain.handle('task:execute', async (event, id: string, options?: { agent?: 'claude' | 'gemini' }) => {
+      try {
+        const taskResult = await this.engine.getTask(id);
+        if (!taskResult.success || !taskResult.data) {
+          throw new Error(taskResult.error || 'Failed to get task');
+        }
+        const task = taskResult.data;
+
+        // Quick built-in actions (no external CLI)
+        const baseDir = (() => {
+          try {
+            if (task.schema.executionPath) {
+              return path.isAbsolute(task.schema.executionPath)
+                ? task.schema.executionPath
+                : path.join(process.cwd(), task.schema.executionPath);
+            }
+          } catch {}
+          return process.cwd();
+        })();
+
+        const text = `${task.schema.title || ''}\n${task.schema.description || ''}`.toLowerCase();
+
+        // Create folder pattern: "create a folder named X" or "create folder X"
+        const folderMatch = text.match(/create\s+(?:a\s+)?(?:new\s+)?(?:folder|directory)\s+(?:named\s+)?\"?([\w\-\.\s]+)\"?/i);
+        if (folderMatch && folderMatch[1]) {
+          const rawName = folderMatch[1].trim();
+          const safeName = rawName.replace(/[\\/:*?"<>|]/g, '').trim();
+          if (!safeName) {
+            return { success: false, error: 'Invalid folder name' };
+          }
+          const target = path.join(baseDir, safeName);
+          try {
+            fs.mkdirSync(target, { recursive: true });
+            try {
+              new Notification({ title: 'Tasky', body: `Created folder: ${target}` }).show();
+            } catch {}
+            return { success: true, performed: 'mkdir', path: target };
+          } catch (e) {
+            return { success: false, error: `Failed to create folder: ${(e as Error).message}` };
+          }
+        }
+
+        // Fallback to external agent execution
+        const provider: 'claude' | 'gemini' = (options?.agent as any)
+          || (task.schema.assignedAgent?.toLowerCase() === 'claude' ? 'claude' : undefined)
+          || 'gemini';
+
+        const { AgentTerminalExecutor } = await import('./agent-executor');
+        const exec = new AgentTerminalExecutor();
+        await exec.execute(task, provider);
+        return { success: true };
+      } catch (error) {
+        console.error('Error executing task:', error);
         throw error;
       }
     });

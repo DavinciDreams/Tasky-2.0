@@ -78,10 +78,20 @@ export class TaskStorage {
       
       return { success: true, data: tasks };
     } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to load tasks'
-      };
+      // Attempt self-healing: back up corrupted file and reinitialize
+      try {
+        if (fsSync.existsSync(this.tasksFilePath)) {
+          const backupPath = this.tasksFilePath.replace('.json', `.corrupt_${Date.now()}.json`);
+          try { await fs.copyFile(this.tasksFilePath, backupPath); } catch {}
+        }
+        await this.initializeTaskFile();
+        return { success: true, data: [] };
+      } catch (e) {
+        return {
+          success: false,
+          error: e instanceof Error ? e.message : 'Failed to load tasks'
+        };
+      }
     }
   }
 

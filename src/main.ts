@@ -832,6 +832,91 @@ ipcMain.handle('get-tasky-avatar-data-url', async () => {
   }
 });
 
+// File import helpers for tasks
+ipcMain.handle('select-import-file', async () => {
+  if (!mainWindow) return null;
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: 'Select Tasks File',
+    filters: [
+      { name: 'Data Files', extensions: ['json', 'csv', 'yaml', 'yml', 'xml'] }
+    ],
+    properties: ['openFile']
+  });
+  if (result.canceled || result.filePaths.length === 0) return null;
+  return result.filePaths[0];
+});
+
+ipcMain.handle('read-import-file', async (_e, filePath: string) => {
+  try {
+    if (!fs.existsSync(filePath)) return null;
+    const buf = fs.readFileSync(filePath);
+    return `data:application/octet-stream;base64,${buf.toString('base64')}`;
+  } catch {
+    return null;
+  }
+});
+
+ipcMain.handle('parse-yaml', async (_e, text: string) => {
+  try {
+    const yaml = require('yaml');
+    return yaml.parse(text);
+  } catch {
+    return null;
+  }
+});
+
+ipcMain.handle('parse-xml', async (_e, text: string) => {
+  try {
+    const xml2js = require('xml2js');
+    let parsed: any = null;
+    await xml2js.parseStringPromise(text).then((res: any) => parsed = res);
+    return parsed;
+  } catch {
+    return null;
+  }
+});
+
+// Directory picker for executionPath
+ipcMain.handle('select-directory', async () => {
+  if (!mainWindow) return null;
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: 'Select Directory',
+    properties: ['openDirectory']
+  });
+  if (result.canceled || result.filePaths.length === 0) return null;
+  return result.filePaths[0];
+});
+
+// Multi-file picker for affectedFiles
+ipcMain.handle('select-files', async () => {
+  if (!mainWindow) return [];
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: 'Select Files',
+    properties: ['openFile', 'multiSelections']
+  });
+  if (result.canceled || result.filePaths.length === 0) return [];
+  return result.filePaths;
+});
+
+// Open terminal at a path with agent context (best-effort)
+ipcMain.handle('open-terminal', async (_e, directory: string, agent: string) => {
+  try {
+    const cwd = directory && typeof directory === 'string' ? directory : process.cwd();
+    if (process.platform === 'win32') {
+      // Open PowerShell in directory and print agent name
+      spawn('cmd.exe', ['/c', 'start', 'powershell', '-NoExit', '-Command', `Set-Location -Path \"${cwd}\"; Write-Host \"Agent: ${agent || ''}\"`], { windowsHide: false });
+    } else if (process.platform === 'darwin') {
+      spawn('open', ['-a', 'Terminal', cwd]);
+    } else {
+      spawn('x-terminal-emulator', [], { cwd, detached: true });
+    }
+    return true;
+  } catch (e) {
+    console.error('Failed to open terminal:', e);
+    return false;
+  }
+});
+
 ipcMain.on('get-upcoming-notifications', (event) => {
   console.log('Getting upcoming notifications...');
   if (store) {

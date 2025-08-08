@@ -1,18 +1,13 @@
-import React, { useState, useMemo } from 'react';
-import { TaskyTask, TaskyTaskSchema, TaskStatus } from '../../types/task';
+import React, { useState } from 'react';
+import { TaskyTask, TaskyTaskSchema } from '../../types/task';
 import { Settings } from '../../types';
-import { TaskStats } from './TaskStats';
-import { TaskFilters } from './TaskFilters';
 import { TaskForm } from './TaskForm';
 import { TaskList } from './TaskList';
+import { Button } from '../ui/button';
+import { Upload, Plus } from 'lucide-react';
+import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
 
-export interface TaskFilterOptions {
-  status?: TaskStatus[];
-  search?: string;
-  tags?: string[];
-  overdue?: boolean;
-  dueToday?: boolean;
-}
+// Simplified UI: filters removed
 
 interface TasksTabProps {
   tasks: TaskyTask[];
@@ -29,95 +24,104 @@ export const TasksTab: React.FC<TasksTabProps> = ({
   onDeleteTask,
   settings
 }) => {
-  const [filter, setFilter] = useState<TaskFilterOptions>({});
-  const [showCompleted, setShowCompleted] = useState(false);
-  const [sortBy, setSortBy] = useState<'dueDate' | 'created' | 'status'>('dueDate');
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const filteredTasks = tasks;
 
-  const filteredTasks = useMemo(() => {
-    return tasks
-      .filter(task => {
-        // Filter out completed tasks if not showing them
-        if (!showCompleted && task.status === TaskStatus.COMPLETED) return false;
-        
-        // Status filter
-        if (filter.status && filter.status.length > 0 && !filter.status.includes(task.status)) return false;
-        
-        // Search filter
-        if (filter.search) {
-          const searchLower = filter.search.toLowerCase();
-          const matchesTitle = task.schema.title.toLowerCase().includes(searchLower);
-          const matchesDescription = task.schema.description?.toLowerCase().includes(searchLower);
-          if (!matchesTitle && !matchesDescription) return false;
+  const handleImport = async () => {
+    try {
+      const filePath = await (window as any).electronAPI.invoke('select-import-file');
+      if (!filePath) return;
+      const ext = (filePath.split('.').pop() || '').toLowerCase();
+      const dataUrl = await (window as any).electronAPI.invoke('read-import-file', filePath);
+      if (!dataUrl) return;
+      const content = atob(dataUrl.split(',')[1] || '');
+      let records: any[] = [];
+      if (ext === 'json') {
+        records = JSON.parse(content);
+      } else if (ext === 'csv') {
+        const [headerLine, ...lines] = content.split(/\r?\n/).filter(Boolean);
+        const headers = headerLine.split(',').map(h => h.trim());
+        records = lines.map(line => {
+          const cols = line.split(',');
+          const obj: any = {};
+          headers.forEach((h, i) => (obj[h] = cols[i]?.trim()));
+          if (obj.affectedFiles) obj.affectedFiles = obj.affectedFiles.split('|').map((s: string) => s.trim()).filter(Boolean);
+          return obj;
+        });
+      } else if (ext === 'yaml' || ext === 'yml') {
+        const parsed = await (window as any).electronAPI.invoke('parse-yaml', content);
+        records = Array.isArray(parsed) ? parsed : [];
+      } else if (ext === 'xml') {
+        const parsed = await (window as any).electronAPI.invoke('parse-xml', content);
+        records = (parsed?.tasks?.task) || [];
+      }
+      for (const rec of records) {
+        const taskInput: any = {
+          title: rec.title,
+          description: rec.description,
+          assignedAgent: rec.assignedAgent,
+          executionPath: rec.executionPath,
+          affectedFiles: rec.affectedFiles
+        };
+        if (taskInput.title) {
+          onCreateTask(taskInput);
         }
-        
-        // Tags filter
-        if (filter.tags && filter.tags.length > 0) {
-          const taskTags = task.schema.tags || [];
-          if (!filter.tags.some(tag => taskTags.includes(tag))) return false;
-        }
-        
-        // Overdue filter
-        if (filter.overdue) {
-          const now = new Date();
-          const isOverdue = task.schema.dueDate && 
-                           task.schema.dueDate < now && 
-                           task.status !== TaskStatus.COMPLETED;
-          if (!isOverdue) return false;
-        }
-        
-        // Due today filter
-        if (filter.dueToday) {
-          const now = new Date();
-          const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-          const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
-          const isDueToday = task.schema.dueDate && 
-                            task.schema.dueDate >= today && 
-                            task.schema.dueDate < tomorrow;
-          if (!isDueToday) return false;
-        }
-        
-        return true;
-      })
-      .sort((a, b) => {
-        switch (sortBy) {
-          case 'dueDate':
-            const aDate = a.schema.dueDate?.getTime() || Infinity;
-            const bDate = b.schema.dueDate?.getTime() || Infinity;
-            return aDate - bDate;
-          case 'created':
-            return b.schema.createdAt.getTime() - a.schema.createdAt.getTime();
-          case 'status':
-            return a.status.localeCompare(b.status);
-          default:
-            return 0;
-        }
-      });
-  }, [tasks, filter, showCompleted, sortBy]);
+      }
+    } catch (e) {
+      console.error('Import failed:', e);
+    }
+  };
 
   return (
     <div className="tasks-tab p-6 space-y-6">
       <div className="tasks-header">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+        <h1 className="text-2xl font-bold text-card-foreground">
           📋 Task Management
         </h1>
-        <p className="text-gray-600 dark:text-gray-400 mt-1">
+        <p className="text-muted-foreground mt-1">
           Organize and track your tasks efficiently
         </p>
+        <div className="mt-4 flex items-center justify-center gap-3">
+          <Button 
+            onClick={() => setShowCreateModal(true)}
+            className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-elegant rounded-xl px-4 py-2 flex items-center gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            <span className="font-semibold">New Task</span>
+          </Button>
+          <Button 
+            variant="outline"
+            onClick={handleImport}
+            className="border-border/40 hover:bg-secondary/20 rounded-xl px-4 py-2 flex items-center gap-2"
+          >
+            <Upload className="h-4 w-4" />
+            <span className="font-semibold">Import</span>
+          </Button>
+        </div>
       </div>
 
-      <TaskStats tasks={tasks} />
+      {/* Removed Task Overview and Filters per request */}
       
-      <TaskFilters 
-        filter={filter} 
-        onFilterChange={setFilter}
-        sortBy={sortBy}
-        onSortChange={setSortBy}
-        showCompleted={showCompleted}
-        onShowCompletedChange={setShowCompleted}
-        availableTags={Array.from(new Set(tasks.flatMap(t => t.schema.tags || [])))}
-      />
-      
-      <TaskForm onCreateTask={onCreateTask} />
+      {/* Modal create form */}
+      {showCreateModal && (
+        <div className="fixed inset-0 z-50 bg-background flex items-stretch justify-stretch p-0">
+          <div className="w-full h-full">
+            <Card className="rounded-none shadow-none h-full flex flex-col bg-background text-foreground border-0">
+              <CardHeader className="pb-2 flex items-center justify-between border-b border-border/20 bg-background">
+                <CardTitle className="text-lg font-semibold text-foreground">Create New Task</CardTitle>
+                <button onClick={() => setShowCreateModal(false)} className="text-muted-foreground hover:text-foreground text-xl leading-none">×</button>
+              </CardHeader>
+              <CardContent className="pt-4 pb-4 overflow-y-auto flex-1 bg-background">
+                <TaskForm 
+                  forceExpanded 
+                  onCreateTask={(t) => { onCreateTask(t); setShowCreateModal(false); }}
+                  onCancel={() => setShowCreateModal(false)}
+                />
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
       
       <TaskList 
         tasks={filteredTasks}

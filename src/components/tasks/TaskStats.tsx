@@ -39,32 +39,14 @@ const StatCard: React.FC<StatCardProps> = ({ label, value, icon, color }) => {
 
 export const TaskStats: React.FC<TaskStatsProps> = ({ tasks }) => {
   const stats = useMemo(() => {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
-    
     return {
       total: tasks.length,
       pending: tasks.filter(t => t.status === TaskStatus.PENDING).length,
       inProgress: tasks.filter(t => t.status === TaskStatus.IN_PROGRESS).length,
       completed: tasks.filter(t => t.status === TaskStatus.COMPLETED).length,
-      needsReview: tasks.filter(t => t.status === TaskStatus.NEEDS_REVIEW).length,
-      overdue: tasks.filter(t => 
-        t.schema.dueDate && 
-        t.schema.dueDate < now && 
-        t.status !== TaskStatus.COMPLETED &&
-        t.status !== TaskStatus.ARCHIVED
-      ).length,
-      dueToday: tasks.filter(t => 
-        t.schema.dueDate && 
-        t.schema.dueDate >= today && 
-        t.schema.dueDate < tomorrow &&
-        t.status !== TaskStatus.COMPLETED &&
-        t.status !== TaskStatus.ARCHIVED
-      ).length
+      needsReview: tasks.filter(t => t.status === TaskStatus.NEEDS_REVIEW).length
     };
   }, [tasks]);
-
   const completionRate = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
 
   return (
@@ -73,20 +55,16 @@ export const TaskStats: React.FC<TaskStatsProps> = ({ tasks }) => {
         <CardTitle className="flex items-center gap-2">
           <BarChart3 className="h-5 w-5" />
           Task Overview
-          <span className="ml-auto text-sm font-normal text-gray-500">
-            {completionRate}% completed
-          </span>
+          <span className="ml-auto text-sm font-normal text-gray-500">{completionRate}% completed</span>
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
           <StatCard label="Total" value={stats.total} icon="📊" color="blue" />
           <StatCard label="Pending" value={stats.pending} icon="⏳" color="yellow" />
           <StatCard label="In Progress" value={stats.inProgress} icon="🔄" color="blue" />
           <StatCard label="Completed" value={stats.completed} icon="✅" color="green" />
           <StatCard label="Needs Review" value={stats.needsReview} icon="👀" color="purple" />
-          <StatCard label="Overdue" value={stats.overdue} icon="🚨" color="red" />
-          <StatCard label="Due Today" value={stats.dueToday} icon="📅" color="orange" />
         </div>
       </CardContent>
     </Card>

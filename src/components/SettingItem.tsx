@@ -22,8 +22,8 @@ export const SettingItem: React.FC<SettingItemProps> = ({
   options = [] 
 }) => {
   return (
-    <div className="flex items-center justify-between py-4 px-3 rounded-lg hover:bg-muted/30 transition-colors duration-200 min-h-[72px]">
-      <div className="flex items-center space-y-0 gap-4">
+    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 py-4 px-4 rounded-xl hover:bg-muted/30 transition-colors duration-200 min-h-[72px]">
+      <div className="flex items-start gap-4">
         <div className="flex items-center justify-center w-10 h-10 flex-shrink-0">
           <span className="text-lg">{icon}</span>
         </div>
@@ -39,7 +39,7 @@ export const SettingItem: React.FC<SettingItemProps> = ({
         </div>
       </div>
       
-      <div className="flex-shrink-0 flex items-center">
+      <div className="flex-shrink-0 flex items-center sm:mt-0">
         {type === 'switch' && !options.length && (
           <CustomSwitch
             checked={value}
@@ -70,7 +70,7 @@ export const SettingItem: React.FC<SettingItemProps> = ({
           <Select 
             value={value} 
             onValueChange={onChange}
-            className="w-[160px]"
+            className="min-w-[160px]"
             style={{ fontFamily: options.find(opt => opt.value === value)?.fontFamily }}
           >
             {options.map(option => (

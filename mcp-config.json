@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "tasky": {
+      "command": "node",
+      "args": ["./tasky-mcp-agent/dist/index.js"],
+      "cwd": ".",
+      "env": {
+        "NODE_ENV": "production",
+        "TASKY_TASKS_PATH": "./data/tasky-tasks.json",
+        "TASKY_CONFIG_PATH": "./data/tasky-config-v2.json"
+      }
+    }
+  }
+} 

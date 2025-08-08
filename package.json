@@ -81,7 +81,9 @@
     "node-cron": "^3.0.3",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "tailwind-merge": "^3.3.1"
+    "tailwind-merge": "^3.3.1",
+    "xml2js": "^0.6.2",
+    "yaml": "^2.5.1"
   },
   "build": {
     "appId": "com.tasky2.taskapp",

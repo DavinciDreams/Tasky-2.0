@@ -2,20 +2,41 @@ import React from "react";
 
 interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode;
+  className?: string;
 }
 
-export function Card({ children, ...props }: CardProps) {
-  return <div className="bg-white dark:bg-zinc-900 rounded-lg shadow p-4" {...props}>{children}</div>;
+export function Card({ children, className = "", ...props }: CardProps) {
+  const base = "bg-card text-card-foreground border border-border/30 rounded-2xl shadow-xl";
+  return (
+    <div className={`${base} ${className}`} {...props}>
+      {children}
+    </div>
+  );
 }
 
-export function CardHeader({ children, ...props }: CardProps) {
-  return <div className="mb-2 font-bold text-lg" {...props}>{children}</div>;
+export function CardHeader({ children, className = "", ...props }: CardProps) {
+  const base = "px-6 pt-6 pb-4";
+  return (
+    <div className={`${base} ${className}`} {...props}>
+      {children}
+    </div>
+  );
 }
 
-export function CardTitle({ children, ...props }: CardProps) {
-  return <div className="text-xl font-semibold" {...props}>{children}</div>;
+export function CardTitle({ children, className = "", ...props }: CardProps) {
+  const base = "text-xl font-semibold";
+  return (
+    <div className={`${base} ${className}`} {...props}>
+      {children}
+    </div>
+  );
 }
 
-export function CardContent({ children, ...props }: CardProps) {
-  return <div className="mt-2" {...props}>{children}</div>;
+export function CardContent({ children, className = "", ...props }: CardProps) {
+  const base = "px-6 pb-6";
+  return (
+    <div className={`${base} ${className}`} {...props}>
+      {children}
+    </div>
+  );
 }

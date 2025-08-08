@@ -1,20 +1,19 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { TaskyTask, TaskStatus } from '../../types/task';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
+import { TaskForm } from './TaskForm';
 import { Badge } from '../ui/badge';
 import { 
   CheckCircle2, 
   Circle, 
-  Clock, 
-  Calendar, 
   Edit2, 
   Trash2, 
   Play, 
-  Pause,
-  Eye,
   Archive,
-  AlertTriangle 
+  FileText,
+  FolderOpen,
+  User
 } from 'lucide-react';
 
 interface TaskListProps {
@@ -32,7 +31,6 @@ interface TaskItemProps {
 }
 
 const TaskItem: React.FC<TaskItemProps> = ({ task, onUpdateTask, onDeleteTask, timeFormat }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
 
   const getStatusIcon = (status: TaskStatus) => {
     switch (status) {
@@ -41,7 +39,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onUpdateTask, onDeleteTask, t
       case TaskStatus.IN_PROGRESS:
         return <Play className="h-5 w-5 text-blue-500" />;
       case TaskStatus.NEEDS_REVIEW:
-        return <Eye className="h-5 w-5 text-purple-500" />;
+        return <Circle className="h-5 w-5 text-purple-500" />;
       case TaskStatus.ARCHIVED:
         return <Archive className="h-5 w-5 text-gray-500" />;
       default:
@@ -52,15 +50,15 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onUpdateTask, onDeleteTask, t
   const getStatusColor = (status: TaskStatus) => {
     switch (status) {
       case TaskStatus.COMPLETED:
-        return 'bg-green-100 text-green-800 border-green-300';
+        return 'bg-green-500/15 text-green-400 border-green-500/30';
       case TaskStatus.IN_PROGRESS:
-        return 'bg-blue-100 text-blue-800 border-blue-300';
+        return 'bg-blue-500/15 text-blue-400 border-blue-500/30';
       case TaskStatus.NEEDS_REVIEW:
-        return 'bg-purple-100 text-purple-800 border-purple-300';
+        return 'bg-purple-500/15 text-purple-400 border-purple-500/30';
       case TaskStatus.ARCHIVED:
-        return 'bg-gray-100 text-gray-800 border-gray-300';
+        return 'bg-neutral-500/15 text-neutral-300 border-neutral-500/30';
       default:
-        return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+        return 'bg-yellow-500/15 text-yellow-300 border-yellow-500/30';
     }
   };
 
@@ -106,12 +104,12 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onUpdateTask, onDeleteTask, t
     handleStatusChange(newStatus);
   };
 
-  const dueDateInfo = task.schema.dueDate ? formatDueDate(task.schema.dueDate) : null;
+  const dueDateInfo = null;
 
   return (
-    <Card className={`task-item ${task.status === TaskStatus.COMPLETED ? 'opacity-75' : ''}`}>
-      <CardContent className="p-4">
-        <div className="flex items-start gap-3">
+    <Card className={`task-item bg-card text-card-foreground border border-border/30 rounded-2xl shadow-xl hover:shadow-2xl transition-all ${task.status === TaskStatus.COMPLETED ? 'opacity-80' : ''}`}>
+      <CardContent className="p-5">
+        <div className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4">
           {/* Status Icon */}
           <button
             onClick={handleToggleComplete}
@@ -121,136 +119,128 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onUpdateTask, onDeleteTask, t
           </button>
 
           {/* Main Content */}
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 w-full">
             {/* Title and Status */}
-            <div className="flex items-center gap-2 mb-2">
-              <h3 className={`font-medium text-gray-900 dark:text-gray-100 ${
+            <div className="flex items-center gap-2 sm:gap-3 mb-2 flex-wrap">
+              <h3 className={`font-semibold text-card-foreground ${
                 task.status === TaskStatus.COMPLETED ? 'line-through' : ''
               }`}>
                 {task.schema.title}
               </h3>
               
-              <Badge className={`text-xs ${getStatusColor(task.status)}`}>
+              <Badge className={`text-xs border ${getStatusColor(task.status)} rounded-lg px-2 py-0.5`}> 
                 {task.status.replace('_', ' ').toLowerCase()}
               </Badge>
             </div>
 
-            {/* Due Date */}
-            {dueDateInfo && (
-              <div className={`flex items-center gap-1 text-sm mb-2 ${
-                dueDateInfo.isOverdue ? 'text-red-600' : 
-                dueDateInfo.isToday ? 'text-orange-600' : 'text-gray-600'
-              }`}>
-                {dueDateInfo.isOverdue && <AlertTriangle className="h-4 w-4" />}
-                <Calendar className="h-4 w-4" />
-                <span>{dueDateInfo.text}</span>
-              </div>
-            )}
-
-            {/* Tags */}
-            {task.schema.tags && task.schema.tags.length > 0 && (
-              <div className="flex flex-wrap gap-1 mb-2">
-                {task.schema.tags.map(tag => (
-                  <span
-                    key={tag}
-                    className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded-full"
-                  >
-                    #{tag}
-                  </span>
-                ))}
-              </div>
-            )}
-
-            {/* Description (expandable) */}
-            {task.schema.description && (
-              <div className="mb-2">
-                <p className={`text-sm text-gray-600 dark:text-gray-400 ${
-                  !isExpanded ? 'line-clamp-2' : ''
-                }`}>
-                  {task.schema.description}
-                </p>
-                {task.schema.description.length > 100 && (
-                  <button
-                    onClick={() => setIsExpanded(!isExpanded)}
-                    className="text-xs text-blue-600 hover:text-blue-800 mt-1"
-                  >
-                    {isExpanded ? 'Show less' : 'Show more'}
-                  </button>
+            {/* Dev task details */}
+            {(task.schema.assignedAgent || task.schema.executionPath) && (
+              <div className="flex flex-wrap items-center gap-2 text-xs mb-3">
+                {task.schema.assignedAgent && (
+                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-border/30 bg-secondary/30"><User className="h-3 w-3" />{task.schema.assignedAgent}</span>
+                )}
+                {task.schema.executionPath && (
+                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-border/30 bg-secondary/30"><FolderOpen className="h-3 w-3" />{task.schema.executionPath}</span>
                 )}
               </div>
             )}
 
-            {/* Duration */}
-            {task.schema.estimatedDuration && (
-              <div className="flex items-center gap-1 text-sm text-gray-600 mb-2">
-                <Clock className="h-4 w-4" />
-                <span>{task.schema.estimatedDuration} minutes</span>
+            {/* Description removed per request */}
+
+            {/* Affected files */}
+            {task.schema.affectedFiles && task.schema.affectedFiles.length > 0 && (
+              <div className="mb-2">
+                <div className="flex items-center gap-1 text-sm text-muted-foreground mb-1">
+                  <FileText className="h-4 w-4" />
+                  <span>Affected files</span>
+                </div>
+                <div className="rounded-xl border border-border/30 bg-background/60 p-3">
+                  <ul className="space-y-1 font-mono text-xs sm:text-sm text-foreground/90">
+                    {task.schema.affectedFiles.map(f => (
+                      <li key={f} className="truncate">{f}</li>
+                    ))}
+                  </ul>
+                </div>
               </div>
             )}
           </div>
 
           {/* Action Buttons */}
-          <div className="flex flex-col gap-1">
-            {/* Status Change Buttons */}
-            {task.status !== TaskStatus.IN_PROGRESS && task.status !== TaskStatus.COMPLETED && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => handleStatusChange(TaskStatus.IN_PROGRESS)}
-                className="h-8 w-8 p-0"
-                title="Start Task"
-              >
-                <Play className="h-4 w-4" />
-              </Button>
-            )}
-            
-            {task.status === TaskStatus.IN_PROGRESS && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => handleStatusChange(TaskStatus.PENDING)}
-                className="h-8 w-8 p-0"
-                title="Pause Task"
-              >
-                <Pause className="h-4 w-4" />
-              </Button>
-            )}
-
-            {task.status === TaskStatus.IN_PROGRESS && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => handleStatusChange(TaskStatus.NEEDS_REVIEW)}
-                className="h-8 w-8 p-0"
-                title="Mark for Review"
-              >
-                <Eye className="h-4 w-4" />
-              </Button>
-            )}
+          <div className="flex flex-row flex-wrap items-center gap-3 mt-2 sm:mt-0">
+            {/* Removed: Start and Pause buttons per request */}
+            {/* Removed: Mark for Review button per request */}
 
             {/* Edit Button */}
             <Button
-              size="sm"
+              size="icon"
               variant="outline"
-              className="h-8 w-8 p-0"
+              className="rounded-xl"
               title="Edit Task"
               onClick={() => {
-                // TODO: Implement edit functionality
-                console.log('Edit task:', task.schema.id);
+                // Open a simple inline modal editor using TaskForm
+                const modalId = `task-edit-${task.schema.id}`;
+                const existing = document.getElementById(modalId);
+                if (existing) existing.remove();
+                const container = document.createElement('div');
+                container.id = modalId;
+                container.className = 'fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4';
+                document.body.appendChild(container);
+                // Mount a React portal
+                // @ts-ignore
+                const ReactDOM = require('react-dom');
+                const Editor: React.FC = () => (
+                  <div className="w-full max-w-2xl">
+                    <div className="bg-card text-card-foreground rounded-2xl border border-border/30 shadow-2xl">
+                      <div className="px-6 py-4 border-b border-border/20 flex items-center justify-between">
+                        <div className="text-lg font-semibold">Edit Task</div>
+                        <button onClick={() => { container.remove(); }} className="text-muted-foreground hover:text-foreground text-xl leading-none">×</button>
+                      </div>
+                      <div className="p-6">
+                        <TaskForm
+                          forceExpanded
+                          initial={task.schema as any}
+                          submitLabel="Save Changes"
+                          onSubmitOverride={async (updates) => {
+                            await window.electronAPI.updateTask(task.schema.id, { schema: updates } as any);
+                            container.remove();
+                          }}
+                          onCancel={() => container.remove()}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+                // @ts-ignore
+                ReactDOM.render(React.createElement(Editor), container);
               }}
             >
-              <Edit2 className="h-4 w-4" />
+              <Edit2 className="h-5 w-5" />
+            </Button>
+
+            {/* Execute Button */
+            }
+            <Button
+              size="icon"
+              variant="outline"
+              className="rounded-xl"
+              title="Execute Task"
+              onClick={() => {
+                const provider = (task.schema.assignedAgent || '').toLowerCase() === 'claude' ? 'claude' : 'gemini';
+                window.electronAPI?.executeTask?.(task.schema.id, { agent: provider }).catch(console.error);
+              }}
+            >
+              <Play className="h-5 w-5" />
             </Button>
 
             {/* Delete Button */}
             <Button
-              size="sm"
+              size="icon"
               variant="outline"
-              className="h-8 w-8 p-0 text-red-600 hover:text-red-800 hover:bg-red-50"
+              className="rounded-xl text-red-600 hover:text-red-800 hover:bg-red-50"
               title="Delete Task"
               onClick={() => onDeleteTask(task.schema.id)}
             >
-              <Trash2 className="h-4 w-4" />
+              <Trash2 className="h-5 w-5" />
             </Button>
           </div>
         </div>
@@ -262,17 +252,13 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onUpdateTask, onDeleteTask, t
 export const TaskList: React.FC<TaskListProps> = ({ tasks, onUpdateTask, onDeleteTask, timeFormat }) => {
   if (tasks.length === 0) {
     return (
-      <Card className="task-list-empty">
-        <CardContent className="p-8 text-center">
-          <div className="text-gray-400 mb-4">
+      <Card className="task-list-empty bg-card text-card-foreground border border-border/30 rounded-2xl shadow-xl">
+        <CardContent className="p-10 text-center">
+          <div className="text-muted-foreground mb-4">
             <CheckCircle2 className="h-12 w-12 mx-auto" />
           </div>
-          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
-            No tasks found
-          </h3>
-          <p className="text-gray-600 dark:text-gray-400">
-            Create your first task to get started with task management.
-          </p>
+          <h3 className="text-lg font-semibold mb-2">No tasks found</h3>
+          <p className="text-muted-foreground">Create your first task to get started with task management.</p>
         </CardContent>
       </Card>
     );

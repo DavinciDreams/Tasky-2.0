@@ -1,0 +1,21 @@
+- title: Refactor authentication middleware
+  description: >-
+    The current authentication middleware is tightly coupled and difficult to test.
+    Refactor to use dependency injection and make it more modular.
+  assignedAgent: claude
+  affectedFiles:
+    - src/middleware/auth.middleware.ts
+    - src/guards/jwt.guard.ts
+    - src/decorators/roles.decorator.ts
+    - tests/auth.middleware.test.ts
+  executionPath: src/middleware
+
+- title: Improve task import UX
+  description: Add multi-format imports (JSON, CSV, YAML, XML) and a modal-based create form.
+  assignedAgent: gpt-4o
+  affectedFiles:
+    - src/renderer/App.tsx
+    - src/components/tasks/TaskForm.tsx
+    - src/main.ts
+  executionPath: src
+

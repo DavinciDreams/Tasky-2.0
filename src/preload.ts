@@ -44,6 +44,7 @@ const electronAPI: ElectronAPI = {
   analyzeTasksOverview: () => ipcRenderer.invoke('task:analyze'),
   exportTasks: () => ipcRenderer.invoke('task:export'),
   importTasks: (importData) => ipcRenderer.invoke('task:import', importData),
+  executeTask: (id, options) => ipcRenderer.invoke('task:execute', id, options),
   
   // Task-reminder integration
   // Removed per scope: no reminder↔task conversion

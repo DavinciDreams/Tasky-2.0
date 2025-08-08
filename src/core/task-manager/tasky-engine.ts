@@ -149,7 +149,9 @@ export class TaskyEngine {
           tags: input.tags || [],
           affectedFiles: input.affectedFiles || [],
           estimatedDuration: input.estimatedDuration,
-          dependencies: input.dependencies || []
+          dependencies: input.dependencies || [],
+          assignedAgent: input.assignedAgent,
+          executionPath: input.executionPath
         },
         status: TaskStatus.PENDING,
         humanApproved: false,
@@ -198,13 +200,50 @@ export class TaskyEngine {
       const previousStatus = existingTask.status;
       const now = new Date();
 
-      // Prepare updates
+      // Separate schema vs top-level updates to avoid polluting the root
+      const schemaFieldNames = new Set<keyof TaskyTaskSchema>([
+        'title',
+        'description',
+        'dueDate',
+        'tags',
+        'affectedFiles',
+        'estimatedDuration',
+        'dependencies',
+        'assignedAgent',
+        'executionPath'
+      ]);
+      const topLevelFieldNames = new Set<keyof TaskyTask>([
+        'status',
+        'reminderEnabled',
+        'reminderTime',
+        'result',
+        'humanApproved'
+      ]);
+
+      const schemaUpdates: Partial<TaskyTaskSchema> = {};
+      const topLevelUpdates: Partial<TaskyTask> = {};
+
+      if (updates && typeof updates === 'object') {
+        for (const [key, value] of Object.entries(updates)) {
+          if (schemaFieldNames.has(key as keyof TaskyTaskSchema)) {
+            // Ensure dueDate stays a Date or undefined
+            if (key === 'dueDate') {
+              (schemaUpdates as any)[key] = value ? new Date(value as any) : undefined;
+            } else {
+              (schemaUpdates as any)[key] = value as any;
+            }
+          } else if (topLevelFieldNames.has(key as keyof TaskyTask)) {
+            (topLevelUpdates as any)[key] = value as any;
+          }
+        }
+      }
+
       const updatedTask: TaskyTask = {
         ...existingTask,
-        ...updates,
+        ...topLevelUpdates,
         schema: {
           ...existingTask.schema,
-          ...updates,
+          ...schemaUpdates,
           updatedAt: now
         },
         metadata: {

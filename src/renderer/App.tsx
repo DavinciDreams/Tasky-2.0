@@ -10,7 +10,7 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Checkbox } from '../components/ui/checkbox';
 import CustomSwitch from '../components/ui/CustomSwitch';
-import { Bell, Settings, Smile, X, Plus, Edit3, Trash2, Clock, Calendar, Minus, Paperclip, CheckSquare } from 'lucide-react';
+import { Bell, Settings, Smile, X, Plus, Edit3, Trash2, Clock, Calendar, Minus, Paperclip, CheckSquare, Upload } from 'lucide-react';
 import type { Reminder, Settings as AppSettings, CustomAvatar, DefaultAvatar } from '../types';
 import type { TaskyTask, TaskyTaskSchema } from '../types/task';
 import { TasksTab } from '../components/tasks/TasksTab';
@@ -47,8 +47,8 @@ interface ReminderFormProps {
 
 interface ReminderItemProps {
   reminder: Reminder;
-  onRemove: (id: string) => void;
-  onEdit: (reminder: Reminder) => void;
+  onRemove: () => void;
+  onEdit: () => void;
   onToggle: (enabled: boolean) => void;
   timeFormat: '12h' | '24h';
 }
@@ -186,7 +186,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
   return (
     <div className="space-y-8 h-full">
       <div className="pb-6">
-        <Card className="bg-card border-border/30 shadow-2xl card rounded-3xl backdrop-blur-sm">
+        <Card className="bg-card border-border/30 shadow-2xl card rounded-3xl backdrop-blur-sm max-w-5xl mx-auto">
         <CardHeader className="pb-6 px-8 pt-6">
           <CardTitle className="flex items-center gap-3 text-xl font-bold text-card-foreground">
             <div className="flex items-center justify-center w-10 h-10 rounded-2xl bg-primary/10">
@@ -195,33 +195,34 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
             Settings
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-6 p-8">
-          <SettingSection title="Notifications & Alerts">
-            <SettingItem
+          <CardContent className="space-y-6 p-8">
+          <SettingSection title="Notifications & Alerts" icon="🔔">
+            <div className="grid gap-1 md:grid-cols-2">
+              <SettingItem
               icon="🔔"
               title="Enable Notifications"
               description="Receive desktop notifications for your reminders"
               type="switch"
               value={settings.enableNotifications}
               onChange={(checked) => onSettingChange('enableNotifications', checked)}
-            />
-            <SettingItem
+              />
+              <SettingItem
               icon="🔊"
               title="Sound Alerts"
               description="Play notification sounds when reminders trigger"
               type="switch"
               value={settings.enableSound}
               onChange={(checked) => onSettingChange('enableSound', checked)}
-            />
-            <SettingItem
+              />
+              <SettingItem
               icon="🎨"
               title="Notification Color"
               description="Choose the background color for popup notifications"
               type="color"
               value={settings.notificationColor || '#7f7f7c'}
               onChange={(color) => onSettingChange('notificationColor', color)}
-            />
-            <SettingItem
+              />
+              <SettingItem
               icon="🔤"
               title="Notification Font"
               description="Select the font family for notification text"
@@ -239,77 +240,82 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
                 { value: 'Comic Sans MS', label: 'Comic Sans MS', fontFamily: '"Comic Sans MS", cursive' }
               ]}
               onChange={(font) => onSettingChange('notificationFont', font)}
-            />
-            <SettingItem
+              />
+              <SettingItem
               icon="🌈"
               title="Notification Text Color"
               description="Choose the text color for popup notifications"
               type="color"
               value={settings.notificationTextColor || '#ffffff'}
               onChange={(color) => onSettingChange('notificationTextColor', color)}
-            />
+              />
+            </div>
           </SettingSection>
 
-          <SettingSection title="Desktop Avatar">
-            <SettingItem
+          <SettingSection title="Desktop Avatar" icon="🤖">
+            <div className="grid gap-1 md:grid-cols-2">
+              <SettingItem
               icon="🤖"
               title="Desktop Companion"
               description="Show/Hide your Avatar "
               type="switch"
               value={settings.enableAssistant}
               onChange={(checked) => onSettingChange('enableAssistant', checked)}
-            />
-            <SettingItem
+              />
+              <SettingItem
               icon="🔓"
               title="Enable Dragging"
               description="Allow dragging the assistant"
               type="switch"
               value={settings.enableDragging}
               onChange={(checked) => onSettingChange('enableDragging', checked)}
-            />
-            <SettingItem
+              />
+              <SettingItem
               icon="✨"
               title="Avatar Animations"
               description="Enable bouncing and hover animations for your companion"
               type="switch"
               value={settings.enableAnimation}
               onChange={(checked) => onSettingChange('enableAnimation', checked)}
-            />
-            <SettingItem
+              />
+              <SettingItem
               icon="📌"
               title="Desktop Layer"
               description="Pin Avatar above or below other windows"
               type="switch"
               value={settings.assistantLayer === 'below'}
               onChange={(checked) => onSettingChange('assistantLayer', checked ? 'below' : 'above')}
-            />
-            <SettingItem
+              />
+              <SettingItem
               icon="💬"
               title="Notification Position"
               description="Choose which side notification bubbles appear on"
               type="switch"
               value={settings.bubbleSide === 'right'}
               onChange={(checked) => onSettingChange('bubbleSide', checked ? 'right' : 'left')}
-            />
+              />
+            </div>
           </SettingSection>
 
-          <SettingSection title="System">
-            <SettingItem
+          <SettingSection title="System" icon="⚙️">
+            <div className="grid gap-1 md:grid-cols-2">
+              <SettingItem
               icon="⚡"
               title="Auto Start"
               description="Launch Tasky automatically when Windows starts"
               type="switch"
               value={settings.autoStart}
               onChange={(checked) => onSettingChange('autoStart', checked)}
-            />
-            <SettingItem
+              />
+              <SettingItem
               icon="🕐"
               title="Time Format"
               description="Choose between 12-hour and 24-hour time display"
               type="switch"
               value={settings.timeFormat === '24h'}
               onChange={(checked) => onSettingChange('timeFormat', checked ? '24h' : '12h')}
-            />
+              />
+            </div>
           </SettingSection>
           
           <div className="pt-6 border-t border-border/30">
@@ -1290,6 +1296,56 @@ const App: React.FC = () => {
     window.electronAPI.minimizeWindow();
   };
 
+  // Import tasks handler (file picker + parse by extension)
+  const handleImportTasks = async () => {
+    try {
+      // Reuse avatar file picker channel with different filters
+      const filePath = await window.electronAPI.invoke('select-import-file');
+      if (!filePath) return;
+      const ext = (filePath.split('.').pop() || '').toLowerCase();
+      const dataUrl = await window.electronAPI.invoke('read-import-file', filePath);
+      if (!dataUrl) return;
+      const content = atob(dataUrl.split(',')[1] || '');
+      let records: any[] = [];
+      if (ext === 'json') {
+        records = JSON.parse(content);
+      } else if (ext === 'csv') {
+        const [headerLine, ...lines] = content.split(/\r?\n/).filter(Boolean);
+        const headers = headerLine.split(',').map(h => h.trim());
+        records = lines.map(line => {
+          const cols = line.split(',');
+          const obj: any = {};
+          headers.forEach((h, i) => obj[h] = cols[i]?.trim());
+          if (obj.affectedFiles) obj.affectedFiles = obj.affectedFiles.split('|').map((s: string) => s.trim()).filter(Boolean);
+          return obj;
+        });
+      } else if (ext === 'yaml' || ext === 'yml') {
+        const parsed = await window.electronAPI.invoke('parse-yaml', content);
+        records = Array.isArray(parsed) ? parsed : [];
+      } else if (ext === 'xml') {
+        const parsed = await window.electronAPI.invoke('parse-xml', content);
+        records = (parsed?.tasks?.task) || [];
+      }
+      for (const rec of records) {
+        const taskInput: any = {
+          title: rec.title,
+          description: rec.description,
+          assignedAgent: rec.assignedAgent,
+          executionPath: rec.executionPath,
+          affectedFiles: rec.affectedFiles
+        };
+        if (taskInput.title) {
+          const created = await window.electronAPI.createTask(taskInput);
+          if (created) {
+            setTasks(prev => [created, ...prev]);
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Import failed:', e);
+    }
+  };
+
   const tabs = [
     { id: 'reminders', label: 'Reminders', icon: Bell },
     { id: 'tasks', label: 'Tasks', icon: CheckSquare },
@@ -1352,6 +1408,7 @@ const App: React.FC = () => {
                   </button>
                 ))}
               </nav>
+              
             </div>
           </div>
         </header>

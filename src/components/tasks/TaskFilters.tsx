@@ -11,29 +11,20 @@ import { Search, Filter, SortAsc, X } from 'lucide-react';
 interface TaskFilterOptions {
   status?: TaskStatus[];
   search?: string;
-  tags?: string[];
-  overdue?: boolean;
-  dueToday?: boolean;
 }
 
 interface TaskFiltersProps {
   filter: TaskFilterOptions;
   onFilterChange: (filter: TaskFilterOptions) => void;
-  sortBy: 'dueDate' | 'created' | 'status';
-  onSortChange: (sortBy: 'dueDate' | 'created' | 'status') => void;
-  showCompleted: boolean;
-  onShowCompletedChange: (show: boolean) => void;
-  availableTags: string[];
+  sortBy: 'created' | 'status';
+  onSortChange: (sortBy: 'created' | 'status') => void;
 }
 
 export const TaskFilters: React.FC<TaskFiltersProps> = ({
   filter,
   onFilterChange,
   sortBy,
-  onSortChange,
-  showCompleted,
-  onShowCompletedChange,
-  availableTags
+  onSortChange
 }) => {
   const handleStatusToggle = (status: TaskStatus) => {
     const currentStatuses = filter.status || [];
@@ -44,23 +35,15 @@ export const TaskFilters: React.FC<TaskFiltersProps> = ({
     onFilterChange({ ...filter, status: newStatuses });
   };
 
-  const handleTagToggle = (tag: string) => {
-    const currentTags = filter.tags || [];
-    const newTags = currentTags.includes(tag)
-      ? currentTags.filter(t => t !== tag)
-      : [...currentTags, tag];
-    
-    onFilterChange({ ...filter, tags: newTags });
+  const handleTagToggle = (_tag: string) => {
+    // Tags removed in simplified schema
   };
 
   const clearFilters = () => {
     onFilterChange({});
   };
 
-  const hasActiveFilters = Object.keys(filter).some(key => {
-    const value = filter[key as keyof TaskFilterOptions];
-    return Array.isArray(value) ? value.length > 0 : Boolean(value);
-  });
+  const hasActiveFilters = Boolean(filter.search || (filter.status && filter.status.length > 0));
 
   return (
     <Card className="task-filters">
@@ -85,7 +68,6 @@ export const TaskFilters: React.FC<TaskFiltersProps> = ({
                 style={{}}
                 className="flex items-center gap-2"
               >
-                <option value="dueDate">📅 Due Date</option>
                 <option value="created">🕒 Created</option>
                 <option value="status">📊 Status</option>
               </Select>
@@ -124,61 +106,9 @@ export const TaskFilters: React.FC<TaskFiltersProps> = ({
             </div>
           </div>
 
-          {/* Quick Filters */}
-          <div className="flex flex-wrap gap-4">
-            <div className="flex items-center space-x-2">
-              <CustomSwitch
-                id="show-completed"
-                checked={showCompleted}
-                onChange={onShowCompletedChange}
-              />
-              <Label htmlFor="show-completed" className="text-sm">
-                Show completed tasks
-              </Label>
-            </div>
-            
-            <div className="flex items-center space-x-2">
-              <CustomSwitch
-                id="filter-overdue"
-                checked={filter.overdue || false}
-                onChange={(checked: boolean) => onFilterChange({ ...filter, overdue: checked })}
-              />
-              <Label htmlFor="filter-overdue" className="text-sm">
-                🚨 Overdue only
-              </Label>
-            </div>
-            
-            <div className="flex items-center space-x-2">
-              <CustomSwitch
-                id="filter-due-today"
-                checked={filter.dueToday || false}
-                onChange={(checked: boolean) => onFilterChange({ ...filter, dueToday: checked })}
-              />
-              <Label htmlFor="filter-due-today" className="text-sm">
-                📅 Due today only
-              </Label>
-            </div>
-          </div>
+          {/* Quick Filters removed */}
 
-          {/* Tag Filters */}
-          {availableTags.length > 0 && (
-            <div>
-              <Label className="text-sm font-medium mb-2 block">Tags</Label>
-              <div className="flex flex-wrap gap-2">
-                {availableTags.map(tag => (
-                  <Button
-                    key={tag}
-                    variant={filter.tags?.includes(tag) ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => handleTagToggle(tag)}
-                    className="text-xs"
-                  >
-                    #{tag}
-                  </Button>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* Removed tag and due filters for simplified schema */}
         </div>
       </CardContent>
     </Card>

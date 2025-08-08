@@ -4,68 +4,63 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Button } from '../ui/button';
-import { Plus, Calendar, Clock, Tag } from 'lucide-react';
+import { Plus, FileText, FolderOpen, User, Terminal, Upload } from 'lucide-react';
+import { Select } from '../ui/select';
 
 interface TaskFormProps {
-  onCreateTask: (task: Omit<TaskyTaskSchema, 'id' | 'createdAt'>) => void;
+  onCreateTask?: (task: Omit<TaskyTaskSchema, 'id' | 'createdAt'>) => void;
+  onSubmitOverride?: (task: Omit<TaskyTaskSchema, 'id' | 'createdAt'>) => void;
+  initial?: Partial<TaskyTaskSchema>;
+  submitLabel?: string;
+  forceExpanded?: boolean;
+  onCancel?: () => void;
 }
 
-export const TaskForm: React.FC<TaskFormProps> = ({ onCreateTask }) => {
+export const TaskForm: React.FC<TaskFormProps> = ({ onCreateTask, onSubmitOverride, initial, submitLabel, forceExpanded, onCancel }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    dueDate: '',
-    dueTime: '',
-    tags: '',
-    estimatedDuration: ''
+    title: initial?.title || '',
+    description: (initial?.description as string) || '',
+    assignedAgent: (initial?.assignedAgent as string) || '',
+    affectedFiles: Array.isArray(initial?.affectedFiles) ? (initial!.affectedFiles as string[]).join('\n') : '',
+    executionPath: (initial?.executionPath as string) || ''
   });
+
+  const agents = ['gemini', 'claude'];
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!formData.title.trim()) return;
 
-    // Parse due date and time
-    let dueDate: Date | undefined;
-    if (formData.dueDate) {
-      dueDate = new Date(formData.dueDate);
-      if (formData.dueTime) {
-        const [hours, minutes] = formData.dueTime.split(':').map(Number);
-        dueDate.setHours(hours, minutes);
-      }
-    }
-
-    // Parse tags
-    const tags = formData.tags
-      .split(',')
-      .map(tag => tag.trim())
-      .filter(tag => tag.length > 0);
-
-    // Parse estimated duration
-    const estimatedDuration = formData.estimatedDuration 
-      ? parseInt(formData.estimatedDuration, 10) 
-      : undefined;
+    // Parse affected files (newline or comma-separated)
+    const affectedFiles = formData.affectedFiles
+      .split(/\r?\n|,/)
+      .map(s => s.trim())
+      .filter(Boolean);
 
     const taskData: Omit<TaskyTaskSchema, 'id' | 'createdAt'> = {
       title: formData.title.trim(),
       description: formData.description.trim() || undefined,
-      dueDate,
-      tags: tags.length > 0 ? tags : undefined,
-      estimatedDuration,
+      affectedFiles: affectedFiles.length > 0 ? affectedFiles : undefined,
+      assignedAgent: formData.assignedAgent.trim() || undefined,
+      executionPath: formData.executionPath.trim() || undefined,
       updatedAt: new Date()
     };
 
-    onCreateTask(taskData);
+    if (onSubmitOverride) {
+      onSubmitOverride(taskData);
+    } else if (onCreateTask) {
+      onCreateTask(taskData);
+    }
     
     // Reset form
     setFormData({
       title: '',
       description: '',
-      dueDate: '',
-      dueTime: '',
-      tags: '',
-      estimatedDuration: ''
+      assignedAgent: '',
+      affectedFiles: '',
+      executionPath: ''
     });
     setIsExpanded(false);
   };
@@ -74,7 +69,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ onCreateTask }) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  if (!isExpanded) {
+  if (!forceExpanded && !isExpanded) {
     return (
       <Card className="task-form-collapsed">
         <CardContent className="p-4">
@@ -92,18 +87,12 @@ export const TaskForm: React.FC<TaskFormProps> = ({ onCreateTask }) => {
   }
 
   return (
-    <Card className="task-form-expanded">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Plus className="h-5 w-5" />
-          Create New Task
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
+    <Card className="task-form-expanded rounded-2xl bg-card text-card-foreground border border-border/30 shadow-xl">
+      <CardContent className="pt-4 px-6 pb-6">
+        <form onSubmit={handleSubmit} className="space-y-4 max-w-5xl mx-auto w-full">
           {/* Title - Required */}
           <div>
-            <Label htmlFor="task-title" className="text-sm font-medium">
+            <Label htmlFor="task-title" className="text-sm font-medium text-card-foreground">
               Task Title *
             </Label>
             <Input
@@ -112,14 +101,14 @@ export const TaskForm: React.FC<TaskFormProps> = ({ onCreateTask }) => {
               placeholder="What needs to be done?"
               value={formData.title}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('title', e.target.value)}
-              className="mt-1"
+              className="mt-1 bg-card text-card-foreground border-border/30 rounded-2xl"
               required
             />
           </div>
 
-          {/* Description - Optional */}
+          {/* Description */}
           <div>
-            <Label htmlFor="task-description" className="text-sm font-medium">
+            <Label htmlFor="task-description" className="text-sm font-medium text-card-foreground">
               Description
             </Label>
             <textarea
@@ -127,87 +116,102 @@ export const TaskForm: React.FC<TaskFormProps> = ({ onCreateTask }) => {
               placeholder="Add more details about this task..."
               value={formData.description}
               onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleInputChange('description', e.target.value)}
-              className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-              rows={3}
+              className="mt-1 w-full bg-card text-card-foreground border border-border/30 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-colors resize-none shadow"
+              rows={4}
             />
           </div>
 
-          {/* Due Date and Time */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Assigned Agent */}
+          <div className="grid md:grid-cols-2 gap-3 items-center">
+            <Label htmlFor="task-agent" className="text-sm font-medium flex items-center gap-1 text-card-foreground">
+              <User className="h-4 w-4" />
+              Assigned Agent
+            </Label>
             <div>
-              <Label htmlFor="task-due-date" className="text-sm font-medium flex items-center gap-1">
-                <Calendar className="h-4 w-4" />
-                Due Date
-              </Label>
-              <Input
-                id="task-due-date"
-                type="date"
-                value={formData.dueDate}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('dueDate', e.target.value)}
-                className="mt-1"
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="task-due-time" className="text-sm font-medium flex items-center gap-1">
-                <Clock className="h-4 w-4" />
-                Due Time
-              </Label>
-              <Input
-                id="task-due-time"
-                type="time"
-                value={formData.dueTime}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('dueTime', e.target.value)}
-                className="mt-1"
-                disabled={!formData.dueDate}
-              />
+              <Select
+                value={formData.assignedAgent}
+                onValueChange={(val: string) => handleInputChange('assignedAgent', val)}
+                className="mt-1 w-full"
+              >
+                <option value="">Select an agent...</option>
+                {agents.map(a => (
+                  <option key={a} value={a}>{a}</option>
+                ))}
+              </Select>
             </div>
           </div>
 
-          {/* Tags and Duration */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="task-tags" className="text-sm font-medium flex items-center gap-1">
-                <Tag className="h-4 w-4" />
-                Tags
-              </Label>
+          {/* Execution Path */}
+          <div>
+            <Label htmlFor="task-exec-path" className="text-sm font-medium flex items-center gap-1 text-card-foreground">
+              <FolderOpen className="h-4 w-4" />
+              Execution Path
+            </Label>
+            <div className="flex gap-2 items-start">
               <Input
-                id="task-tags"
+                id="task-exec-path"
                 type="text"
-                placeholder="work, urgent, project-x (comma separated)"
-                value={formData.tags}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('tags', e.target.value)}
-                className="mt-1"
+                placeholder="src/middleware"
+                value={formData.executionPath}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('executionPath', e.target.value)}
+                className="mt-1 flex-1 rounded-2xl"
               />
+              <Button type="button" variant="outline" size="sm" className="rounded-xl" onClick={async () => {
+                const dir = await window.electronAPI.invoke('select-directory');
+                if (dir) setFormData(prev => ({ ...prev, executionPath: dir }));
+              }}>
+                <FolderOpen className="h-4 w-4" />
+              </Button>
+              <Button type="button" variant="outline" size="sm" className="rounded-xl" onClick={async () => {
+                if (formData.executionPath) await window.electronAPI.invoke('open-terminal', formData.executionPath, formData.assignedAgent);
+              }}>
+                <Terminal className="h-4 w-4" />
+              </Button>
             </div>
-            
-            <div>
-              <Label htmlFor="task-duration" className="text-sm font-medium flex items-center gap-1">
-                <Clock className="h-4 w-4" />
-                Estimated Duration (minutes)
-              </Label>
-              <Input
-                id="task-duration"
-                type="number"
-                placeholder="30"
-                value={formData.estimatedDuration}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('estimatedDuration', e.target.value)}
-                className="mt-1"
-                min="1"
+          </div>
+
+          {/* Affected Files */}
+          <div>
+            <Label htmlFor="task-affected-files" className="text-sm font-medium flex items-center gap-1 text-card-foreground">
+              <FileText className="h-4 w-4" />
+              Affected Files (one per line or comma-separated)
+            </Label>
+            <div className="space-y-2">
+              <textarea
+                id="task-affected-files"
+                placeholder="src/middleware/auth.middleware.ts\nsrc/guards/jwt.guard.ts"
+                value={formData.affectedFiles}
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleInputChange('affectedFiles', e.target.value)}
+                className="mt-1 w-full bg-card text-card-foreground border border-border/30 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-colors resize-none shadow"
+                rows={4}
               />
+              <div>
+                <Button type="button" variant="outline" size="sm" className="rounded-xl" onClick={async () => {
+                  const files: string[] = await window.electronAPI.invoke('select-files');
+                  if (files && files.length) {
+                    const merged = [formData.affectedFiles, ...files].filter(Boolean).join('\n');
+                    setFormData(prev => ({ ...prev, affectedFiles: merged }));
+                  }
+                }}>
+                  <Upload className="h-4 w-4 mr-2" /> Add files from picker
+                </Button>
+              </div>
             </div>
           </div>
 
           {/* Action Buttons */}
-          <div className="flex gap-2 pt-4">
-            <Button type="submit" className="flex-1">
+          <div className="flex gap-3 pt-2">
+            <Button type="submit" className="flex-1 rounded-2xl shadow-xl">
               <Plus className="h-4 w-4 mr-2" />
-              Create Task
+              {submitLabel || 'Create Task'}
             </Button>
             <Button 
               type="button" 
               variant="outline" 
-              onClick={() => setIsExpanded(false)}
+              className="rounded-2xl"
+              onClick={() => {
+                if (onCancel) onCancel(); else setIsExpanded(false);
+              }}
             >
               Cancel
             </Button>
