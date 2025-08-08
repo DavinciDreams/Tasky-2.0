@@ -1,13 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 CLAUDE_PROMPT=$(cat <<'EOF'
-# Task: Create test folder with file named Happy-it-works
+# Task: Edit thetest folder with file named Happy-it-works rename it Jim
 ID: create_test_folder_20250808_012905_0627299c
 
 Description:
-Create test folder with file named Happy-it-works
+test folder with file renamed Jim
 
-Status: PENDING
+Affected Files:
+C:\Users\trave\Desktop\Programs\Tasky 2.0\src\test\Happy-it-works
+
+Status: IN_PROGRESS
 
 Instructions:
 - Analyze the repository and implement the task requirements.

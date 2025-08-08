@@ -20,6 +20,7 @@ interface TaskListProps {
   tasks: TaskyTask[];
   onUpdateTask: (id: string, updates: Partial<TaskyTask>) => void;
   onDeleteTask: (id: string) => void;
+  onEditTask?: (task: TaskyTask) => void;
   timeFormat: '12h' | '24h';
 }
 
@@ -177,41 +178,9 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onUpdateTask, onDeleteTask, t
               className="rounded-xl"
               title="Edit Task"
               onClick={() => {
-                // Open a simple inline modal editor using TaskForm
-                const modalId = `task-edit-${task.schema.id}`;
-                const existing = document.getElementById(modalId);
-                if (existing) existing.remove();
-                const container = document.createElement('div');
-                container.id = modalId;
-                container.className = 'fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4';
-                document.body.appendChild(container);
-                // Mount a React portal
-                // @ts-ignore
-                const ReactDOM = require('react-dom');
-                const Editor: React.FC = () => (
-                  <div className="w-full max-w-2xl">
-                    <div className="bg-card text-card-foreground rounded-2xl border border-border/30 shadow-2xl">
-                      <div className="px-6 py-4 border-b border-border/20 flex items-center justify-between">
-                        <div className="text-lg font-semibold">Edit Task</div>
-                        <button onClick={() => { container.remove(); }} className="text-muted-foreground hover:text-foreground text-xl leading-none">×</button>
-                      </div>
-                      <div className="p-6">
-                        <TaskForm
-                          forceExpanded
-                          initial={task.schema as any}
-                          submitLabel="Save Changes"
-                          onSubmitOverride={async (updates) => {
-                            await window.electronAPI.updateTask(task.schema.id, { schema: updates } as any);
-                            container.remove();
-                          }}
-                          onCancel={() => container.remove()}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                );
-                // @ts-ignore
-                ReactDOM.render(React.createElement(Editor), container);
+                // Delegate to parent to open the main modal
+                const ev = new CustomEvent('tasky:edit', { detail: task });
+                window.dispatchEvent(ev);
               }}
             >
               <Edit2 className="h-5 w-5" />

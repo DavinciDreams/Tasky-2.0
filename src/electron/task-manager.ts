@@ -55,6 +55,19 @@ export class ElectronTaskManager {
         }
         
         const task = result.data!;
+
+        // Announce status changes via assistant bubble
+        try {
+          const assistant: any = (global as any).assistant;
+          if (assistant && typeof assistant.speak === 'function' && updates && typeof updates === 'object') {
+            if ((updates as any).status === TaskStatus.IN_PROGRESS) {
+              assistant.speak(`Started: ${task.schema.title}`);
+            }
+            if ((updates as any).status === TaskStatus.COMPLETED) {
+              assistant.speak(`Completed: ${task.schema.title}`);
+            }
+          }
+        } catch {}
         
         // Update notification if due date changed
         if (task.schema.dueDate) {
@@ -239,6 +252,15 @@ export class ElectronTaskManager {
           throw new Error(taskResult.error || 'Failed to get task');
         }
         const task = taskResult.data;
+
+        // Announce start and attempt to set status to IN_PROGRESS
+        try {
+          const assistant: any = (global as any).assistant;
+          if (assistant && typeof assistant.speak === 'function') {
+            assistant.speak(`Executing: ${task.schema.title}`);
+          }
+        } catch {}
+        try { await this.engine.updateTask(id, { status: TaskStatus.IN_PROGRESS } as any); } catch {}
 
         // Quick built-in actions (no external CLI)
         const baseDir = (() => {

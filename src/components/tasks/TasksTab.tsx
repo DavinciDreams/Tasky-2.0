@@ -25,6 +25,13 @@ export const TasksTab: React.FC<TasksTabProps> = ({
   settings
 }) => {
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editingTask, setEditingTask] = useState<TaskyTask | null>(null);
+  // Listen for delegated edit events from TaskList buttons
+  React.useEffect(() => {
+    const handler = (e: any) => setEditingTask(e.detail);
+    window.addEventListener('tasky:edit', handler as any);
+    return () => window.removeEventListener('tasky:edit', handler as any);
+  }, []);
   const filteredTasks = tasks;
 
   const handleImport = async () => {
@@ -122,11 +129,47 @@ export const TasksTab: React.FC<TasksTabProps> = ({
           </div>
         </div>
       )}
+
+      {/* Modal edit form */}
+      {editingTask && (
+        <div className="fixed inset-0 z-50 bg-background flex items-stretch justify-stretch p-0">
+          <div className="w-full h-full">
+            <Card className="rounded-none shadow-none h-full flex flex-col bg-card text-card-foreground border-0">
+              <CardHeader className="pb-2 flex items-center justify-between border-b border-border/20 bg-background">
+                <CardTitle className="text-lg font-semibold">Edit Task</CardTitle>
+                <button onClick={() => setEditingTask(null)} className="text-muted-foreground hover:text-foreground text-xl leading-none">×</button>
+              </CardHeader>
+              <CardContent className="pt-4 pb-4 overflow-y-auto flex-1 bg-background">
+                <TaskForm
+                  forceExpanded
+                  initial={editingTask.schema as any}
+                  submitLabel="Save Changes"
+                  onSubmitOverride={(updates) => {
+                    const flatUpdates: any = {
+                      title: updates.title,
+                      description: updates.description,
+                      assignedAgent: updates.assignedAgent,
+                      executionPath: updates.executionPath,
+                      affectedFiles: updates.affectedFiles,
+                    };
+                    onUpdateTask(editingTask.schema.id, flatUpdates);
+                    setEditingTask(null);
+                  }}
+                  onCancel={() => setEditingTask(null)}
+                  // onCreateTask is required by type but unused when onSubmitOverride is provided
+                  onCreateTask={() => {}}
+                />
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
       
       <TaskList 
         tasks={filteredTasks}
         onUpdateTask={onUpdateTask}
         onDeleteTask={onDeleteTask}
+        onEditTask={(t) => setEditingTask(t)}
         timeFormat={settings.timeFormat || '12h'}
       />
     </div>
