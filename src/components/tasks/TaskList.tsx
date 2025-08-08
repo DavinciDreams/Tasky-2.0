@@ -38,7 +38,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onUpdateTask, onDeleteTask, t
       case TaskStatus.COMPLETED:
         return <CheckCircle2 className="h-5 w-5 text-green-500" />;
       case TaskStatus.IN_PROGRESS:
-        return <Play className="h-5 w-5 text-blue-500" />;
+        return <Circle className="h-5 w-5 text-blue-500" />;
       case TaskStatus.NEEDS_REVIEW:
         return <Circle className="h-5 w-5 text-purple-500" />;
       case TaskStatus.ARCHIVED:

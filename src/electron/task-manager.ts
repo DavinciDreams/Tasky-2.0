@@ -276,6 +276,29 @@ export class ElectronTaskManager {
 
         const text = `${task.schema.title || ''}\n${task.schema.description || ''}`.toLowerCase();
 
+        // Handle: "create <folder> with file <name>" in one built-in action
+        const folderWithFileMatch = text.match(/create\s+(?:a\s+)?(?:new\s+)?(?:folder|directory)\s+(?:named\s+)?\"?([\w\-\.\s]+)\"?(?:\s+|.*?)(?:with\s+(?:a\s+)?)?(?:file|document)\s+(?:named\s+)?\"?([\w\-\.\s]+)\"?/i);
+        if (folderWithFileMatch && folderWithFileMatch[1] && folderWithFileMatch[2]) {
+          const rawFolder = folderWithFileMatch[1].trim();
+          const rawFile = folderWithFileMatch[2].trim();
+          const safeFolder = rawFolder.replace(/[\\\/:*?"<>|]/g, '').trim();
+          const safeFile = rawFile.replace(/[\\\/:*?"<>|]/g, '').trim();
+          if (!safeFolder || !safeFile) {
+            return { success: false, error: 'Invalid folder or file name' };
+          }
+          const folderPath = path.join(baseDir, safeFolder);
+          const filePath = path.join(folderPath, safeFile);
+          try {
+            fs.mkdirSync(folderPath, { recursive: true });
+            fs.writeFileSync(filePath, 'Test file created successfully!\n', 'utf-8');
+            try { new Notification({ title: 'Tasky', body: `Created: ${filePath}` }).show(); } catch {}
+            try { await this.engine.updateTask(id, { status: TaskStatus.COMPLETED } as any); } catch {}
+            return { success: true, performed: 'mkdir+file', folder: folderPath, file: filePath };
+          } catch (e) {
+            return { success: false, error: `Failed to create folder/file: ${(e as Error).message}` };
+          }
+        }
+
         // Create folder pattern: "create a folder named X" or "create folder X"
         const folderMatch = text.match(/create\s+(?:a\s+)?(?:new\s+)?(?:folder|directory)\s+(?:named\s+)?\"?([\w\-\.\s]+)\"?/i);
         if (folderMatch && folderMatch[1]) {
@@ -303,7 +326,38 @@ export class ElectronTaskManager {
 
         const { AgentTerminalExecutor } = await import('./agent-executor');
         const exec = new AgentTerminalExecutor();
+        // Watch for sentinel file to auto-complete
+        const sentinelDir = path.join(baseDir, '.tasky', 'status');
+        const sentinelFile = `done-${id}`;
+        try { fs.mkdirSync(sentinelDir, { recursive: true }); } catch {}
+        const sentinelPath = path.join(sentinelDir, sentinelFile);
+        try { if (fs.existsSync(sentinelPath)) fs.unlinkSync(sentinelPath); } catch {}
+
         await exec.execute(task, provider);
+
+        // Start a short-lived watcher to detect completion
+        const maxWaitMs = 60 * 1000; // 60s
+        const pollIntervalMs = 1000;
+        const start = Date.now();
+        const interval = setInterval(async () => {
+          try {
+            if (fs.existsSync(sentinelPath)) {
+              clearInterval(interval);
+              try { fs.unlinkSync(sentinelPath); } catch {}
+              try {
+                const result = await this.engine.updateTask(id, { status: TaskStatus.COMPLETED } as any);
+                if (result.success && result.data) {
+                  try { new Notification({ title: 'Tasky', body: `Completed: ${result.data.schema.title}` }).show(); } catch {}
+                }
+              } catch {}
+            } else if (Date.now() - start > maxWaitMs) {
+              clearInterval(interval);
+            }
+          } catch {
+            clearInterval(interval);
+          }
+        }, pollIntervalMs);
+
         return { success: true };
       } catch (error) {
         console.error('Error executing task:', error);
