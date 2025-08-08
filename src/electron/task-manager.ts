@@ -310,6 +310,28 @@ export class ElectronTaskManager {
         throw error;
       }
     });
+
+    // Mark task as completed (explicit endpoint for integrations or quick-complete)
+    ipcMain.handle('task:mark-completed', async (event, id: string) => {
+      try {
+        const result = await this.engine.updateTask(id, { status: TaskStatus.COMPLETED } as any);
+        if (!result.success || !result.data) {
+          throw new Error(result.error || 'Failed to mark task completed');
+        }
+        const task = result.data;
+        // Assistant bubble notification
+        try {
+          const assistant: any = (global as any).assistant;
+          if (assistant && typeof assistant.speak === 'function') {
+            assistant.speak(`Completed: ${task.schema.title}`);
+          }
+        } catch {}
+        return task;
+      } catch (error) {
+        console.error('Error marking task completed:', error);
+        throw error;
+      }
+    });
   }
 
   // Initialize task system
