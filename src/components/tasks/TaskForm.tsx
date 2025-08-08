@@ -8,22 +8,19 @@ import { Plus, FileText, FolderOpen, User, Terminal, Upload } from 'lucide-react
 import { Select } from '../ui/select';
 
 interface TaskFormProps {
-  onCreateTask?: (task: Omit<TaskyTaskSchema, 'id' | 'createdAt'>) => void;
-  onSubmitOverride?: (task: Omit<TaskyTaskSchema, 'id' | 'createdAt'>) => void;
-  initial?: Partial<TaskyTaskSchema>;
-  submitLabel?: string;
+  onCreateTask: (task: Omit<TaskyTaskSchema, 'id' | 'createdAt'>) => void;
   forceExpanded?: boolean;
   onCancel?: () => void;
 }
 
-export const TaskForm: React.FC<TaskFormProps> = ({ onCreateTask, onSubmitOverride, initial, submitLabel, forceExpanded, onCancel }) => {
+export const TaskForm: React.FC<TaskFormProps> = ({ onCreateTask, forceExpanded, onCancel }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [formData, setFormData] = useState({
-    title: initial?.title || '',
-    description: (initial?.description as string) || '',
-    assignedAgent: (initial?.assignedAgent as string) || '',
-    affectedFiles: Array.isArray(initial?.affectedFiles) ? (initial!.affectedFiles as string[]).join('\n') : '',
-    executionPath: (initial?.executionPath as string) || ''
+    title: '',
+    description: '',
+    assignedAgent: '',
+    affectedFiles: '', // newline or comma-separated
+    executionPath: ''
   });
 
   const agents = ['gemini', 'claude'];
@@ -48,11 +45,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ onCreateTask, onSubmitOverri
       updatedAt: new Date()
     };
 
-    if (onSubmitOverride) {
-      onSubmitOverride(taskData);
-    } else if (onCreateTask) {
-      onCreateTask(taskData);
-    }
+    onCreateTask(taskData);
     
     // Reset form
     setFormData({
@@ -203,7 +196,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ onCreateTask, onSubmitOverri
           <div className="flex gap-3 pt-2">
             <Button type="submit" className="flex-1 rounded-2xl shadow-xl">
               <Plus className="h-4 w-4 mr-2" />
-              {submitLabel || 'Create Task'}
+              Create Task
             </Button>
             <Button 
               type="button" 
