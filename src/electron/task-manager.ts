@@ -3,7 +3,16 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { TaskyEngine } from '../core/task-manager/tasky-engine';
 import { TaskyTask, TaskyTaskSchema, TaskStatus, CreateTaskInput, UpdateTaskInput } from '../types/task';
+import logger from '../lib/logger';
 
+/**
+ * ElectronTaskManager
+ *
+ * Bridges the renderer with TaskyEngine via IPC channels. Handles:
+ * - Task CRUD, listing, stats/analytics, bulk actions, archiving
+ * - Import/export helpers (file path or structured payloads)
+ * - Due date notifications (15-min prior) through TaskNotificationManager
+ */
 export class ElectronTaskManager {
   private engine: TaskyEngine;
   private notificationManager: TaskNotificationManager;
@@ -23,9 +32,36 @@ export class ElectronTaskManager {
   }
 
   private setupIpcHandlers(): void {
+    const isNonEmptyString = (v: unknown): v is string => typeof v === 'string' && v.trim().length > 0;
+    const isAssignedAgent = (v: any) => v === undefined || v === 'gemini' || v === 'claude';
+    const validateCreateTask = (input: any) => {
+      if (!input || !isNonEmptyString(input.title)) throw new Error('Invalid title');
+      if (!isAssignedAgent(input.assignedAgent)) throw new Error("assignedAgent must be 'gemini' or 'claude'");
+    };
+    const validateUpdateTask = (updates: any) => {
+      if (updates && updates.assignedAgent !== undefined && !isAssignedAgent(updates.assignedAgent)) {
+        throw new Error("assignedAgent must be 'gemini' or 'claude'");
+      }
+      if (updates && updates.status !== undefined && !Object.values(TaskStatus).includes(updates.status)) {
+        throw new Error('Invalid status');
+      }
+    };
+    const validateImportPayload = (payload: any) => {
+      if (!payload || (typeof payload !== 'object')) throw new Error('Invalid import payload');
+      if ('filePath' in payload) {
+        if (!isNonEmptyString(payload.filePath)) throw new Error('Invalid filePath');
+        return;
+      }
+      if ('tasks' in payload) {
+        if (!Array.isArray((payload as any).tasks)) throw new Error('Invalid tasks array');
+        return;
+      }
+      throw new Error('Invalid import payload');
+    };
     // Task CRUD operations
     ipcMain.handle('task:create', async (event, taskInput: CreateTaskInput) => {
       try {
+        validateCreateTask(taskInput);
         const result = await this.engine.createTask(taskInput);
         
         if (!result.success) {
@@ -41,13 +77,15 @@ export class ElectronTaskManager {
         
         return task;
       } catch (error) {
-        console.error('Error creating task:', error);
+        logger.error('Error creating task:', error);
         throw error;
       }
     });
 
     ipcMain.handle('task:update', async (event, id: string, updates: UpdateTaskInput) => {
       try {
+        if (!isNonEmptyString(id)) throw new Error('Invalid id');
+        validateUpdateTask(updates);
         const result = await this.engine.updateTask(id, updates);
         
         if (!result.success) {
@@ -79,7 +117,7 @@ export class ElectronTaskManager {
         
         return task;
       } catch (error) {
-        console.error('Error updating task:', error);
+        logger.error('Error updating task:', error);
         throw error;
       }
     });
@@ -95,7 +133,7 @@ export class ElectronTaskManager {
         this.notificationManager.cancelNotification(id);
         return result.data;
       } catch (error) {
-        console.error('Error deleting task:', error);
+        logger.error('Error deleting task:', error);
         // Attempt a soft-reload of tasks storage and report a friendly error
         try {
           await this.engine.initialize();
@@ -106,6 +144,7 @@ export class ElectronTaskManager {
 
     ipcMain.handle('task:get', async (event, id: string) => {
       try {
+        if (!isNonEmptyString(id)) throw new Error('Invalid id');
         const result = await this.engine.getTask(id);
         
         if (!result.success) {
@@ -114,7 +153,7 @@ export class ElectronTaskManager {
         
         return result.data;
       } catch (error) {
-        console.error('Error getting task:', error);
+        logger.error('Error getting task:', error);
         throw error;
       }
     });
@@ -129,7 +168,7 @@ export class ElectronTaskManager {
         
         return result.data || [];
       } catch (error) {
-        console.error('Error listing tasks:', error);
+        logger.error('Error listing tasks:', error);
         throw error;
       }
     });
@@ -144,7 +183,7 @@ export class ElectronTaskManager {
         
         return result.data;
       } catch (error) {
-        console.error('Error getting task stats:', error);
+        logger.error('Error getting task stats:', error);
         throw error;
       }
     });
@@ -162,7 +201,7 @@ export class ElectronTaskManager {
           suggestedActions: actions
         };
       } catch (error) {
-        console.error('Error analyzing tasks:', error);
+        logger.error('Error analyzing tasks:', error);
         throw error;
       }
     });
@@ -170,6 +209,8 @@ export class ElectronTaskManager {
     // Bulk operations
     ipcMain.handle('task:bulk-update-status', async (event, taskIds: string[], status: TaskStatus) => {
       try {
+        if (!Array.isArray(taskIds) || taskIds.some(id => !isNonEmptyString(id))) throw new Error('Invalid taskIds');
+        if (!Object.values(TaskStatus).includes(status)) throw new Error('Invalid status');
         const results = [];
         for (const id of taskIds) {
           const result = await this.engine.updateTask(id, { status });
@@ -179,7 +220,7 @@ export class ElectronTaskManager {
         }
         return results;
       } catch (error) {
-        console.error('Error bulk updating tasks:', error);
+        logger.error('Error bulk updating tasks:', error);
         throw error;
       }
     });
@@ -208,7 +249,7 @@ export class ElectronTaskManager {
         
         return results;
       } catch (error) {
-        console.error('Error archiving completed tasks:', error);
+        logger.error('Error archiving completed tasks:', error);
         throw error;
       }
     });
@@ -220,26 +261,83 @@ export class ElectronTaskManager {
         return {
           version: '1.0',
           exportedAt: new Date().toISOString(),
-          tasks: tasks
+          tasks: tasks.success && tasks.data ? tasks.data : []
         };
       } catch (error) {
-        console.error('Error exporting tasks:', error);
+        logger.error('Error exporting tasks:', error);
         throw error;
       }
     });
 
-    ipcMain.handle('task:import', async (event, importData: any) => {
+    ipcMain.handle('task:import', async (event, importPayload: any) => {
       try {
-        const results = [];
-        for (const taskData of importData.tasks) {
-          // Remove id and createdAt to create new tasks
-          const { id, createdAt, ...taskInput } = taskData.schema;
-          const task = await this.engine.createTask(taskInput);
-          results.push(task);
+        validateImportPayload(importPayload);
+        const createdTasks: TaskyTask[] = [];
+
+        // Helper: create a task safely and push to createdTasks on success
+        const tryCreate = async (input: any) => {
+          const result = await this.engine.createTask(input);
+          if (result.success && result.data) {
+            createdTasks.push(result.data);
+          }
+        };
+
+        // Path A: import from file path
+        if (importPayload && typeof importPayload === 'object' && importPayload.filePath) {
+          const filePath = importPayload.filePath as string;
+          const ext = (filePath.split('.').pop() || '').toLowerCase();
+          const raw = require('fs').readFileSync(filePath, 'utf-8');
+          let records: any[] = [];
+          if (ext === 'json') {
+            try { records = JSON.parse(raw); } catch {}
+          } else if (ext === 'csv') {
+            const lines: string[] = raw.split(/\r?\n/).filter(Boolean);
+            if (lines.length > 0) {
+              const headers: string[] = lines[0].split(',').map((h: string) => h.trim());
+              records = lines.slice(1).map((line: string) => {
+                const cols: string[] = line.split(',');
+                const obj: any = {};
+                headers.forEach((h: string, i: number) => (obj[h] = cols[i]?.trim()));
+                if (obj.affectedFiles) obj.affectedFiles = String(obj.affectedFiles).split('|').map((s: string) => s.trim()).filter(Boolean);
+                return obj;
+              });
+            }
+          } else if (ext === 'yaml' || ext === 'yml') {
+            const yaml = require('yaml');
+            const parsed = yaml.parse(raw);
+            records = Array.isArray(parsed) ? parsed : [];
+          } else if (ext === 'xml') {
+            const xml2js = require('xml2js');
+            const parsed = await xml2js.parseStringPromise(raw).catch(() => null);
+            records = (parsed?.tasks?.task) || [];
+          }
+          for (const rec of records) {
+            const taskInput: any = {
+              title: rec.title,
+              description: rec.description,
+              assignedAgent: rec.assignedAgent,
+              executionPath: rec.executionPath,
+              affectedFiles: rec.affectedFiles
+            };
+            if (taskInput.title) {
+              await tryCreate(taskInput);
+            }
+          }
+          return createdTasks;
         }
-        return results;
+
+        // Path B: import from structured payload { tasks: [...] }
+        if (importPayload && Array.isArray(importPayload.tasks)) {
+          for (const taskData of importPayload.tasks) {
+            const { id, createdAt, ...taskInput } = taskData.schema || {};
+            await tryCreate(taskInput);
+          }
+          return createdTasks;
+        }
+
+        return createdTasks;
       } catch (error) {
-        console.error('Error importing tasks:', error);
+        logger.error('Error importing tasks:', error);
         throw error;
       }
     });
@@ -333,7 +431,8 @@ export class ElectronTaskManager {
         const sentinelPath = path.join(sentinelDir, sentinelFile);
         try { if (fs.existsSync(sentinelPath)) fs.unlinkSync(sentinelPath); } catch {}
 
-        await exec.execute(task, provider);
+        // Launch execution without blocking the event loop
+        exec.execute(task, provider).catch((e) => logger.error('Agent execution failed:', e));
 
         // Start a short-lived watcher to detect completion
         const maxWaitMs = 60 * 1000; // 60s
@@ -360,7 +459,7 @@ export class ElectronTaskManager {
 
         return { success: true };
       } catch (error) {
-        console.error('Error executing task:', error);
+        logger.error('Error executing task:', error);
         throw error;
       }
     });
@@ -382,7 +481,7 @@ export class ElectronTaskManager {
         } catch {}
         return task;
       } catch (error) {
-        console.error('Error marking task completed:', error);
+        logger.error('Error marking task completed:', error);
         throw error;
       }
     });
@@ -416,7 +515,7 @@ export class ElectronTaskManager {
       
       console.log(`Initialized task manager with ${tasks.length} tasks`);
     } catch (error) {
-      console.error('Error initializing task manager:', error);
+      logger.error('Error initializing task manager:', error);
     }
   }
 

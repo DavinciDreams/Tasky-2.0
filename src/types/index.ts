@@ -18,6 +18,7 @@ export interface Settings {
   darkMode: boolean;
   enableAnimation: boolean;
   timeFormat: '12h' | '24h';
+  timezone?: string;
   enableDragging: boolean;
   assistantLayer: 'above' | 'below';
   bubbleSide: 'left' | 'right';
@@ -111,41 +112,7 @@ export interface ElectronAPI {
   removeAllListeners: (channel: string) => void;
 }
 
-export interface ReminderFormProps {
-  onAddReminder: (reminder: Omit<Reminder, 'id' | 'createdAt' | 'updatedAt'>) => void;
-  onEditReminder: (id: string, reminder: Partial<Reminder>) => void;
-  editingReminder: Reminder | null;
-  onCancelEdit: () => void;
-  timeFormat: '12h' | '24h';
-}
-
-export interface ReminderItemProps {
-  reminder: Reminder;
-  onRemove: () => void;
-  onEdit: () => void;
-  onToggle: (enabled: boolean) => void;
-  timeFormat: '12h' | '24h';
-}
-
-export interface SettingsTabProps {
-  settings: Settings;
-  onSettingChange: (key: keyof Settings, value: any) => void;
-  onTestNotification: () => void;
-}
-
-export interface AvatarTabProps {
-  selectedAvatar: string;
-  onAvatarChange: (avatar: string) => void;
-}
-
-export interface RemindersTabProps {
-  reminders: Reminder[];
-  onAddReminder: (reminder: Omit<Reminder, 'id' | 'createdAt' | 'updatedAt'>) => void;
-  onRemoveReminder: (id: string) => void;
-  onEditReminder: (id: string, reminder: Partial<Reminder>) => void;
-  onToggleReminder: (id: string, enabled: boolean) => void;
-  timeFormat: '12h' | '24h';
-}
+// Component prop types are declared alongside components and not exported globally
 
 // Global window interface extension
 declare global {

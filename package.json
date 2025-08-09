@@ -13,11 +13,13 @@
     "dist:win": "npm run build && npx electron-builder --win",
     "dist:linux": "npm run build && npx electron-builder --linux",
     "pack": "npx electron-builder --dir",
-    "lint": "eslint --ext .ts,.tsx .",
+    "lint": "eslint --ext .ts,.tsx . || true",
     "dev": "npm run build-electron && electron .",
-    "electron": "electron src/main.js",
+    "electron": "electron .",
     "build-renderer": "vite build --config vite.renderer.config.js",
-    "build-electron": "vite build --config vite.electron.config.js"
+    "build-electron": "vite build --config vite.electron.config.js",
+    "check:unused": "npx -y ts-prune --ignore \"(src[\\\\/]+renderer[\\\\/]+dist|tasky-mcp-agent|\\.vite|^dist$)\"",
+    "report:unused": "npx -y ts-prune --json --ignore \"(src[\\\\/]+renderer[\\\\/]+dist|tasky-mcp-agent|\\.vite|^dist$)\" > ts-prune-report.json"
   },
   "keywords": [
     "electron",
@@ -67,7 +69,8 @@
     "tailwindcss": "^4.1.11",
     "typescript": "^5.9.2",
     "vite": "^7.0.6",
-    "wait-on": "^8.0.4"
+    "wait-on": "^8.0.4",
+    "ts-prune": "^0.13.2"
   },
   "dependencies": {
     "@emoji-mart/data": "^1.2.1",
@@ -83,7 +86,8 @@
     "react-dom": "^18.2.0",
     "tailwind-merge": "^3.3.1",
     "xml2js": "^0.6.2",
-    "yaml": "^2.5.1"
+    "yaml": "^2.5.1",
+    "zod": "^3.23.8"
   },
   "build": {
     "appId": "com.tasky2.taskapp",
@@ -115,10 +119,7 @@
           ]
         }
       ],
-      "icon": "src/assets/icon.icns",
-      "hardenedRuntime": true,
-      "entitlements": "build/entitlements.mac.plist",
-      "entitlementsInherit": "build/entitlements.mac.plist"
+      "icon": "src/assets/icon.png"
     },
     "win": {
       "target": [

@@ -9,7 +9,7 @@ interface SettingSectionProps {
 
 export const SettingSection: React.FC<SettingSectionProps> = ({ title, icon, children }) => {
   return (
-    <Card className="mb-6 bg-gradient-to-br from-card to-muted/20 border-border/50 shadow-elegant rounded-2xl">
+    <Card className="mb-6 bg-gradient-to-br from-card to-muted/20 border-border/50 shadow-elegant rounded-2xl overflow-hidden">
       <CardHeader className="pb-3 pt-5 px-5 border-b border-border/30">
         <CardTitle className="text-base sm:text-lg font-semibold flex items-center gap-3 text-card-foreground">
           {icon && (
@@ -20,7 +20,7 @@ export const SettingSection: React.FC<SettingSectionProps> = ({ title, icon, chi
           {title}
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-1 px-3 sm:px-5 py-3">
+      <CardContent className="space-y-3 px-3 sm:px-5 py-3">
         {children}
       </CardContent>
     </Card>

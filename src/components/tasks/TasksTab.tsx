@@ -38,41 +38,10 @@ export const TasksTab: React.FC<TasksTabProps> = ({
     try {
       const filePath = await (window as any).electronAPI.invoke('select-import-file');
       if (!filePath) return;
-      const ext = (filePath.split('.').pop() || '').toLowerCase();
-      const dataUrl = await (window as any).electronAPI.invoke('read-import-file', filePath);
-      if (!dataUrl) return;
-      const content = atob(dataUrl.split(',')[1] || '');
-      let records: any[] = [];
-      if (ext === 'json') {
-        records = JSON.parse(content);
-      } else if (ext === 'csv') {
-        const [headerLine, ...lines] = content.split(/\r?\n/).filter(Boolean);
-        const headers = headerLine.split(',').map(h => h.trim());
-        records = lines.map(line => {
-          const cols = line.split(',');
-          const obj: any = {};
-          headers.forEach((h, i) => (obj[h] = cols[i]?.trim()));
-          if (obj.affectedFiles) obj.affectedFiles = obj.affectedFiles.split('|').map((s: string) => s.trim()).filter(Boolean);
-          return obj;
-        });
-      } else if (ext === 'yaml' || ext === 'yml') {
-        const parsed = await (window as any).electronAPI.invoke('parse-yaml', content);
-        records = Array.isArray(parsed) ? parsed : [];
-      } else if (ext === 'xml') {
-        const parsed = await (window as any).electronAPI.invoke('parse-xml', content);
-        records = (parsed?.tasks?.task) || [];
-      }
-      for (const rec of records) {
-        const taskInput: any = {
-          title: rec.title,
-          description: rec.description,
-          assignedAgent: rec.assignedAgent,
-          executionPath: rec.executionPath,
-          affectedFiles: rec.affectedFiles
-        };
-        if (taskInput.title) {
-          onCreateTask(taskInput);
-        }
+      // Delegate parsing to main to avoid duplication
+      const parsed = await (window as any).electronAPI.invoke('task:import', { filePath });
+      if (Array.isArray(parsed)) {
+        // If main returns created tasks, trigger a refresh externally
       }
     } catch (e) {
       console.error('Import failed:', e);
@@ -81,11 +50,11 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 
   return (
     <div className="tasks-tab p-6 space-y-6">
-      <div className="tasks-header">
+      <div className="tasks-header text-center">
         <h1 className="text-2xl font-bold text-card-foreground">
           📋 Task Management
         </h1>
-        <p className="text-muted-foreground mt-1">
+        <p className="text-muted-foreground mt-1 text-center">
           Organize and track your tasks efficiently
         </p>
         <div className="mt-4 flex items-center justify-center gap-3">

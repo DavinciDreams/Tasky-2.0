@@ -1,13 +1,15 @@
 /**
- * TaskyAssistant - Desktop Companion for Tasky
- * 
- * Manages an animated desktop assistant that displays reminders and provides
- * a friendly interface for the application. Features the Tasky assistant
- * with customizable positioning and interactive speech bubbles.
+ * TaskyAssistant (main process)
+ *
+ * Creates and manages the assistant BrowserWindow (transparent, always-on-top),
+ * loads a local script via data URL, and exposes only a minimal preload bridge.
+ * Handles bubble UI, drag/click-through behavior, and appearance preferences.
  */
 
 import { BrowserWindow, screen, ipcMain } from 'electron';
 import * as path from 'path';
+import * as fs from 'fs';
+import logger from '../lib/logger';
 
 interface AvatarData {
   selectedAvatar: string;
@@ -58,9 +60,10 @@ class TaskyAssistant {
       maximizable: false,
       closable: false,
       webPreferences: {
-        nodeIntegration: true,
-        contextIsolation: false,
-        webSecurity: false,
+        nodeIntegration: false,
+        contextIsolation: true,
+        webSecurity: true,
+        preload: path.join(__dirname, 'assistant-preload.js'),
         backgroundThrottling: false // Prevent performance throttling
       },
       show: false,
@@ -123,7 +126,7 @@ class TaskyAssistant {
     });
 
     this.window.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
-      console.error('❌ Clippy window failed to load:', errorCode, errorDescription);
+      logger.debug('❌ Clippy window failed to load:', errorCode, errorDescription);
     });
 
     this.window.on('closed', () => {
@@ -156,6 +159,11 @@ class TaskyAssistant {
     }
     this.hitTestTimer = setInterval(() => {
       if (!this.window || this.window.isDestroyed()) return;
+      // If neither dragging nor bubble is active, keep pass-through and skip work
+      if (!this.draggingEnabled && !this.bubbleVisible) {
+        try { this.window.setIgnoreMouseEvents(true, { forward: true }); } catch {}
+        return;
+      }
       try {
         const bounds = this.window.getBounds();
         const cursor = screen.getCursorScreenPoint();
@@ -181,11 +189,17 @@ class TaskyAssistant {
       } catch {
         // ignore
       }
-    }, 40);
+    }, 100);
   }
 
   private createAssistantHTML(): string {
     const scriptPath = path.join(__dirname, 'assistant-script.js');
+    let scriptContent = '';
+    try {
+      scriptContent = fs.readFileSync(scriptPath, 'utf-8');
+    } catch (e) {
+      logger.debug('Failed to read assistant-script.js:', e as any);
+    }
     return `<!DOCTYPE html>
 <html>
 <head>
@@ -282,8 +296,7 @@ class TaskyAssistant {
   <div id="tasky-container">
     <div id="tasky-character"></div>
   </div>
-  
-  <script src="file://${scriptPath.replace(/\\/g, '/')}"></script>
+  <script>(function(){${scriptContent}\n})();</script>
 </body>
 </html>`;
   }

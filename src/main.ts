@@ -1,17 +1,11 @@
 /**
- * Tasky - Desktop Reminder Application
- * 
- * A tray-based reminder application with an animated desktop assistant.
- * Features include recurring       if (!(app as any).isQuiting) {
-      e.preventDefault();
-      mainWindow?.hide();f (!(app as any).isQuiting) {
-      e.preventDefault();
-      mainWindow?.hide();inders, notification sounds, and a customizable
- * desktop companion that delivers reminders with personality.
- * 
- * @author Tasky Team
- * @version 1.0.0
- * @license MIT
+ * Tasky - Electron Main Process
+ *
+ * Responsibilities:
+ * - Creates the main settings window (frameless) and system tray
+ * - Initializes storage, reminder scheduler, assistant window, and task manager
+ * - Exposes IPC for reminders, settings, tasks, file pickers, and terminal helpers
+ * - Orchestrates app lifecycle and applies persisted settings at startup
  */
 
 import { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, dialog, shell, Notification, OpenDialogReturnValue } from 'electron';
@@ -19,6 +13,7 @@ import * as path from 'path';
 import * as os from 'os';
 import * as fs from 'fs';
 import { spawn } from 'child_process';
+import logger from './lib/logger';
 import { MainWindow, TrayIcon } from './types/electron';
 import { Storage } from './electron/storage';
 import ReminderScheduler from './electron/scheduler';
@@ -116,10 +111,8 @@ const createWindow = () => {
       indexPath = path.join(process.cwd(), 'src/renderer/dist/index.html');
     }
     mainWindow.loadFile(indexPath).catch(err => {
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Failed to load renderer file:', err);
-        console.error('Attempted path:', indexPath);
-      }
+      logger.debug('Failed to load renderer file:', err as any);
+      logger.debug('Attempted path:', indexPath);
       
       // Emergency fallback - load a basic HTML page
       const fallbackHtml = `
@@ -172,13 +165,9 @@ const createWindow = () => {
 app.whenReady().then(async () => {
   // Request notification permissions for Windows
   if (process.platform === 'win32') {
-    app.setAppUserModelId('com.tasky.reminderapp');
-    
-    // Check notification permissions
+    // AppUserModelID is set at startup above. Optionally log notification support in dev.
     const { Notification } = require('electron');
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Notification support:', Notification.isSupported());
-    }
+    logger.debug('Notification support:', Notification.isSupported());
   }
   
   // Initialize storage
@@ -336,9 +325,7 @@ const createTray = () => {
   for (const testPath of possiblePaths) {
     if (require('fs').existsSync(testPath)) {
       iconPath = testPath;
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Found tray icon at:', iconPath);
-      }
+      logger.debug('Found tray icon at:', iconPath);
       break;
     }
   }
@@ -353,9 +340,7 @@ const createTray = () => {
       throw new Error('No icon file found');
     }
   } catch (error) {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Using fallback icon data URL');
-    }
+    logger.debug('Using fallback icon data URL');
     // Use fallback data URL icon
     trayIcon = nativeImage.createFromDataURL(iconDataURL);
   }
@@ -386,9 +371,7 @@ const createTray = () => {
     {
       label: '❌ Exit',
       click: () => {
-        if (process.env.NODE_ENV === 'development') {
-          console.log('Tray exit clicked, forcing app quit...');
-        }
+        logger.debug('Tray exit clicked, forcing app quit...');
         (app as any).isQuiting = true;
         
         // Cleanup components first
@@ -436,9 +419,7 @@ const showSettingsWindow = () => {
 
 // Cleanup when app is about to quit
 app.on('before-quit', () => {
-  if (process.env.NODE_ENV === 'development') {
-    console.log('App is about to quit, cleaning up...');
-  }
+  logger.debug('App is about to quit, cleaning up...');
   if (scheduler) {
     scheduler.destroy();
   }
@@ -450,21 +431,7 @@ app.on('before-quit', () => {
   }
 });
 
-// Force quit all processes when app is quitting
-app.on('will-quit', (event) => {
-  // Kill any lingering child processes on Windows
-  if (process.platform === 'win32') {
-    const { spawn } = require('child_process');
-    try {
-      spawn('taskkill', ['/f', '/im', 'powershell.exe', '/fi', `PID ne ${process.pid}`], { windowsHide: true });
-    } catch (error) {
-      // Silently handle errors in production
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Error killing child processes:', error);
-      }
-    }
-  }
-});
+// Removed forced killing of shell processes on quit to avoid terminating user terminals
 
 // IPC handlers for renderer communication
 ipcMain.handle('get-reminders', () => {
@@ -550,11 +517,13 @@ ipcMain.on('set-setting', (event, key, value) => {
         case 'selectedAvatar':
           // Avatar change is handled by the change-avatar IPC call
           break;
-        case 'enableAnimation':
+        case 'enableAnimation': {
+          const anim = !!value;
           if (assistant && assistant.window) {
-            assistant.window.webContents.send('toggle-animation', value);
+            assistant.window.webContents.send('toggle-animation', anim);
           }
           break;
+        }
         case 'assistantLayer':
           if (assistant) {
             assistant.setLayer(value);
@@ -616,7 +585,7 @@ ipcMain.on('close-window', () => {
 
 // Add a force quit handler
 ipcMain.on('force-quit', () => {
-  console.log('Force quit requested via IPC');
+  logger.debug('Force quit requested via IPC');
   (app as any).isQuiting = true;
   
   // Cleanup components
@@ -645,7 +614,7 @@ ipcMain.on('minimize-window', () => {
       mainWindow.setSkipTaskbar(false);
       mainWindow.minimize();
     } catch (error) {
-      console.error('Minimize failed:', error);
+      logger.debug('Minimize failed:', error as any);
     }
   }
 });
@@ -663,14 +632,14 @@ ipcMain.on('hide-assistant', () => {
 });
 
 ipcMain.on('set-bubble-side', (event, side) => {
-  console.log('Set bubble side called with:', side);
+  logger.debug('Set bubble side called with:', side);
   if (assistant) {
     assistant.setBubbleSide(side);
-    console.log('Assistant bubble side set to:', side);
+    logger.debug('Assistant bubble side set to:', side);
   }
   if (store) {
     store.setSetting('bubbleSide', side);
-    console.log('Settings saved: bubbleSide =', side);
+    logger.debug('Settings saved: bubbleSide =', side);
   }
 });
 
@@ -738,14 +707,14 @@ ipcMain.handle('select-avatar-file', async () => {
     
     // Test if file exists
     if (fs.existsSync(filePath)) {
-      console.log('✅ File exists and is accessible');
+      logger.debug('✅ File exists and is accessible');
       return filePath;
     } else {
-      console.error('❌ File does not exist or is not accessible');
+      logger.debug('❌ File does not exist or is not accessible');
       return null;
     }
   } catch (error) {
-    console.error('Error selecting avatar file:', error);
+    logger.debug('Error selecting avatar file:', error as any);
     return null;
   }
 });
@@ -786,7 +755,7 @@ ipcMain.handle('get-avatar-data-url', async (event, filePath) => {
     const base64Image = imageBuffer.toString('base64');
     return `data:${mimeType};base64,${base64Image}`;
   } catch (error) {
-    console.error('Error reading avatar file:', error);
+    logger.debug('Error reading avatar file:', error as any);
     return null;
   }
 });
@@ -813,13 +782,13 @@ ipcMain.handle('get-tasky-avatar-data-url', async () => {
     for (const testPath of possiblePaths) {
       if (fs.existsSync(testPath)) {
         taskyImagePath = testPath;
-        console.log('✓ Found Tasky avatar at:', taskyImagePath);
+        logger.debug('✓ Found Tasky avatar at:', taskyImagePath);
         break;
       }
     }
     
     if (!taskyImagePath) {
-      console.error('❌ Tasky avatar not found in any of the expected locations');
+      logger.debug('❌ Tasky avatar not found in any of the expected locations');
       return null;
     }
     
@@ -827,7 +796,7 @@ ipcMain.handle('get-tasky-avatar-data-url', async () => {
     const base64Image = imageBuffer.toString('base64');
     return `data:image/png;base64,${base64Image}`;
   } catch (error) {
-    console.error('Error reading Tasky avatar file:', error);
+    logger.debug('Error reading Tasky avatar file:', error as any);
     return null;
   }
 });
@@ -846,35 +815,7 @@ ipcMain.handle('select-import-file', async () => {
   return result.filePaths[0];
 });
 
-ipcMain.handle('read-import-file', async (_e, filePath: string) => {
-  try {
-    if (!fs.existsSync(filePath)) return null;
-    const buf = fs.readFileSync(filePath);
-    return `data:application/octet-stream;base64,${buf.toString('base64')}`;
-  } catch {
-    return null;
-  }
-});
-
-ipcMain.handle('parse-yaml', async (_e, text: string) => {
-  try {
-    const yaml = require('yaml');
-    return yaml.parse(text);
-  } catch {
-    return null;
-  }
-});
-
-ipcMain.handle('parse-xml', async (_e, text: string) => {
-  try {
-    const xml2js = require('xml2js');
-    let parsed: any = null;
-    await xml2js.parseStringPromise(text).then((res: any) => parsed = res);
-    return parsed;
-  } catch {
-    return null;
-  }
-});
+// Removed duplicate parsing IPC (import is handled centrally by 'task:import')
 
 // Directory picker for executionPath
 ipcMain.handle('select-directory', async () => {
@@ -918,7 +859,7 @@ ipcMain.handle('open-terminal', async (_e, directory: string, agent: string) => 
 });
 
 ipcMain.on('get-upcoming-notifications', (event) => {
-  console.log('Getting upcoming notifications...');
+  logger.debug('Getting upcoming notifications...');
   if (store) {
     const reminders = store.getReminders();
     const enabledReminders = reminders.filter((r: Reminder) => r.enabled);
@@ -930,4 +871,4 @@ ipcMain.on('get-upcoming-notifications', (event) => {
 });
 
 // Export for use in other modules
-module.exports = { showSettingsWindow };
+export { showSettingsWindow };

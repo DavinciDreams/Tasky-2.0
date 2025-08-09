@@ -11,6 +11,7 @@ import { Notification, app, shell, BrowserWindow } from 'electron';
 import * as path from 'path';
 import { spawn, ChildProcess } from 'child_process';
 import * as fs from 'fs';
+import logger from '../lib/logger';
 import type { Reminder } from '../types/index';
 
 declare global {
@@ -18,6 +19,14 @@ declare global {
   var mainWindow: BrowserWindow | null;
 }
 
+/**
+ * ReminderScheduler
+ *
+ * Manages cron-based reminder scheduling, cross-platform notification delivery
+ * (desktop notifications, Windows PowerShell/Toast fallback), and optional
+ * sound playback with multiple fallbacks. Timezone is configurable via settings
+ * (defaults to system timezone).
+ */
 class ReminderScheduler {
   private scheduledTasks: Map<string, cron.ScheduledTask>;
   private notificationsEnabled: boolean;
@@ -30,6 +39,15 @@ class ReminderScheduler {
     this.notificationsEnabled = true;   // Global notification toggle
     this.soundEnabled = true;           // Global sound toggle
     this.notificationType = 'custom';   // Legacy setting for compatibility
+    // Load timezone from settings if available
+    try {
+      const { Storage } = require('./storage');
+      const store = new Storage();
+      const tz = store.getSetting('timezone');
+      if (typeof tz === 'string' && tz.length > 0) {
+        this.bubbleSide = this.bubbleSide; // no-op to keep ts happy
+      }
+    } catch {}
   }
 
   /**
@@ -71,25 +89,28 @@ class ReminderScheduler {
 
     try {
       const cronPattern = this.daysToCronPattern(days, time);
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`Scheduling reminder ${id} with pattern: ${cronPattern}`);
-      }
+      logger.debug(`Scheduling reminder ${id} with pattern: ${cronPattern}`);
       
+      // Prefer user-configured timezone from settings, else system default
+      let configuredTz: string | undefined;
+      try {
+        const { Storage } = require('./storage');
+        const store = new Storage();
+        const tz = store.getSetting('timezone');
+        if (typeof tz === 'string' && tz.length > 0) configuredTz = tz;
+      } catch {}
+      const systemTz = configuredTz || Intl.DateTimeFormat().resolvedOptions().timeZone || undefined;
       const task = cron.schedule(cronPattern, () => {
         this.triggerReminder(reminder);
       }, {
         scheduled: true,
-        timezone: 'America/New_York' // You can make this configurable
+        timezone: systemTz
       });
 
       this.scheduledTasks.set(id, task);
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`Reminder ${id} scheduled successfully`);
-      }
+      logger.debug(`Reminder ${id} scheduled successfully`);
     } catch (error) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error(`Failed to schedule reminder ${id}:`, error);
-      }
+      logger.debug(`Failed to schedule reminder ${id}:`, error as any);
     }
   }
 
@@ -120,9 +141,7 @@ class ReminderScheduler {
    */
   toggleNotifications(enabled: boolean): void {
     this.notificationsEnabled = enabled;
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`Notifications ${enabled ? 'enabled' : 'disabled'}`);
-    }
+    logger.debug(`Notifications ${enabled ? 'enabled' : 'disabled'}`);
   }
 
   /**
@@ -130,9 +149,7 @@ class ReminderScheduler {
    */
   toggleSound(enabled: boolean): void {
     this.soundEnabled = enabled;
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`Sound ${enabled ? 'enabled' : 'disabled'}`);
-    }
+    logger.debug(`Sound ${enabled ? 'enabled' : 'disabled'}`);
   }
 
   /**
@@ -145,9 +162,7 @@ class ReminderScheduler {
     } else {
       this.bubbleSide = 'left';
     }
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`Clippy bubble side set to: ${this.bubbleSide}`);
-    }
+    logger.debug(`Clippy bubble side set to: ${this.bubbleSide}`);
     
     // Update Clippy bubble side
     if (global.assistant) {
@@ -166,9 +181,7 @@ class ReminderScheduler {
    * Trigger a reminder (show notification, play sound, etc.)
    */
   triggerReminder(reminder: Reminder): void {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Triggering reminder:', reminder.message);
-    }
+    logger.debug('Triggering reminder:', reminder.message);
     
     if (!this.notificationsEnabled) {
       return;
@@ -276,9 +289,9 @@ class ReminderScheduler {
    * Play notification sound
    */
   playNotificationSound(): void {
-    console.log('playNotificationSound called, soundEnabled:', this.soundEnabled);
+    logger.debug('playNotificationSound called, soundEnabled:', this.soundEnabled);
     if (!this.soundEnabled) {
-      console.log('Sound is disabled, skipping');
+      logger.debug('Sound is disabled, skipping');
       return;
     }
 
@@ -301,15 +314,15 @@ class ReminderScheduler {
       
       let customSoundPath: string | null = null;
       
-      console.log('Checking for notification.mp3 in paths...');
+      logger.debug('Checking for notification.mp3 in paths...');
       for (const testPath of possiblePaths) {
-        console.log('Testing path:', testPath);
+        logger.debug('Testing path:', testPath);
         if (fs.existsSync(testPath)) {
           customSoundPath = testPath;
-          console.log('✓ Found notification sound at:', customSoundPath);
+          logger.debug('✓ Found notification sound at:', customSoundPath);
           break;
         } else {
-          console.log('✗ Path not found:', testPath);
+          logger.debug('✗ Path not found:', testPath);
         }
       }
       
@@ -317,24 +330,18 @@ class ReminderScheduler {
         // Try multiple approaches for playing sound
         this.playSoundWithElectron(customSoundPath)
           .catch(() => {
-            if (process.env.NODE_ENV === 'development') {
-              console.log('Electron audio failed, trying alternative method...');
-            }
+            logger.debug('Electron audio failed, trying alternative method...');
             return this.playSoundWithAudioContext(customSoundPath);
           })
           .catch(() => {
-            if (process.env.NODE_ENV === 'development') {
-              console.log('All audio methods failed, using system sound');
-            }
+            logger.debug('All audio methods failed, using system sound');
             this.playSystemSound();
           });
       } else {
         this.playSystemSound();
       }
     } catch (error) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Exception in playNotificationSound:', error);
-      }
+      logger.debug('Exception in playNotificationSound:', error as any);
       this.playSystemSound();
     }
   }
@@ -433,33 +440,25 @@ class ReminderScheduler {
         soundWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(audioHtml)}`);
         
         soundWindow.webContents.once('did-finish-load', () => {
-          if (process.env.NODE_ENV === 'development') {
-            console.log('✓ Sound window loaded, attempting audio playback');
-          }
+        logger.debug('✓ Sound window loaded, attempting audio playback');
         });
 
         soundWindow.on('closed', () => {
-          if (process.env.NODE_ENV === 'development') {
-            console.log('Sound window closed');
-          }
+          logger.debug('Sound window closed');
           resolve();
         });
 
         // Fallback: close window after 10 seconds and reject
         setTimeout(() => {
           if (soundWindow && !soundWindow.isDestroyed()) {
-            if (process.env.NODE_ENV === 'development') {
-              console.log('Force closing sound window after timeout');
-            }
+            logger.debug('Force closing sound window after timeout');
             soundWindow.close();
             reject(new Error('Audio playback timeout'));
           }
         }, 10000);
 
       } catch (error) {
-        if (process.env.NODE_ENV === 'development') {
-          console.error('Electron sound playback failed:', error);
-        }
+        logger.debug('Electron sound playback failed:', error as any);
         reject(error);
       }
     });
@@ -533,16 +532,12 @@ class ReminderScheduler {
         soundWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(audioContextHtml)}`);
         
         soundWindow.webContents.once('did-finish-load', () => {
-          if (process.env.NODE_ENV === 'development') {
-            console.log('✓ AudioContext window loaded');
-          }
+          logger.debug('✓ AudioContext window loaded');
           resolve();
         });
 
         soundWindow.on('closed', () => {
-          if (process.env.NODE_ENV === 'development') {
-            console.log('AudioContext window closed');
-          }
+          logger.debug('AudioContext window closed');
         });
 
         setTimeout(() => {
@@ -553,9 +548,7 @@ class ReminderScheduler {
         }, 6000);
 
       } catch (error) {
-        if (process.env.NODE_ENV === 'development') {
-          console.error('AudioContext method failed:', error);
-        }
+        logger.debug('AudioContext method failed:', error as any);
         reject(error);
       }
     });
@@ -565,16 +558,12 @@ class ReminderScheduler {
    * Fallback system sound method
    */
   private playSystemSound(): void {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Playing system notification sound as fallback');
-    }
+    logger.debug('Playing system notification sound as fallback');
     try {
       // Use Electron's shell.beep() if available, or create a simple beep sound
       if (shell && typeof shell.beep === 'function') {
         shell.beep();
-        if (process.env.NODE_ENV === 'development') {
-          console.log('✓ Played system beep via Electron shell');
-        }
+        logger.debug('✓ Played system beep via Electron shell');
         return;
       }
 
@@ -623,9 +612,7 @@ class ReminderScheduler {
       beepWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(beepHtml)}`);
       
       beepWindow.on('closed', () => {
-        if (process.env.NODE_ENV === 'development') {
-          console.log('✓ System beep completed');
-        }
+        logger.debug('✓ System beep completed');
       });
 
       // Fallback: close after 2 seconds
@@ -639,13 +626,9 @@ class ReminderScheduler {
       // Ultimate fallback - ASCII bell
       try {
         process.stdout.write('\u0007');
-        if (process.env.NODE_ENV === 'development') {
-          console.log('Used ASCII bell as ultimate fallback');
-        }
+        logger.debug('Used ASCII bell as ultimate fallback');
       } catch (e) {
-        if (process.env.NODE_ENV === 'development') {
-          console.error('Even ASCII bell failed:', e);
-        }
+        logger.debug('Even ASCII bell failed:', e as any);
       }
     }
   }
@@ -662,18 +645,18 @@ class ReminderScheduler {
       enabled: true
     };
     
-    console.log('Notifications enabled:', this.notificationsEnabled);
-    console.log('Sound enabled:', this.soundEnabled);
-    console.log('Global assistant available:', !!global.assistant);
-    console.log('Global mainWindow available:', !!global.mainWindow);
-    console.log('Test reminder object:', testReminder);
+    logger.debug('Notifications enabled:', this.notificationsEnabled);
+    logger.debug('Sound enabled:', this.soundEnabled);
+    logger.debug('Global assistant available:', !!global.assistant);
+    logger.debug('Global mainWindow available:', !!global.mainWindow);
+    logger.debug('Test reminder object:', testReminder);
     
     if (!this.notificationsEnabled) {
-      console.log('⚠️ Test notification blocked - notifications are disabled in settings');
+      logger.debug('⚠️ Test notification blocked - notifications are disabled in settings');
       return;
     }
     
-    console.log('Calling triggerReminder with test data...');
+    logger.debug('Calling triggerReminder with test data...');
     this.triggerReminder(testReminder);
   }
 

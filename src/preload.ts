@@ -1,3 +1,9 @@
+/**
+ * Preload script for the main renderer window
+ *
+ * Exposes a narrow, typed IPC bridge to the renderer via `window.electronAPI`.
+ * Keeps `contextIsolation: true` and `nodeIntegration: false` for safety.
+ */
 import { contextBridge, ipcRenderer } from 'electron';
 import { ElectronAPI } from './types';
 

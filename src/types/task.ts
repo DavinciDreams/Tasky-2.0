@@ -7,7 +7,7 @@ export type FilePath = string & { readonly brand: unique symbol };
 
 // Branded types for type safety
 export const createTaskId = (id: string): TaskId => id as TaskId;
-export const createFilePath = (path: string): FilePath => path as FilePath;
+// export const createFilePath = (path: string): FilePath => path as FilePath; // unused
 
 // Simplified Task Schema for Tasky (removed category and priority)
 export interface TaskyTaskSchema {
@@ -24,7 +24,7 @@ export interface TaskyTaskSchema {
   estimatedDuration?: number; // in minutes
   dependencies?: string[]; // Task IDs this task depends on
   // Development-task specific (optional)
-  assignedAgent?: string; // e.g., "claude" | "gpt-4o" | user-defined
+  assignedAgent?: 'gemini' | 'claude';
   executionPath?: string; // e.g., "src/middleware"
 }
 
@@ -336,20 +336,20 @@ export type DeepReadonly<T> = {
   readonly [P in keyof T]: T[P] extends object ? DeepReadonly<T[P]> : T[P];
 };
 
-export type NonEmptyArray<T> = [T, ...T[]];
+// export type NonEmptyArray<T> = [T, ...T[]]; // unused
 
-export type TaskEventHandler<K extends keyof TaskEventMap> = (event: TaskEventMap[K]) => void;
+// export type TaskEventHandler<K extends keyof TaskEventMap> = (event: TaskEventMap[K]) => void; // unused
 
 // Template literal types for better validation
-export type TaskIdPattern = `task_${string}`;
-export type TagPattern = `#${string}`;
-export type TimePattern = `${number}:${number}`;
+// export type TaskIdPattern = `task_${string}`; // unused
+// export type TagPattern = `#${string}`; // unused
+// export type TimePattern = `${number}:${number}`; // unused
 
 // Conditional types
-export type TaskWithReminder<T extends TaskyTask> = T extends { reminderEnabled: true } 
-  ? T & Required<Pick<T, 'reminderTime'>> 
-  : T;
+// export type TaskWithReminder<T extends TaskyTask> = T extends { reminderEnabled: true } 
+//   ? T & Required<Pick<T, 'reminderTime'>> 
+//   : T; // unused
 
-export type CompletedTask<T extends TaskyTask> = T extends { status: TaskStatus.COMPLETED }
-  ? T & Required<Pick<T, 'completedAt'>>
-  : never;
+// export type CompletedTask<T extends TaskyTask> = T extends { status: TaskStatus.COMPLETED }
+//   ? T & Required<Pick<T, 'completedAt'>>
+//   : never; // unused

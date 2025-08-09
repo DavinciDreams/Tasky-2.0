@@ -2,6 +2,7 @@ import React from 'react';
 import { TaskyTask, TaskStatus } from '../../types/task';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
+import { Checkbox } from '../ui/checkbox';
 import { TaskForm } from './TaskForm';
 import { Badge } from '../ui/badge';
 import { 
@@ -111,13 +112,21 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onUpdateTask, onDeleteTask, t
     <Card className={`task-item bg-card text-card-foreground border border-border/30 rounded-2xl shadow-xl hover:shadow-2xl transition-all ${task.status === TaskStatus.COMPLETED ? 'opacity-80' : ''}`}>
       <CardContent className="p-5">
         <div className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4">
-          {/* Status Icon */}
-          <button
-            onClick={handleToggleComplete}
-            className="mt-1 hover:scale-110 transition-transform"
-          >
-            {getStatusIcon(task.status)}
-          </button>
+          {/* Completion Toggle */}
+          <div className="mt-1">
+            <Checkbox
+              checked={task.status === TaskStatus.COMPLETED}
+              onCheckedChange={(checked) => {
+                const newStatus = checked ? TaskStatus.COMPLETED : TaskStatus.PENDING;
+                const updates: Partial<TaskyTask> = {
+                  status: newStatus,
+                  ...(newStatus === TaskStatus.COMPLETED ? { completedAt: new Date() } : {})
+                };
+                onUpdateTask(task.schema.id, updates);
+              }}
+              className="data-[state=checked]:bg-green-500 data-[state=checked]:border-green-500"
+            />
+          </div>
 
           {/* Main Content */}
           <div className="flex-1 min-w-0 w-full">

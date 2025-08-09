@@ -23,6 +23,15 @@ import { TypedEventBus } from './events';
 import { v4 as uuidv4 } from 'uuid';
 import { format } from 'date-fns';
 
+/**
+ * TaskyEngine
+ *
+ * Core task management engine responsible for:
+ * - Loading/saving tasks via TaskStorage (with date serialization)
+ * - CRUD operations with validation and schema/top-level separation
+ * - Filtering, analytics, and simple OODA (observe/orient/decide/act)
+ * - Emitting typed events for creation/update/completion
+ */
 export class TaskyEngine {
   private eventBus = new TypedEventBus<TaskEventMap>();
   private storage: TaskStorage;
@@ -150,7 +159,9 @@ export class TaskyEngine {
           affectedFiles: input.affectedFiles || [],
           estimatedDuration: input.estimatedDuration,
           dependencies: input.dependencies || [],
-          assignedAgent: input.assignedAgent,
+          assignedAgent: input.assignedAgent && (input.assignedAgent === 'gemini' || input.assignedAgent === 'claude')
+            ? input.assignedAgent
+            : undefined,
           executionPath: input.executionPath
         },
         status: TaskStatus.PENDING,
@@ -512,6 +523,10 @@ export class TaskyEngine {
 
     if (input.dueDate && input.dueDate < new Date()) {
       throw new TaskValidationError('Due date cannot be in the past', 'dueDate');
+    }
+
+    if (input.assignedAgent && input.assignedAgent !== 'gemini' && input.assignedAgent !== 'claude') {
+      throw new TaskValidationError("assignedAgent must be 'gemini' or 'claude'", 'assignedAgent');
     }
   }
 

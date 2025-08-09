@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import data from '@emoji-mart/data';
-import Picker from '@emoji-mart/react';
+// Lazy-load heavy emoji picker to reduce initial bundle size
+const EmojiPicker = React.lazy(() => import('@emoji-mart/react'));
 import { SettingSection } from '../components/SettingSection';
 import { SettingItem } from '../components/SettingItem';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
@@ -15,6 +15,36 @@ import type { Reminder, Settings as AppSettings, CustomAvatar, DefaultAvatar } f
 import type { TaskyTask, TaskyTaskSchema } from '../types/task';
 import { TasksTab } from '../components/tasks/TasksTab';
 import '../types/css.d.ts';
+
+// Build a list of IANA timezones (fallback) if Intl doesn't expose them
+const IANA_TIMEZONES: string[] = [
+  'UTC','Etc/UTC','Europe/London','Europe/Paris','Europe/Berlin','Europe/Madrid','Europe/Rome','Europe/Amsterdam','Europe/Brussels','Europe/Zurich','Europe/Stockholm','Europe/Oslo','Europe/Copenhagen','Europe/Warsaw','Europe/Prague','Europe/Vienna','Europe/Budapest','Europe/Athens','Europe/Helsinki','Europe/Kiev','Europe/Istanbul','Europe/Moscow',
+  'America/New_York','America/Chicago','America/Denver','America/Los_Angeles','America/Phoenix','America/Anchorage','America/Halifax','America/St_Johns','America/Toronto','America/Vancouver','America/Mexico_City','America/Bogota','America/Lima','America/Sao_Paulo','America/Argentina/Buenos_Aires',
+  'Asia/Tokyo','Asia/Seoul','Asia/Shanghai','Asia/Hong_Kong','Asia/Singapore','Asia/Taipei','Asia/Bangkok','Asia/Jakarta','Asia/Kuala_Lumpur','Asia/Manila','Asia/Colombo','Asia/Kolkata','Asia/Dubai','Asia/Riyadh','Asia/Jerusalem',
+  'Australia/Sydney','Australia/Melbourne','Australia/Brisbane','Australia/Perth','Pacific/Auckland','Pacific/Honolulu',
+  'Africa/Cairo','Africa/Johannesburg','Africa/Nairobi'
+];
+
+function getSystemTimezone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone;
+  } catch {
+    return 'UTC';
+  }
+}
+
+function getAllTimezones(): string[] {
+  // Some environments expose supportedValuesOf
+  // @ts-ignore
+  if (Intl.supportedValuesOf) {
+    try {
+      // @ts-ignore
+      const list = Intl.supportedValuesOf('timeZone');
+      if (Array.isArray(list) && list.length) return list as string[];
+    } catch {}
+  }
+  return IANA_TIMEZONES;
+}
 
 // Component Props Interfaces
 interface RemindersTabProps {
@@ -185,10 +215,10 @@ const RemindersTab: React.FC<RemindersTabProps> = ({ reminders, onAddReminder, o
 const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, onTestNotification }) => {
   return (
     <div className="space-y-8 h-full">
-      <div className="pb-6">
+      <div className="pb-2">
         <Card className="bg-card border-border/30 shadow-2xl card rounded-3xl backdrop-blur-sm max-w-5xl mx-auto">
-        <CardHeader className="pb-6 px-8 pt-6">
-          <CardTitle className="flex items-center gap-3 text-xl font-bold text-card-foreground">
+        <CardHeader className="pb-3 px-8 pt-6 flex justify-center">
+          <CardTitle className="flex items-center gap-3 text-xl font-bold text-card-foreground text-center">
             <div className="flex items-center justify-center w-10 h-10 rounded-2xl bg-primary/10">
               <Settings size={20} className="text-card-foreground" />
             </div>
@@ -314,6 +344,15 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
               type="switch"
               value={settings.timeFormat === '24h'}
               onChange={(checked) => onSettingChange('timeFormat', checked ? '24h' : '12h')}
+              />
+              <SettingItem
+                icon="🌍"
+                title="Timezone"
+                description="Set the timezone used for reminders"
+                type="select"
+                value={settings.timezone || getSystemTimezone()}
+                options={getAllTimezones().map(tz => ({ value: tz, label: tz }))}
+                onChange={(tz) => onSettingChange('timezone', tz)}
               />
             </div>
           </SettingSection>
@@ -453,8 +492,8 @@ const AvatarTab: React.FC<AvatarTabProps> = ({ selectedAvatar, onAvatarChange })
     <div className="space-y-8 h-full">
       <div className="pb-6">
         <Card className="bg-card border-border/30 shadow-2xl card rounded-3xl backdrop-blur-sm">
-        <CardHeader className="pb-6 px-8 pt-6">
-          <CardTitle className="flex items-center gap-3 text-xl font-bold text-card-foreground">
+        <CardHeader className="pb-6 px-8 pt-6 flex justify-center">
+          <CardTitle className="flex items-center gap-3 text-xl font-bold text-card-foreground text-center">
             <div className="flex items-center justify-center w-10 h-10 rounded-2xl bg-gradient-to-br from-purple-500/20 to-purple-400/10">
               <Smile size={20} className="text-purple-500" />
             </div>
@@ -648,6 +687,7 @@ const ReminderForm: React.FC<ReminderFormProps> = ({ onAddReminder, onEditRemind
   const [message, setMessage] = useState('');
   const [time, setTime] = useState('09:00');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [emojiData, setEmojiData] = useState<any>(null);
   const [days, setDays] = useState<{[key: string]: boolean}>({
     monday: true,
     tuesday: true,
@@ -754,6 +794,13 @@ const ReminderForm: React.FC<ReminderFormProps> = ({ onAddReminder, onEditRemind
     };
   }, [showEmojiPicker]);
 
+  // Load emoji data only when the picker is opened to reduce initial bundle size
+  useEffect(() => {
+    if (showEmojiPicker && !emojiData) {
+      import('@emoji-mart/data').then((m: any) => setEmojiData(m.default || m)).catch(() => {});
+    }
+  }, [showEmojiPicker, emojiData]);
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {editingReminder && (
@@ -813,17 +860,21 @@ const ReminderForm: React.FC<ReminderFormProps> = ({ onAddReminder, onEditRemind
               exit={{ opacity: 0, y: -10 }}
               className="absolute right-0 top-full mt-2 shadow-xl z-50"
             >
-              <Picker
-                data={data}
-                onEmojiSelect={handleEmojiSelect}
-                theme="dark"
-                set="native"
-                showPreview={false}
-                showSkinTones={false}
-                emojiSize={20}
-                perLine={8}
-                maxFrequentRows={2}
-              />
+              <Suspense fallback={null}>
+                {emojiData && (
+                  <EmojiPicker
+                    data={emojiData}
+                    onEmojiSelect={handleEmojiSelect}
+                    theme="dark"
+                    set="native"
+                    showPreview={false}
+                    showSkinTones={false}
+                    emojiSize={20}
+                    perLine={8}
+                    maxFrequentRows={2}
+                  />
+                )}
+              </Suspense>
             </motion.div>
           )}
         </div>
@@ -1139,9 +1190,11 @@ const App: React.FC = () => {
       const notificationType = await window.electronAPI.getSetting('notificationType');
       const selectedAvatar = await window.electronAPI.getSetting('selectedAvatar');
       const timeFormat = await window.electronAPI.getSetting('timeFormat');
+      const timezone = await window.electronAPI.getSetting('timezone');
       const enableDragging = await window.electronAPI.getSetting('enableDragging');
       const assistantLayer = await window.electronAPI.getSetting('assistantLayer');
       const bubbleSide = await window.electronAPI.getSetting('bubbleSide');
+      const enableAnimationSetting = await window.electronAPI.getSetting('enableAnimation');
       
       setSettings({
         enableSound: enableSound !== undefined ? enableSound : true,
@@ -1150,8 +1203,9 @@ const App: React.FC = () => {
         autoStart: autoStart !== undefined ? autoStart : false,
         notificationType: notificationType !== undefined ? notificationType : 'custom',
         selectedAvatar: selectedAvatar !== undefined ? selectedAvatar : 'Tasky',
-        enableAnimation: await window.electronAPI.getSetting('enableAnimation') !== undefined ? await window.electronAPI.getSetting('enableAnimation') : true,
-        timeFormat: timeFormat !== undefined ? timeFormat : '24h',
+        enableAnimation: enableAnimationSetting !== undefined ? enableAnimationSetting : true,
+        timeFormat: timeFormat === '24' ? '24h' : timeFormat === '12' ? '12h' : (timeFormat || '24h'),
+        timezone: timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
         enableDragging: enableDragging !== undefined ? enableDragging : true,
         assistantLayer: assistantLayer !== undefined ? assistantLayer : 'above',
         bubbleSide: bubbleSide !== undefined ? bubbleSide : 'left',
@@ -1296,50 +1350,14 @@ const App: React.FC = () => {
     window.electronAPI.minimizeWindow();
   };
 
-  // Import tasks handler (file picker + parse by extension)
+  // Import tasks handler: delegate to main via a unified IPC
   const handleImportTasks = async () => {
     try {
-      // Reuse avatar file picker channel with different filters
       const filePath = await window.electronAPI.invoke('select-import-file');
       if (!filePath) return;
-      const ext = (filePath.split('.').pop() || '').toLowerCase();
-      const dataUrl = await window.electronAPI.invoke('read-import-file', filePath);
-      if (!dataUrl) return;
-      const content = atob(dataUrl.split(',')[1] || '');
-      let records: any[] = [];
-      if (ext === 'json') {
-        records = JSON.parse(content);
-      } else if (ext === 'csv') {
-        const [headerLine, ...lines] = content.split(/\r?\n/).filter(Boolean);
-        const headers = headerLine.split(',').map(h => h.trim());
-        records = lines.map(line => {
-          const cols = line.split(',');
-          const obj: any = {};
-          headers.forEach((h, i) => obj[h] = cols[i]?.trim());
-          if (obj.affectedFiles) obj.affectedFiles = obj.affectedFiles.split('|').map((s: string) => s.trim()).filter(Boolean);
-          return obj;
-        });
-      } else if (ext === 'yaml' || ext === 'yml') {
-        const parsed = await window.electronAPI.invoke('parse-yaml', content);
-        records = Array.isArray(parsed) ? parsed : [];
-      } else if (ext === 'xml') {
-        const parsed = await window.electronAPI.invoke('parse-xml', content);
-        records = (parsed?.tasks?.task) || [];
-      }
-      for (const rec of records) {
-        const taskInput: any = {
-          title: rec.title,
-          description: rec.description,
-          assignedAgent: rec.assignedAgent,
-          executionPath: rec.executionPath,
-          affectedFiles: rec.affectedFiles
-        };
-        if (taskInput.title) {
-          const created = await window.electronAPI.createTask(taskInput);
-          if (created) {
-            setTasks(prev => [created, ...prev]);
-          }
-        }
+      const created = await window.electronAPI.invoke('task:import', { filePath });
+      if (Array.isArray(created) && created.length) {
+        await loadTasks();
       }
     } catch (e) {
       console.error('Import failed:', e);
@@ -1387,14 +1405,14 @@ const App: React.FC = () => {
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`group flex items-center px-4 py-1.5 text-sm font-semibold rounded-xl transition-all duration-300 top-nav-btn ${
+                    className={`group flex items-center px-4 py-1.5 text-sm font-semibold rounded-xl transition-all duration-200 top-nav-btn ${
                       activeTab === tab.id
-                        ? 'bg-primary text-primary-foreground shadow-lg scale-105 active'
+                        ? 'bg-primary text-primary-foreground shadow-md active'
                         : 'text-muted-foreground hover:text-foreground hover:bg-secondary/30 hover:scale-102'
                     }`}
                   >
                     <tab.icon size={14} className={`mr-2 transition-transform duration-200 ${
-                      activeTab === tab.id ? 'scale-110' : 'group-hover:scale-105'
+                      activeTab === tab.id ? 'scale-100' : 'group-hover:scale-105'
                     }`} />
                     <span className="font-medium">{tab.label}</span>
                     {activeTab === tab.id && (

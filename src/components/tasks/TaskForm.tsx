@@ -40,11 +40,16 @@ export const TaskForm: React.FC<TaskFormProps> = ({ onCreateTask, initial, submi
       .map(s => s.trim())
       .filter(Boolean);
 
+    // Validate assignedAgent
+    const normalizedAgent = formData.assignedAgent && ['gemini', 'claude'].includes(formData.assignedAgent as any)
+      ? (formData.assignedAgent as 'gemini' | 'claude')
+      : undefined;
+
     const taskData: Omit<TaskyTaskSchema, 'id' | 'createdAt'> = {
       title: formData.title.trim(),
       description: formData.description.trim() || undefined,
       affectedFiles: affectedFiles.length > 0 ? affectedFiles : undefined,
-      assignedAgent: formData.assignedAgent.trim() || undefined,
+      assignedAgent: normalizedAgent,
       executionPath: formData.executionPath.trim() || undefined,
       updatedAt: new Date()
     };

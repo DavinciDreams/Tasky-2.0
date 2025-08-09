@@ -1,3 +1,10 @@
+/**
+ * Storage (electron-store backed)
+ *
+ * Persists reminders and UI/settings using electron-store with safe defaults.
+ * Exposes CRUD helpers for reminders and settings, plus simple import/export
+ * and migration helpers. Used by main process to apply and persist user prefs.
+ */
 const Store = require('electron-store');
 import { Settings, Reminder } from '../types';
 
@@ -25,6 +32,7 @@ export class Storage {
           darkMode: false,
           enableAnimation: true,
           timeFormat: '24h',
+          timezone: '',
           enableDragging: true,
           assistantLayer: 'above',
           bubbleSide: 'left',
@@ -161,7 +169,22 @@ export class Storage {
 
   getAllSettings(): Settings {
     try {
-      const settings = this.store.get('settings');
+      const settings = this.store.get('settings') || {};
+      // Normalize legacy values and fill defaults
+      let changed = false;
+      // timeFormat: coerce '24'/'12' to '24h'/'12h'
+      if (settings.timeFormat === '24') { settings.timeFormat = '24h'; changed = true; }
+      if (settings.timeFormat === '12') { settings.timeFormat = '12h'; changed = true; }
+      // timezone default to system if missing/empty
+      if (!settings.timezone || typeof settings.timezone !== 'string' || settings.timezone.length === 0) {
+        try {
+          const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+          if (tz) { settings.timezone = tz; changed = true; }
+        } catch {}
+      }
+      if (changed) {
+        this.store.set('settings', settings);
+      }
       console.log('Got all settings:', settings);
       return settings;
     } catch (error) {
@@ -177,6 +200,7 @@ export class Storage {
         darkMode: false,
         enableAnimation: true,
         timeFormat: '24h',
+        timezone: ((): string => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return 'UTC'; } })(),
         enableDragging: true,
         assistantLayer: 'above',
         bubbleSide: 'left',

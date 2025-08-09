@@ -1,0 +1,54 @@
+\src\main.ts:874 - showSettingsWindow (used in module)
+\src\electron\task-manager.ts:527 - TaskNotificationManager (used in module)
+\src\lib\logger.ts:3 - logger (used in module)
+\src\types\index.ts:54 - Avatar
+\src\types\task.ts:5 - TaskId (used in module)
+\src\types\task.ts:6 - FilePath
+\src\types\task.ts:147 - TaskEvent
+\src\types\task.ts:154 - TaskCreatedEvent (used in module)
+\src\types\task.ts:159 - TaskUpdatedEvent (used in module)
+\src\types\task.ts:165 - TaskCompletedEvent (used in module)
+\src\types\task.ts:171 - TaskOverdueEvent (used in module)
+\src\types\task.ts:176 - TaskDueEvent (used in module)
+\src\types\task.ts:202 - TaskManagerSettings (used in module)
+\src\types\task.ts:268 - TaskStorageError
+\src\types\task.ts:276 - TaskyIntegrationSettings
+\src\types\task.ts:286 - ReminderTaskConversion
+\src\types\task.ts:294 - TaskReminderConversion
+\src\types\task.ts:302 - TaskElectronAPI
+\src\types\task.ts:335 - DeepReadonly (used in module)
+\src\components\tasks\index.ts:2 - TasksTab
+\src\components\tasks\index.ts:3 - TaskForm
+\src\components\tasks\index.ts:4 - TaskList
+\src\components\ui\select.tsx:45 - SelectTrigger
+\src\components\ui\select.tsx:53 - SelectContent
+\src\components\ui\select.tsx:69 - SelectValue
+\src\core\task-manager\events.ts:102 - createEventData
+\src\core\task-manager\events.ts:4 - EventHandler (used in module)
+\src\core\task-manager\events.ts:99 - globalTaskEventBus
+\src\core\task-manager\events.ts:111 - AsyncEventHandler (used in module)
+\src\core\task-manager\events.ts:203 - EventMiddleware (used in module)
+\src\core\task-manager\events.ts:265 - createTypedEventBus
+\src\core\task-manager\events.ts:268 - createAsyncEventBus
+\src\core\task-manager\events.ts:271 - createMiddlewareEventBus
+\src\core\task-manager\index.ts:4 - TaskyEngine
+\src\core\task-manager\index.ts:5 - TaskStorage
+\src\core\task-manager\index.ts:6 - TypedEventBus
+\src\core\task-manager\index.ts:6 - AsyncEventBus
+\src\core\task-manager\index.ts:6 - MiddlewareEventBus
+\src\core\task-manager\index.ts:6 - createEventBus
+\src\core\task-manager\index.ts:10 - TaskyTask
+\src\core\task-manager\index.ts:11 - TaskyTaskSchema
+\src\core\task-manager\index.ts:12 - TaskStatus
+\src\core\task-manager\index.ts:13 - TaskFilterOptions
+\src\core\task-manager\index.ts:14 - TaskStatistics
+\src\core\task-manager\index.ts:15 - TaskAnalytics
+\src\core\task-manager\index.ts:16 - TaskObservation
+\src\core\task-manager\index.ts:17 - TaskStrategy
+\src\core\task-manager\index.ts:18 - TaskAction
+\src\core\task-manager\index.ts:19 - TaskSuggestion
+\src\core\task-manager\index.ts:20 - TaskAlert
+\src\core\task-manager\index.ts:21 - CreateTaskInput
+\src\core\task-manager\index.ts:22 - UpdateTaskInput
+\src\core\task-manager\index.ts:23 - ToolResult
+\src\core\task-manager\index.ts:24 - TaskEventMap

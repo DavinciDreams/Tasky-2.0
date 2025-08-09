@@ -11,7 +11,8 @@ export default defineConfig({
         scheduler: 'src/electron/scheduler.ts',
         storage: 'src/electron/storage.ts',
         assistant: 'src/electron/assistant.ts',
-        'assistant-script': 'src/electron/assistant-script.js'
+        'assistant-script': 'src/electron/assistant-script.ts',
+        'assistant-preload': 'src/electron/assistant-preload.ts'
       },
       formats: ['cjs']
     },
