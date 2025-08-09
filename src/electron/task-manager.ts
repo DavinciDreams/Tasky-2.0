@@ -21,10 +21,8 @@ export class ElectronTaskManager {
     // Prefer a shared path so MCP and Electron read/write the same store
     const envTasksPath = process.env.TASKY_TASKS_PATH;
     const resolvedTasksPath = envTasksPath
-      ? path.isAbsolute(envTasksPath)
-        ? envTasksPath
-        : path.join(process.cwd(), envTasksPath)
-      : path.join(app.getPath('userData'), 'tasky-tasks.json');
+      ? (path.isAbsolute(envTasksPath) ? envTasksPath : path.join(process.cwd(), envTasksPath))
+      : path.join(process.cwd(), 'data', 'tasky-tasks.json');
 
     this.engine = new TaskyEngine(resolvedTasksPath);
     this.notificationManager = new TaskNotificationManager();

@@ -1,4 +1,4 @@
-import type { CallToolRequest, CallToolResult, Tool } from '@modelcontextprotocol/sdk/types.js';
+import type { CallToolRequest, CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { TaskBridge } from '../utils/task-bridge.js';
 import { ReminderBridge } from '../utils/reminder-bridge.js';
 
@@ -16,13 +16,15 @@ export class TaskyMCPTools {
     this.reminderBridge = new ReminderBridge(options.configPath);
   }
 
-  getTools(): Tool[] {
+  // Return tools using wire-compatible keys for maximum client compatibility
+  // Note: We avoid the SDK's Tool type here to emit `input_schema` keys on the wire.
+  getTools(): any[] {
     return [
       // Tasks
       {
         name: 'tasky_create_task',
         description: 'Create a Tasky task',
-        inputSchema: {
+        input_schema: {
           type: 'object',
           properties: {
             title: { type: 'string' },
@@ -43,7 +45,7 @@ export class TaskyMCPTools {
       {
         name: 'tasky_update_task',
         description: 'Update a Tasky task',
-        inputSchema: {
+        input_schema: {
           type: 'object',
           properties: {
             id: { type: 'string' },
@@ -72,30 +74,30 @@ export class TaskyMCPTools {
           required: ['id', 'updates']
         }
       },
-      { name: 'tasky_delete_task', description: 'Delete a Tasky task', inputSchema: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] } },
-      { name: 'tasky_get_task', description: 'Get a Tasky task', inputSchema: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] } },
-      { name: 'tasky_list_tasks', description: 'List Tasky tasks', inputSchema: { type: 'object', properties: { status: { type: 'array', items: { type: 'string' } }, tags: { type: 'array', items: { type: 'string' } }, search: { type: 'string' }, dueDateFrom: { type: 'string' }, dueDateTo: { type: 'string' }, limit: { type: 'number' }, offset: { type: 'number' } } } },
+      { name: 'tasky_delete_task', description: 'Delete a Tasky task', input_schema: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] } },
+      { name: 'tasky_get_task', description: 'Get a Tasky task', input_schema: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] } },
+      { name: 'tasky_list_tasks', description: 'List Tasky tasks', input_schema: { type: 'object', properties: { status: { type: 'array', items: { type: 'string' } }, tags: { type: 'array', items: { type: 'string' } }, search: { type: 'string' }, dueDateFrom: { type: 'string' }, dueDateTo: { type: 'string' }, limit: { type: 'number' }, offset: { type: 'number' } } } },
       {
         name: 'tasky_execute_task',
         description: 'Execute a selected task by updating status',
-        inputSchema: { type: 'object', properties: { id: { type: 'string' }, status: { type: 'string', enum: ['IN_PROGRESS', 'COMPLETED'] } }, required: ['id'] }
+        input_schema: { type: 'object', properties: { id: { type: 'string' }, status: { type: 'string', enum: ['IN_PROGRESS', 'COMPLETED'] } }, required: ['id'] }
       },
 
       // Reminders
       {
         name: 'tasky_create_reminder',
         description: 'Create a reminder',
-        inputSchema: { type: 'object', properties: { message: { type: 'string' }, time: { type: 'string' }, days: { type: 'array', items: { type: 'string' } }, enabled: { type: 'boolean' } }, required: ['message', 'time', 'days'] }
+        input_schema: { type: 'object', properties: { message: { type: 'string' }, time: { type: 'string' }, days: { type: 'array', items: { type: 'string' } }, enabled: { type: 'boolean' } }, required: ['message', 'time', 'days'] }
       },
       {
         name: 'tasky_update_reminder',
         description: 'Update a reminder',
-        inputSchema: { type: 'object', properties: { id: { type: 'string' }, updates: { type: 'object' } }, required: ['id', 'updates'] }
+        input_schema: { type: 'object', properties: { id: { type: 'string' }, updates: { type: 'object' } }, required: ['id', 'updates'] }
       },
-      { name: 'tasky_delete_reminder', description: 'Delete a reminder', inputSchema: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] } },
-      { name: 'tasky_get_reminder', description: 'Get a reminder', inputSchema: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] } },
-      { name: 'tasky_list_reminders', description: 'List reminders', inputSchema: { type: 'object', properties: { enabled: { type: 'boolean' }, day: { type: 'string' }, search: { type: 'string' } } } },
-      { name: 'tasky_toggle_reminder', description: 'Enable/disable a reminder', inputSchema: { type: 'object', properties: { id: { type: 'string' }, enabled: { type: 'boolean' } }, required: ['id', 'enabled'] } }
+      { name: 'tasky_delete_reminder', description: 'Delete a reminder', input_schema: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] } },
+      { name: 'tasky_get_reminder', description: 'Get a reminder', input_schema: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] } },
+      { name: 'tasky_list_reminders', description: 'List reminders', input_schema: { type: 'object', properties: { enabled: { type: 'boolean' }, day: { type: 'string' }, search: { type: 'string' } } } },
+      { name: 'tasky_toggle_reminder', description: 'Enable/disable a reminder', input_schema: { type: 'object', properties: { id: { type: 'string' }, enabled: { type: 'boolean' } }, required: ['id', 'enabled'] } }
     ];
   }
 

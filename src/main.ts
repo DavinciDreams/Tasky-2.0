@@ -41,6 +41,7 @@ let store: Storage | null = null;      // Persistent data storage service
 let assistant: any = null;  // Desktop companion/assistant (will be typed later)
 let taskManager: ElectronTaskManager | null = null;  // Task management system
 
+
 /**
  * Creates the main application window for settings and configuration.
  * The window is initially hidden as this is primarily a tray application.

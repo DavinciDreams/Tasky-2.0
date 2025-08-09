@@ -113,7 +113,17 @@ export class TaskStorage {
         }
       };
 
-      await fs.writeFile(this.tasksFilePath, JSON.stringify(taskFile, null, 2), 'utf-8');
+      // Atomic write: write to temporary file then rename
+      const dir = path.dirname(this.tasksFilePath);
+      const tmpPath = path.join(dir, `.tmp_${path.basename(this.tasksFilePath)}_${Date.now()}`);
+      await fs.writeFile(tmpPath, JSON.stringify(taskFile, null, 2), 'utf-8');
+      try {
+        await fs.rename(tmpPath, this.tasksFilePath);
+      } catch (e) {
+        // Fallback to direct write if rename fails
+        await fs.writeFile(this.tasksFilePath, JSON.stringify(taskFile, null, 2), 'utf-8');
+        try { await fs.unlink(tmpPath).catch(() => {}); } catch {}
+      }
       
       return { success: true, message: 'All tasks saved successfully' };
     } catch (error) {

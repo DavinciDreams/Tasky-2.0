@@ -6,7 +6,7 @@
   "homepage": "./",
   "scripts": {
     "clean": "node -e \"const fs=require('fs'); try{fs.rmSync('src/renderer/dist',{recursive:true,force:true})}catch(e){} try{fs.rmSync('.vite/build',{recursive:true,force:true})}catch(e){}\"",
-    "start": "npm run clean && npm run build-renderer && npm run build-electron && electron .",
+    "start": "npm run clean && npm run build-renderer && npm run build-electron && cross-env TASKY_TASKS_PATH=./data/tasky-tasks.json TASKY_CONFIG_PATH=./data/tasky-config-v2.json electron .",
     "build": "npm run clean && npm run build-renderer && npm run build-electron",
     "dist": "npm run build && npx electron-builder",
     "dist:mac": "npm run build && npx electron-builder --mac",
@@ -62,6 +62,7 @@
     "concurrently": "^9.2.0",
     "electron": "^29.4.6",
     "electron-builder": "^26.0.12",
+    "cross-env": "^7.0.3",
     "eslint": "^8.0.1",
     "glob": "^11.0.3",
     "postcss": "^8.5.6",

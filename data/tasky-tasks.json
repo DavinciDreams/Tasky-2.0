@@ -1,0 +1,30 @@
+{
+  "version": "1.0",
+  "lastSaved": "2025-08-09T15:28:34.069Z",
+  "tasks": [
+    {
+      "schema": {
+        "id": "test_20250809_112834_23081bda",
+        "title": "Test",
+        "description": "Test",
+        "createdAt": "2025-08-09T15:28:34.067Z",
+        "updatedAt": "2025-08-09T15:28:34.067Z",
+        "tags": [],
+        "affectedFiles": [],
+        "dependencies": []
+      },
+      "status": "PENDING",
+      "humanApproved": false,
+      "reminderEnabled": false,
+      "metadata": {
+        "version": 1,
+        "createdBy": "tasky-user",
+        "lastModified": "2025-08-09T15:28:34.067Z"
+      }
+    }
+  ],
+  "metadata": {
+    "totalTasks": 1,
+    "lastTaskId": "test_20250809_112834_23081bda"
+  }
+}

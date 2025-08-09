@@ -64,7 +64,7 @@ export class ReminderBridge {
     };
     db.reminders.push(rem);
     this.write(db);
-    return { content: [{ type: 'json', json: rem }] };
+    return { content: [{ type: 'text', text: JSON.stringify(rem) }] };
   }
 
   async updateReminder(args: any): Promise<CallToolResult> {
@@ -76,7 +76,7 @@ export class ReminderBridge {
     const next: Reminder = { ...current, ...updates, updatedAt: new Date().toISOString() };
     db.reminders[idx] = next;
     this.write(db);
-    return { content: [{ type: 'json', json: next }] };
+    return { content: [{ type: 'text', text: JSON.stringify(next) }] };
   }
 
   async deleteReminder(args: any): Promise<CallToolResult> {
@@ -87,7 +87,7 @@ export class ReminderBridge {
     const removed = db.reminders.length < countBefore;
     if (!removed) return { content: [{ type: 'text', text: 'Reminder not found' }], isError: true };
     this.write(db);
-    return { content: [{ type: 'json', json: { success: true } }] };
+    return { content: [{ type: 'text', text: JSON.stringify({ success: true }) }] };
   }
 
   async getReminder(args: any): Promise<CallToolResult> {
@@ -95,7 +95,16 @@ export class ReminderBridge {
     const db = this.read();
     const rem = db.reminders.find((r: Reminder) => r.id === id);
     if (!rem) return { content: [{ type: 'text', text: 'Reminder not found' }], isError: true };
-    return { content: [{ type: 'json', json: rem }] };
+    const summary = `Reminder ${rem.id}: ${rem.message}`;
+    const normalizedPath = this.configPath.replace(/\\/g, '/');
+    const fileUri = `file:///${normalizedPath}`;
+    return {
+      content: [
+        { type: 'text', text: summary },
+        { type: 'text', text: JSON.stringify(rem) },
+        { type: 'resource_link', uri: fileUri, name: 'tasky-config-v2.json', mimeType: 'application/json', description: 'Reminders storage file' as any }
+      ] as any
+    };
   }
 
   async listReminders(args: any): Promise<CallToolResult> {
@@ -107,7 +116,15 @@ export class ReminderBridge {
       const s = String(args.search).toLowerCase();
       items = items.filter(r => r.message.toLowerCase().includes(s));
     }
-    return { content: [{ type: 'json', json: items }] };
+    const normalizedPath = this.configPath.replace(/\\/g, '/');
+    const fileUri = `file:///${normalizedPath}`;
+    return {
+      content: [
+        { type: 'text', text: `Returned ${items.length} reminders` },
+        { type: 'text', text: JSON.stringify(items) },
+        { type: 'resource_link', uri: fileUri, name: 'tasky-config-v2.json', mimeType: 'application/json', description: 'Reminders storage file' as any }
+      ] as any
+    };
   }
 
   async toggleReminder(args: any): Promise<CallToolResult> {
@@ -118,7 +135,7 @@ export class ReminderBridge {
     db.reminders[idx].enabled = !!enabled;
     db.reminders[idx].updatedAt = new Date().toISOString();
     this.write(db);
-    return { content: [{ type: 'json', json: db.reminders[idx] }] };
+    return { content: [{ type: 'text', text: JSON.stringify(db.reminders[idx]) }] };
   }
 }
 

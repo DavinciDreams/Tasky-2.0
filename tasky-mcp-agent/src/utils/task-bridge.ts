@@ -1,6 +1,4 @@
-// Minimal MCP result type to avoid external type dependency during lint
-type MCPContent = { type: 'text'; text: string } | { type: 'json'; json: any };
-type MCPResult = { content: MCPContent[]; isError?: boolean };
+import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import fs from 'fs';
 import path from 'path';
 import { format } from 'date-fns';
@@ -125,7 +123,17 @@ export class TaskBridge {
       tasks: file.tasks.map(serializeTask),
       metadata: file.metadata
     };
-    fs.writeFileSync(this.tasksPath, JSON.stringify(toWrite, null, 2), 'utf-8');
+    // Atomic write: write to temp file then rename
+    const dir = path.dirname(this.tasksPath);
+    const tmpPath = path.join(dir, `.tmp_${path.basename(this.tasksPath)}_${Date.now()}`);
+    fs.writeFileSync(tmpPath, JSON.stringify(toWrite, null, 2), 'utf-8');
+    try {
+      fs.renameSync(tmpPath, this.tasksPath);
+    } catch (e) {
+      // Fallback to direct write if rename fails
+      fs.writeFileSync(this.tasksPath, JSON.stringify(toWrite, null, 2), 'utf-8');
+      try { fs.unlinkSync(tmpPath); } catch {}
+    }
   }
 
   private generateTaskId(title: string): string {
@@ -140,7 +148,7 @@ export class TaskBridge {
     return `${prefix}_${timestamp}_${uuid}`;
   }
 
-  async createTask(args: any): Promise<MCPResult> {
+  async createTask(args: any): Promise<CallToolResult> {
     if (!args?.title || typeof args.title !== 'string') {
       return { content: [{ type: 'text', text: 'title is required' }], isError: true };
     }
@@ -169,10 +177,10 @@ export class TaskBridge {
     };
     file.tasks.push(task);
     this.write(file);
-    return { content: [{ type: 'json', json: task }] };
+    return { content: [{ type: 'text', text: JSON.stringify(task) }] };
   }
 
-  async updateTask(args: any): Promise<MCPResult> {
+  async updateTask(args: any): Promise<CallToolResult> {
     const { id, updates } = args || {};
     if (!id) return { content: [{ type: 'text', text: 'id is required' }], isError: true };
     const file = this.read();
@@ -234,10 +242,10 @@ export class TaskBridge {
     };
     file.tasks[idx] = next;
     this.write(file);
-    return { content: [{ type: 'json', json: next }] };
+    return { content: [{ type: 'text', text: JSON.stringify(next) }] };
   }
 
-  async deleteTask(args: any): Promise<MCPResult> {
+  async deleteTask(args: any): Promise<CallToolResult> {
     const { id } = args || {};
     if (!id) return { content: [{ type: 'text', text: 'id is required' }], isError: true };
     const file = this.read();
@@ -245,19 +253,29 @@ export class TaskBridge {
     file.tasks = file.tasks.filter(t => t.schema.id !== id);
     if (file.tasks.length === before) return { content: [{ type: 'text', text: 'Task not found' }], isError: true };
     this.write(file);
-    return { content: [{ type: 'json', json: { success: true } }] };
+    return { content: [{ type: 'text', text: JSON.stringify({ success: true }) }] };
   }
 
-  async getTask(args: any): Promise<MCPResult> {
+  async getTask(args: any): Promise<CallToolResult> {
     const { id } = args || {};
     if (!id) return { content: [{ type: 'text', text: 'id is required' }], isError: true };
     const file = this.read();
     const task = file.tasks.find(t => t.schema.id === id);
     if (!task) return { content: [{ type: 'text', text: 'Task not found' }], isError: true };
-    return { content: [{ type: 'json', json: task }] };
+    // Provide both a brief summary and a resource link to the underlying file
+    const summary = `Task ${task.schema.id}: ${task.schema.title}`;
+    const normalizedPath = this.tasksPath.replace(/\\/g, '/');
+    const fileUri = `file:///${normalizedPath}`;
+    return {
+      content: [
+        { type: 'text', text: summary },
+        { type: 'text', text: JSON.stringify(task) },
+        { type: 'resource_link', uri: fileUri, name: 'tasky-tasks.json', mimeType: 'application/json', description: 'Tasks storage file' as any }
+      ] as any
+    };
   }
 
-  async listTasks(args: any): Promise<MCPResult> {
+  async listTasks(args: any): Promise<CallToolResult> {
     const file = this.read();
     let tasks = [...file.tasks];
     if (Array.isArray(args?.status) && args.status.length) tasks = tasks.filter(t => args.status.includes(t.status));
@@ -284,10 +302,18 @@ export class TaskBridge {
     const offset = args?.offset || 0;
     const limit = args?.limit || tasks.length;
     const page = tasks.slice(offset, offset + limit);
-    return { content: [{ type: 'json', json: page }] };
+    const normalizedPath = this.tasksPath.replace(/\\/g, '/');
+    const fileUri = `file:///${normalizedPath}`;
+    return {
+      content: [
+        { type: 'text', text: `Returned ${page.length} of ${tasks.length} tasks` },
+        { type: 'text', text: JSON.stringify(page) },
+        { type: 'resource_link', uri: fileUri, name: 'tasky-tasks.json', mimeType: 'application/json', description: 'Tasks storage file' as any }
+      ] as any
+    };
   }
 
-  async executeTask(args: any): Promise<MCPResult> {
+  async executeTask(args: any): Promise<CallToolResult> {
     const status: TaskStatus = (args?.status === 'COMPLETED' ? 'COMPLETED' : 'IN_PROGRESS');
     const updates: any = { status };
     return this.updateTask({ id: args?.id, updates });
