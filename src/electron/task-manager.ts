@@ -289,6 +289,30 @@ export class ElectronTaskManager {
           }
         };
 
+        const parseCsvLine = (line: string): string[] => {
+          const result: string[] = [];
+          let current = '';
+          let inQuotes = false;
+          for (let i = 0; i < line.length; i++) {
+            const ch = line[i];
+            if (ch === '"') {
+              if (inQuotes && line[i + 1] === '"') {
+                current += '"';
+                i++; // skip escaped quote
+              } else {
+                inQuotes = !inQuotes;
+              }
+            } else if (ch === ',' && !inQuotes) {
+              result.push(current);
+              current = '';
+            } else {
+              current += ch;
+            }
+          }
+          result.push(current);
+          return result.map((s) => s.trim());
+        };
+
         const toStringLoose = (v: any): string => {
           if (v === null || v === undefined) return '';
           if (Array.isArray(v)) return v.length ? String(v[0]) : '';
@@ -335,12 +359,12 @@ export class ElectronTaskManager {
           } else if (ext === 'csv') {
             const lines: string[] = raw.split(/\r?\n/).filter(Boolean);
             if (lines.length > 0) {
-              const headers: string[] = lines[0].split(',').map((h: string) => h.trim());
+              const first = lines[0].replace(/^\uFEFF/, '');
+              const headers: string[] = parseCsvLine(first).map((h: string) => h.trim());
               records = lines.slice(1).map((line: string) => {
-                const cols: string[] = line.split(',');
+                const cols: string[] = parseCsvLine(line);
                 const obj: any = {};
-                headers.forEach((h: string, i: number) => (obj[h] = cols[i]?.trim()));
-                // affectedFiles normalization is handled later
+                headers.forEach((h: string, i: number) => (obj[h] = (cols[i] ?? '').trim()));
                 return obj;
               });
             }
