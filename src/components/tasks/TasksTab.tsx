@@ -39,9 +39,17 @@ export const TasksTab: React.FC<TasksTabProps> = ({
       const filePath = await (window as any).electronAPI.invoke('select-import-file');
       if (!filePath) return;
       // Delegate parsing to main to avoid duplication
-      const parsed = await (window as any).electronAPI.invoke('task:import', { filePath });
-      if (Array.isArray(parsed)) {
-        // If main returns created tasks, trigger a refresh externally
+      const created = await (window as any).electronAPI.invoke('task:import', { filePath });
+      if (Array.isArray(created)) {
+        // Notify app shell to refresh tasks from main storage
+        const evt = new Event('tasky:reload-tasks');
+        window.dispatchEvent(evt);
+        // Optional UX: quick inline feedback
+        if (created.length === 0) {
+          console.info('No tasks were imported from the selected file.');
+        } else {
+          console.info(`Imported ${created.length} task(s).`);
+        }
       }
     } catch (e) {
       console.error('Import failed:', e);

@@ -273,13 +273,51 @@ export class ElectronTaskManager {
       try {
         validateImportPayload(importPayload);
         const createdTasks: TaskyTask[] = [];
+        let failedCount = 0;
 
         // Helper: create a task safely and push to createdTasks on success
         const tryCreate = async (input: any) => {
-          const result = await this.engine.createTask(input);
-          if (result.success && result.data) {
-            createdTasks.push(result.data);
+          try {
+            const result = await this.engine.createTask(input);
+            if (result.success && result.data) {
+              createdTasks.push(result.data);
+            } else {
+              failedCount++;
+            }
+          } catch {
+            failedCount++;
           }
+        };
+
+        const toStringLoose = (v: any): string => {
+          if (v === null || v === undefined) return '';
+          if (Array.isArray(v)) return v.length ? String(v[0]) : '';
+          return String(v);
+        };
+
+        const normalizeFiles = (v: any): string[] | undefined => {
+          if (!v) return undefined;
+          if (Array.isArray(v)) return v.map((s) => String(s)).filter(Boolean);
+          const s = String(v);
+          if (!s.trim()) return undefined;
+          if (s.includes('|')) return s.split('|').map((p) => p.trim()).filter(Boolean);
+          return [s.trim()];
+        };
+
+        const normalizeRecord = (rec: any) => {
+          const title = toStringLoose(rec.title).trim();
+          const description = toStringLoose(rec.description).trim();
+          const agentRaw = toStringLoose(rec.assignedAgent).toLowerCase();
+          const assignedAgent = agentRaw === 'claude' ? 'claude' : agentRaw === 'gemini' ? 'gemini' : undefined;
+          const executionPath = toStringLoose(rec.executionPath).trim();
+          const affectedFiles = normalizeFiles(rec.affectedFiles);
+          const input: any = {};
+          if (title) input.title = title;
+          if (description) input.description = description;
+          if (assignedAgent) input.assignedAgent = assignedAgent;
+          if (executionPath) input.executionPath = executionPath;
+          if (affectedFiles && affectedFiles.length) input.affectedFiles = affectedFiles;
+          return input;
         };
 
         // Path A: import from file path
@@ -289,7 +327,11 @@ export class ElectronTaskManager {
           const raw = require('fs').readFileSync(filePath, 'utf-8');
           let records: any[] = [];
           if (ext === 'json') {
-            try { records = JSON.parse(raw); } catch {}
+            try {
+              const parsed = JSON.parse(raw);
+              if (Array.isArray(parsed)) records = parsed;
+              else if (parsed && Array.isArray(parsed.tasks)) records = parsed.tasks;
+            } catch {}
           } else if (ext === 'csv') {
             const lines: string[] = raw.split(/\r?\n/).filter(Boolean);
             if (lines.length > 0) {
@@ -298,30 +340,27 @@ export class ElectronTaskManager {
                 const cols: string[] = line.split(',');
                 const obj: any = {};
                 headers.forEach((h: string, i: number) => (obj[h] = cols[i]?.trim()));
-                if (obj.affectedFiles) obj.affectedFiles = String(obj.affectedFiles).split('|').map((s: string) => s.trim()).filter(Boolean);
+                // affectedFiles normalization is handled later
                 return obj;
               });
             }
           } else if (ext === 'yaml' || ext === 'yml') {
             const yaml = require('yaml');
             const parsed = yaml.parse(raw);
-            records = Array.isArray(parsed) ? parsed : [];
+            if (Array.isArray(parsed)) records = parsed;
+            else if (parsed && Array.isArray(parsed.tasks)) records = parsed.tasks;
           } else if (ext === 'xml') {
             const xml2js = require('xml2js');
-            const parsed = await xml2js.parseStringPromise(raw).catch(() => null);
-            records = (parsed?.tasks?.task) || [];
+            const parser = new xml2js.Parser({ explicitArray: false, mergeAttrs: true, trim: true });
+            const parsed = await parser.parseStringPromise(raw).catch(() => null);
+            let tasks = parsed?.tasks?.task || [];
+            if (!Array.isArray(tasks)) tasks = tasks ? [tasks] : [];
+            // affectedFiles may be a single string or array of strings depending on repeats
+            records = tasks;
           }
           for (const rec of records) {
-            const taskInput: any = {
-              title: rec.title,
-              description: rec.description,
-              assignedAgent: rec.assignedAgent,
-              executionPath: rec.executionPath,
-              affectedFiles: rec.affectedFiles
-            };
-            if (taskInput.title) {
-              await tryCreate(taskInput);
-            }
+            const input = normalizeRecord(rec);
+            if (input.title) await tryCreate(input);
           }
           return createdTasks;
         }
@@ -329,8 +368,9 @@ export class ElectronTaskManager {
         // Path B: import from structured payload { tasks: [...] }
         if (importPayload && Array.isArray(importPayload.tasks)) {
           for (const taskData of importPayload.tasks) {
-            const { id, createdAt, ...taskInput } = taskData.schema || {};
-            await tryCreate(taskInput);
+            const rawRec = taskData.schema ? taskData.schema : taskData;
+            const input = normalizeRecord(rawRec);
+            if (input.title) await tryCreate(input);
           }
           return createdTasks;
         }

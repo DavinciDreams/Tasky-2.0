@@ -22,6 +22,8 @@ export default defineConfig({
         'electron-squirrel-startup',
         'node-cron',
         'electron-store',
+        'xml2js',
+        'yaml',
         'sound-play',
         'child_process',
         'path',

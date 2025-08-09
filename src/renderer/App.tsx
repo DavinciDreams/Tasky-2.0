@@ -1161,9 +1161,13 @@ const App: React.FC = () => {
     };
     
     window.addEventListener('keydown', handleKeyDown);
+    // Listen for task reload events from child components (e.g., import)
+    const onReload = () => loadTasks();
+    window.addEventListener('tasky:reload-tasks', onReload as any);
     
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('tasky:reload-tasks', onReload as any);
     };
   }, []);
 
