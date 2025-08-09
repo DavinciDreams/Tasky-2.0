@@ -69,8 +69,7 @@
     "tailwindcss": "^4.1.11",
     "typescript": "^5.9.2",
     "vite": "^7.0.6",
-    "wait-on": "^8.0.4",
-    "ts-prune": "^0.13.2"
+    "wait-on": "^8.0.4"
   },
   "dependencies": {
     "@emoji-mart/data": "^1.2.1",
@@ -86,7 +85,7 @@
     "react-dom": "^18.2.0",
     "tailwind-merge": "^3.3.1",
     "xml2js": "^0.6.2",
-    "yaml": "^2.5.1",
+    "yaml": "^2.8.1",
     "zod": "^3.23.8"
   },
   "build": {

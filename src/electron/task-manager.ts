@@ -369,11 +369,14 @@ export class ElectronTaskManager {
               });
             }
           } else if (ext === 'yaml' || ext === 'yml') {
+            // lazy load at runtime to avoid TS type requirement
+            // eslint-disable-next-line @typescript-eslint/no-var-requires
             const yaml = require('yaml');
             const parsed = yaml.parse(raw);
             if (Array.isArray(parsed)) records = parsed;
             else if (parsed && Array.isArray(parsed.tasks)) records = parsed.tasks;
           } else if (ext === 'xml') {
+            // eslint-disable-next-line @typescript-eslint/no-var-requires
             const xml2js = require('xml2js');
             const parser = new xml2js.Parser({ explicitArray: false, mergeAttrs: true, trim: true });
             const parsed = await parser.parseStringPromise(raw).catch(() => null);
