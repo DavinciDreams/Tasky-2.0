@@ -55,3 +55,10 @@ app/
 *.deb
 *.rpm
 *.AppImage
+
+# Tasky data (DB-only)
+data/*.db
+data/*.db-shm
+data/*.db-wal
+data/tasky-backup-*.db
+data/tasky-*.json

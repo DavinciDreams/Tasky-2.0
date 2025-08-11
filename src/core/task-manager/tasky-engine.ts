@@ -18,9 +18,7 @@ import {
   TaskEventMap,
   createTaskId
 } from '../../types/task';
-import { TaskStorage } from './task-storage';
 import { ITaskStorage } from '../storage/ITaskStorage';
-import { JsonTaskStorage } from '../storage/JsonTaskStorage';
 import { TypedEventBus } from './events';
 import { v4 as uuidv4 } from 'uuid';
 import { format } from 'date-fns';
@@ -40,8 +38,11 @@ export class TaskyEngine {
   private tasks: TaskyTask[] = [];
   private lastUpdatedAt: number = Date.now();
 
-  constructor(storagePath?: string, storageImpl?: ITaskStorage) {
-    this.storage = storageImpl || new JsonTaskStorage(storagePath);
+  constructor(_storagePath?: string, storageImpl?: ITaskStorage) {
+    if (!storageImpl) {
+      throw new Error('TaskyEngine requires an ITaskStorage implementation');
+    }
+    this.storage = storageImpl;
   }
 
   /**
