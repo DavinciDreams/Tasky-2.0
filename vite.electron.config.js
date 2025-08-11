@@ -25,6 +25,7 @@ export default defineConfig({
         'yaml',
         'xml2js',
         'sound-play',
+          'better-sqlite3',
         'child_process',
         'path',
         'fs',

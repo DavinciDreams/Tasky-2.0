@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  tasky-mcp-agent:
+    build: .
+    ports:
+      - "7842:7842"
+    environment:
+      - TASKY_DB_PATH=/app/data/tasky.db
+      - PORT=7842
+    volumes:
+      # Mount top-level Tasky data directory for a single source of truth
+      - ../data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7842/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

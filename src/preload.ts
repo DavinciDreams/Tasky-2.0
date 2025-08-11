@@ -4,7 +4,9 @@
  * Exposes a narrow, typed IPC bridge to the renderer via `window.electronAPI`.
  * Keeps `contextIsolation: true` and `nodeIntegration: false` for safety.
  */
-import { contextBridge, ipcRenderer } from 'electron';
+// Use require form to avoid TS "electron.d.ts is not a module" issues
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { contextBridge, ipcRenderer } = require('electron');
 import { ElectronAPI } from './types';
 
 // Expose protected methods that allow the renderer process to use
@@ -53,7 +55,9 @@ const electronAPI: ElectronAPI = {
   executeTask: (id, options) => ipcRenderer.invoke('task:execute', id, options),
   
   // Task-reminder integration
-  // Removed per scope: no reminder↔task conversion
+  // Not implemented in main process yet; provide stubs to satisfy typing
+  convertReminderToTask: (_reminderId) => Promise.reject('convertReminderToTask not implemented'),
+  convertTaskToReminder: (_taskId) => Promise.reject('convertTaskToReminder not implemented'),
   
   // Window controls
   closeWindow: () => ipcRenderer.send('close-window'),

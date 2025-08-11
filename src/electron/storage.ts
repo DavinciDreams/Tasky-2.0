@@ -7,6 +7,8 @@
  */
 const Store = require('electron-store');
 import { Settings, Reminder } from '../types';
+import { ReminderSqliteStorage } from '../core/storage/ReminderSqliteStorage';
+import * as path from 'path';
 
 interface StoreSchema {
   reminders: Reminder[];
@@ -15,6 +17,7 @@ interface StoreSchema {
 
 export class Storage {
   private store: any;
+  private reminderDb?: ReminderSqliteStorage;
 
   constructor() {
     // Initialize electron-store with minimal schema to avoid validation issues
@@ -49,11 +52,18 @@ export class Storage {
         }
       }
     });
+    // If TASKY_DB_PATH is set, use SQLite for reminders
+    const envDbPath = process.env.TASKY_DB_PATH;
+    if (envDbPath && typeof envDbPath === 'string' && envDbPath.trim().length > 0) {
+      const resolvedDb = path.isAbsolute(envDbPath) ? envDbPath : path.join(process.cwd(), envDbPath);
+      this.reminderDb = new ReminderSqliteStorage(resolvedDb);
+    }
   }
 
   // Reminder methods
   getReminders(): Reminder[] {
     try {
+      if (this.reminderDb) return this.reminderDb.getReminders();
       const reminders = this.store.get('reminders', []);
       console.log('Got reminders:', reminders);
       return reminders;
@@ -65,6 +75,7 @@ export class Storage {
 
   addReminder(reminder: Reminder): boolean {
     try {
+      if (this.reminderDb) return this.reminderDb.addReminder(reminder);
       const reminders = this.getReminders();
       reminders.push(reminder);
       this.store.set('reminders', reminders);
@@ -78,6 +89,7 @@ export class Storage {
 
   updateReminder(id: string, updates: Partial<Reminder>): boolean {
     try {
+      if (this.reminderDb) return this.reminderDb.updateReminder(id, updates);
       const reminders = this.getReminders();
       const index = reminders.findIndex(r => r.id === id);
       
@@ -98,6 +110,7 @@ export class Storage {
 
   deleteReminder(id: string): boolean {
     try {
+      if (this.reminderDb) return this.reminderDb.deleteReminder(id);
       const reminders = this.getReminders();
       const filteredReminders = reminders.filter(r => r.id !== id);
       
@@ -122,6 +135,7 @@ export class Storage {
 
   getReminderById(id: string): Reminder | null {
     try {
+      if (this.reminderDb) return this.reminderDb.getReminderById(id);
       const reminders = this.getReminders();
       const reminder = reminders.find(r => r.id === id);
       console.log('Got reminder by ID:', reminder);
@@ -134,6 +148,7 @@ export class Storage {
 
   getActiveReminders(): Reminder[] {
     try {
+      if (this.reminderDb) return this.reminderDb.getActiveReminders();
       const reminders = this.getReminders();
       const activeReminders = reminders.filter(r => r.enabled);
       console.log('Got active reminders:', activeReminders);

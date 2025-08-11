@@ -1,7 +1,10 @@
-import { ipcMain, app, Notification } from 'electron';
+// Use require to avoid TS module resolution issues with electron types in lint
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { ipcMain, app, Notification, BrowserWindow } = require('electron');
 import * as path from 'path';
 import * as fs from 'fs';
 import { TaskyEngine } from '../core/task-manager/tasky-engine';
+import { SqliteTaskStorage } from '../core/storage/SqliteTaskStorage';
 import { TaskyTask, TaskyTaskSchema, TaskStatus, CreateTaskInput, UpdateTaskInput } from '../types/task';
 import logger from '../lib/logger';
 
@@ -16,15 +19,19 @@ import logger from '../lib/logger';
 export class ElectronTaskManager {
   private engine: TaskyEngine;
   private notificationManager: TaskNotificationManager;
+  private dbPath: string;
 
   constructor() {
-    // Prefer a shared path so MCP and Electron read/write the same store
-    const envTasksPath = process.env.TASKY_TASKS_PATH;
-    const resolvedTasksPath = envTasksPath
-      ? (path.isAbsolute(envTasksPath) ? envTasksPath : path.join(process.cwd(), envTasksPath))
-      : path.join(process.cwd(), 'data', 'tasky-tasks.json');
+    // Always use SQLite as the single source of truth
+    const envDbPath = process.env.TASKY_DB_PATH;
+    this.dbPath = envDbPath && typeof envDbPath === 'string' && envDbPath.trim().length > 0
+      ? (path.isAbsolute(envDbPath) ? envDbPath : path.join(process.cwd(), envDbPath))
+      : path.join(process.cwd(), 'data', 'tasky.db');
 
-    this.engine = new TaskyEngine(resolvedTasksPath);
+    const storageImpl = new SqliteTaskStorage(this.dbPath);
+    logger.info('Using SQLite task storage at', this.dbPath);
+
+    this.engine = new TaskyEngine(undefined, storageImpl);
     this.notificationManager = new TaskNotificationManager();
     this.setupIpcHandlers();
   }
@@ -57,7 +64,7 @@ export class ElectronTaskManager {
       throw new Error('Invalid import payload');
     };
     // Task CRUD operations
-    ipcMain.handle('task:create', async (event, taskInput: CreateTaskInput) => {
+    ipcMain.handle('task:create', async (event: any, taskInput: CreateTaskInput) => {
       try {
         validateCreateTask(taskInput);
         const result = await this.engine.createTask(taskInput);
@@ -80,7 +87,7 @@ export class ElectronTaskManager {
       }
     });
 
-    ipcMain.handle('task:update', async (event, id: string, updates: UpdateTaskInput) => {
+    ipcMain.handle('task:update', async (event: any, id: string, updates: UpdateTaskInput) => {
       try {
         if (!isNonEmptyString(id)) throw new Error('Invalid id');
         validateUpdateTask(updates);
@@ -120,7 +127,7 @@ export class ElectronTaskManager {
       }
     });
 
-    ipcMain.handle('task:delete', async (event, id: string) => {
+    ipcMain.handle('task:delete', async (event: any, id: string) => {
       try {
         const result = await this.engine.deleteTask(id);
         
@@ -140,7 +147,7 @@ export class ElectronTaskManager {
       }
     });
 
-    ipcMain.handle('task:get', async (event, id: string) => {
+    ipcMain.handle('task:get', async (event: any, id: string) => {
       try {
         if (!isNonEmptyString(id)) throw new Error('Invalid id');
         const result = await this.engine.getTask(id);
@@ -156,7 +163,7 @@ export class ElectronTaskManager {
       }
     });
 
-    ipcMain.handle('task:list', async (event, filters?: any) => {
+    ipcMain.handle('task:list', async (event: any, filters?: any) => {
       try {
         const result = await this.engine.getTasks(filters);
         
@@ -171,7 +178,7 @@ export class ElectronTaskManager {
       }
     });
 
-    ipcMain.handle('task:stats', async (event) => {
+    ipcMain.handle('task:stats', async (event: any) => {
       try {
         const result = await this.engine.getTaskAnalytics();
         
@@ -186,8 +193,19 @@ export class ElectronTaskManager {
       }
     });
 
+    // Cheap last-updated value to support lightweight polling in renderer
+    ipcMain.handle('task:last-updated', async () => {
+      try {
+        // Touch engine load to ensure cache is warm
+        await this.engine.getTasks();
+        return (this.engine as any).getLastUpdated ? (this.engine as any).getLastUpdated() : Date.now();
+      } catch {
+        return Date.now();
+      }
+    });
+
     // Task analysis and insights
-    ipcMain.handle('task:analyze', async (event) => {
+    ipcMain.handle('task:analyze', async (event: any) => {
       try {
         const observation = await this.engine.observe();
         const strategy = await this.engine.orient(observation);
@@ -205,7 +223,7 @@ export class ElectronTaskManager {
     });
 
     // Bulk operations
-    ipcMain.handle('task:bulk-update-status', async (event, taskIds: string[], status: TaskStatus) => {
+    ipcMain.handle('task:bulk-update-status', async (event: any, taskIds: string[], status: TaskStatus) => {
       try {
         if (!Array.isArray(taskIds) || taskIds.some(id => !isNonEmptyString(id))) throw new Error('Invalid taskIds');
         if (!Object.values(TaskStatus).includes(status)) throw new Error('Invalid status');
@@ -224,7 +242,7 @@ export class ElectronTaskManager {
     });
 
     // Archive completed tasks
-    ipcMain.handle('task:archive-completed', async (event) => {
+    ipcMain.handle('task:archive-completed', async (event: any) => {
       try {
         const tasksResult = await this.engine.getTasks();
         
@@ -253,7 +271,7 @@ export class ElectronTaskManager {
     });
 
     // Import/Export functionality
-    ipcMain.handle('task:export', async (event) => {
+    ipcMain.handle('task:export', async (event: any) => {
       try {
         const tasks = await this.engine.getTasks();
         return {
@@ -267,7 +285,7 @@ export class ElectronTaskManager {
       }
     });
 
-    ipcMain.handle('task:import', async (event, importPayload: any) => {
+    ipcMain.handle('task:import', async (event: any, importPayload: any) => {
       try {
         validateImportPayload(importPayload);
         const createdTasks: TaskyTask[] = [];
@@ -408,7 +426,7 @@ export class ElectronTaskManager {
     });
 
     // Execute a task in an external terminal via assigned agent
-    ipcMain.handle('task:execute', async (event, id: string, options?: { agent?: 'claude' | 'gemini' }) => {
+    ipcMain.handle('task:execute', async (event: any, id: string, options?: { agent?: 'claude' | 'gemini' }) => {
       try {
         const taskResult = await this.engine.getTask(id);
         if (!taskResult.success || !taskResult.data) {
@@ -530,7 +548,7 @@ export class ElectronTaskManager {
     });
 
     // Mark task as completed (explicit endpoint for integrations or quick-complete)
-    ipcMain.handle('task:mark-completed', async (event, id: string) => {
+    ipcMain.handle('task:mark-completed', async (event: any, id: string) => {
       try {
         const result = await this.engine.updateTask(id, { status: TaskStatus.COMPLETED } as any);
         if (!result.success || !result.data) {
@@ -570,7 +588,7 @@ export class ElectronTaskManager {
         return;
       }
       
-      const tasks = tasksResult.data;
+      let tasks = tasksResult.data;
       
       for (const task of tasks) {
         if (task.schema.dueDate && task.status !== TaskStatus.COMPLETED && task.status !== TaskStatus.ARCHIVED) {
@@ -581,6 +599,7 @@ export class ElectronTaskManager {
       console.log(`Initialized task manager with ${tasks.length} tasks`);
     } catch (error) {
       logger.error('Error initializing task manager:', error);
+      throw error;
     }
   }
 

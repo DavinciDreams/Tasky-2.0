@@ -2,7 +2,6 @@
 // Main entry point for Tasky task management system
 
 export { TaskyEngine } from './tasky-engine';
-export { TaskStorage } from './task-storage';
 export { TypedEventBus, AsyncEventBus, MiddlewareEventBus, createEventBus } from './events';
 
 // Re-export types for convenience

@@ -19,6 +19,8 @@ import {
   createTaskId
 } from '../../types/task';
 import { TaskStorage } from './task-storage';
+import { ITaskStorage } from '../storage/ITaskStorage';
+import { JsonTaskStorage } from '../storage/JsonTaskStorage';
 import { TypedEventBus } from './events';
 import { v4 as uuidv4 } from 'uuid';
 import { format } from 'date-fns';
@@ -34,11 +36,12 @@ import { format } from 'date-fns';
  */
 export class TaskyEngine {
   private eventBus = new TypedEventBus<TaskEventMap>();
-  private storage: TaskStorage;
+  private storage: ITaskStorage;
   private tasks: TaskyTask[] = [];
+  private lastUpdatedAt: number = Date.now();
 
-  constructor(storagePath?: string) {
-    this.storage = new TaskStorage(storagePath);
+  constructor(storagePath?: string, storageImpl?: ITaskStorage) {
+    this.storage = storageImpl || new JsonTaskStorage(storagePath);
   }
 
   /**
@@ -181,6 +184,7 @@ export class TaskyEngine {
       }
 
       this.tasks.push(newTask);
+      this.lastUpdatedAt = Date.now();
       
       // Emit event
       this.eventBus.emit('task:created', {
@@ -276,6 +280,7 @@ export class TaskyEngine {
       }
 
       this.tasks[taskIndex] = updatedTask;
+      this.lastUpdatedAt = Date.now();
       
       // Emit events
       this.eventBus.emit('task:updated', {
@@ -318,6 +323,7 @@ export class TaskyEngine {
       }
 
       this.tasks.splice(taskIndex, 1);
+      this.lastUpdatedAt = Date.now();
       
       return { success: true, message: 'Task deleted successfully' };
     } catch (error) {
@@ -326,6 +332,13 @@ export class TaskyEngine {
         error: error instanceof Error ? error.message : 'Failed to delete task'
       };
     }
+  }
+
+  /**
+   * Return a cheap monotonically increasing value to detect external changes
+   */
+  getLastUpdated(): number {
+    return this.lastUpdatedAt;
   }
 
   /**

@@ -1165,10 +1165,28 @@ const App: React.FC = () => {
     const onReload = () => loadTasks();
     window.addEventListener('tasky:reload-tasks', onReload as any);
     
+    // Removed JSON file change listener; DB polling handles external updates
+    
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('tasky:reload-tasks', onReload as any);
+      // No-op: JSON file watcher removed in DB-only mode
     };
+  }, []);
+
+  // Lightweight polling to detect external changes (e.g., MCP writes when using SQLite)
+  useEffect(() => {
+    let lastSeen = 0;
+    const interval = setInterval(async () => {
+      try {
+        const lu = await (window as any).electronAPI.invoke('task:last-updated');
+        if (typeof lu === 'number' && lu !== lastSeen) {
+          lastSeen = lu;
+          loadTasks();
+        }
+      } catch {}
+    }, 3000);
+    return () => clearInterval(interval);
   }, []);
 
   const loadReminders = async () => {
