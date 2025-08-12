@@ -91,15 +91,7 @@ export class TaskyMCPTools {
           required: ['id'] 
         } 
       },
-      { 
-        name: 'tasky_get_task', 
-        description: 'Get a Tasky task', 
-        inputSchema: { 
-          type: 'object', 
-          properties: { id: { type: 'string' } }, 
-          required: ['id'] 
-        } 
-      },
+
       { 
         name: 'tasky_list_tasks', 
         description: 'List Tasky tasks', 
@@ -193,8 +185,6 @@ export class TaskyMCPTools {
           return await this.taskBridge.updateTask(args);
         case 'tasky_delete_task':
           return await this.taskBridge.deleteTask(args);
-        case 'tasky_get_task':
-          return await this.taskBridge.getTask(args);
         case 'tasky_list_tasks':
           return await this.taskBridge.listTasks(args);
         case 'tasky_execute_task':

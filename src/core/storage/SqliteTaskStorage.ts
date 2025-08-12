@@ -152,6 +152,23 @@ export class SqliteTaskStorage implements ITaskStorage {
       return { success: false, error: e instanceof Error ? e.message : 'Failed to delete task' };
     }
   }
+
+  /**
+   * Get the last modification timestamp from the database
+   * Used for detecting external changes to trigger UI refresh
+   */
+  getLastModified(): number {
+    try {
+      if (!this.db) return Date.now();
+      const result = this.db.prepare('SELECT MAX(updated_at) as last_updated FROM tasks').get() as any;
+      if (result?.last_updated) {
+        return new Date(result.last_updated).getTime();
+      }
+    } catch {
+      // Fall back to current time if query fails
+    }
+    return Date.now();
+  }
 }
 
 

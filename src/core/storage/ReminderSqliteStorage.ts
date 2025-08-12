@@ -103,6 +103,15 @@ export class ReminderSqliteStorage {
       enabled: !!r.enabled
     }));
   }
+
+  getLastUpdated(): number {
+    this.initialize();
+    const result: any = this.db!.prepare('SELECT MAX(updated_at) as max_updated FROM reminders').get();
+    if (result?.max_updated) {
+      return new Date(result.max_updated).getTime();
+    }
+    return 0;
+  }
 }
 
 

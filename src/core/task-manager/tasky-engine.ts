@@ -337,8 +337,18 @@ export class TaskyEngine {
 
   /**
    * Return a cheap monotonically increasing value to detect external changes
+   * Check database for actual last modification time to detect external changes
    */
   getLastUpdated(): number {
+    try {
+      // Try to get the actual last modified time from the database
+      const result = (this.storage as any).getLastModified?.();
+      if (typeof result === 'number') {
+        return result;
+      }
+    } catch {
+      // Fall back to in-memory timestamp if database query fails
+    }
     return this.lastUpdatedAt;
   }
 

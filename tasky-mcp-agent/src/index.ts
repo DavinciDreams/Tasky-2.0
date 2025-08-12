@@ -143,7 +143,6 @@ app.post('/mcp', async (req: Request, res: Response) => {
         }
       },
       { name: 'tasky_delete_task', description: 'Delete a Tasky task', inputSchema: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] } },
-      { name: 'tasky_get_task', description: 'Get a Tasky task', inputSchema: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] } },
       { name: 'tasky_list_tasks', description: 'List Tasky tasks', inputSchema: { type: 'object', properties: { status: { type: 'array', items: { type: 'string' } }, tags: { type: 'array', items: { type: 'string' } }, search: { type: 'string' }, dueDateFrom: { type: 'string' }, dueDateTo: { type: 'string' }, limit: { type: 'number' }, offset: { type: 'number' } } } },
       { name: 'tasky_execute_task', description: 'Execute a selected task by updating status', inputSchema: { type: 'object', properties: { id: { type: 'string' }, status: { type: 'string', enum: ['IN_PROGRESS','COMPLETED'] } }, required: ['id'] } },
       // Reminders

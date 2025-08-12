@@ -6,8 +6,11 @@
   "type": "module",
   "scripts": {
     "dev": "tsx src/index.ts",
+    "dev:mcp": "tsx src/mcp-server.ts",
     "build": "rimraf dist && tsc",
+    "build:mcp": "rimraf dist && tsc && mkdir -p bin && node -e \"require('child_process').execSync('bun build dist/mcp-server.js --compile --minify --sourcemap --outfile bin/tasky-mcp-tool', {stdio:'inherit'})\" || echo 'Bun not available, using node directly'",
     "start": "node dist/index.js",
+    "start:mcp": "node dist/mcp-server.js",
     "typecheck": "tsc --noEmit",
     "lint": "echo 'no linter configured'",
     "docker:build": "docker build -t tasky-mcp-agent .",
@@ -23,7 +26,8 @@
     "date-fns": "^2.30.0",
     "express": "^4.18.2",
     "node-fetch": "^3.3.2",
-    "uuid": "^9.0.1"
+    "uuid": "^9.0.1",
+    "zod": "^3.22.4"
   },
   "devDependencies": {
     "@types/cors": "^2.8.13",

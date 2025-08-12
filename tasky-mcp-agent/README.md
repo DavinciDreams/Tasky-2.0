@@ -8,7 +8,6 @@ Tasks
 - tasky_create_task
 - tasky_update_task
 - tasky_delete_task
-- tasky_get_task
 - tasky_list_tasks
 - tasky_execute_task
 

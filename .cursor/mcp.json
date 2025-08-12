@@ -1,8 +1,13 @@
 {
   "mcpServers": {
-    "tasky-http": {
-      "type": "http",
-      "url": "http://localhost:7843/mcp",
+    "tasky-command": {
+      "type": "command",
+      "command": "node",
+      "args": ["tasky-mcp-agent/dist/mcp-server.js"],
+      "cwd": ".",
+      "env": {
+        "TASKY_DB_PATH": "data/tasky.db"
+      },
       "disabled": false
     }
   }

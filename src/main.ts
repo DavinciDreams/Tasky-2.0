@@ -436,7 +436,17 @@ app.on('before-quit', () => {
 
 // IPC handlers for renderer communication
 ipcMain.handle('get-reminders', () => {
-  return store ? store.getReminders() : [];
+  console.log('IPC get-reminders called from renderer');
+  const reminders = store ? store.getReminders() : [];
+  console.log('IPC get-reminders returning:', reminders);
+  return reminders;
+});
+
+ipcMain.handle('reminder:last-updated', () => {
+  console.log('IPC reminder:last-updated called from renderer');
+  const timestamp = store ? store.getRemindersLastUpdated() : Date.now();
+  console.log('IPC reminder:last-updated returning:', timestamp);
+  return timestamp;
 });
 
 ipcMain.on('add-reminder', (event, reminder) => {

@@ -1131,6 +1131,11 @@ const ReminderItem: React.FC<ReminderItemProps> = ({ reminder, onRemove, onEdit,
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('reminders');
   const [reminders, setReminders] = useState<Reminder[]>([]);
+  
+  // Debug: Log reminders state changes
+  useEffect(() => {
+    console.log('Reminders state changed:', reminders);
+  }, [reminders]);
   const [tasks, setTasks] = useState<TaskyTask[]>([]);
   const [settings, setSettings] = useState<Partial<AppSettings>>({
     enableSound: true,
@@ -1179,25 +1184,53 @@ const App: React.FC = () => {
     let lastSeen = 0;
     const interval = setInterval(async () => {
       try {
+        console.log('Task polling check running...');
         const lu = await (window as any).electronAPI.invoke('task:last-updated');
+        console.log('Task polling check - lastUpdated:', lu, 'lastSeen:', lastSeen);
         if (typeof lu === 'number' && lu !== lastSeen) {
+          console.log('External task change detected, reloading tasks');
           lastSeen = lu;
           loadTasks();
         }
-      } catch {}
+      } catch (error) {
+        console.log('Task polling error:', error);
+      }
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Lightweight polling to detect external reminder changes (e.g., MCP writes when using SQLite)
+  useEffect(() => {
+    let lastSeenReminders = 0;
+    const interval = setInterval(async () => {
+      try {
+        const lu = await (window as any).electronAPI.invoke('reminder:last-updated');
+        console.log('Reminder polling check - lastUpdated:', lu, 'lastSeen:', lastSeenReminders);
+        if (typeof lu === 'number' && lu !== lastSeenReminders) {
+          console.log('External reminder change detected, reloading reminders');
+          lastSeenReminders = lu;
+          loadReminders();
+        }
+      } catch (error) {
+        console.log('Reminder polling error:', error);
+      }
     }, 3000);
     return () => clearInterval(interval);
   }, []);
 
   const loadReminders = async () => {
     try {
+      console.log('loadReminders called in renderer');
       const savedReminders = await window.electronAPI.getReminders();
+      console.log('loadReminders - got reminders from main process:', savedReminders);
       // Ensure all reminders have an enabled property (default to true for backwards compatibility)
       const remindersWithEnabled = (savedReminders || []).map(reminder => ({
         ...reminder,
         enabled: reminder.enabled !== undefined ? reminder.enabled : true
       }));
+      console.log('loadReminders - processed reminders:', remindersWithEnabled);
       setReminders(remindersWithEnabled);
+      console.log('loadReminders - reminders set in state');
     } catch (error) {
       console.error('Failed to load reminders:', error);
     }

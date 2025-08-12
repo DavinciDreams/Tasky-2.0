@@ -54,18 +54,28 @@ export class Storage {
     });
     // If TASKY_DB_PATH is set, use SQLite for reminders
     const envDbPath = process.env.TASKY_DB_PATH;
+    console.log('Storage constructor - TASKY_DB_PATH:', envDbPath);
     if (envDbPath && typeof envDbPath === 'string' && envDbPath.trim().length > 0) {
       const resolvedDb = path.isAbsolute(envDbPath) ? envDbPath : path.join(process.cwd(), envDbPath);
+      console.log('Storage constructor - resolved DB path:', resolvedDb);
       this.reminderDb = new ReminderSqliteStorage(resolvedDb);
+      console.log('Storage constructor - ReminderSqliteStorage created');
+    } else {
+      console.log('Storage constructor - Using electron-store for reminders');
     }
   }
 
   // Reminder methods
   getReminders(): Reminder[] {
     try {
-      if (this.reminderDb) return this.reminderDb.getReminders();
+      console.log('getReminders called - reminderDb exists:', !!this.reminderDb);
+      if (this.reminderDb) {
+        const reminders = this.reminderDb.getReminders();
+        console.log('Got reminders from SQLite:', reminders);
+        return reminders;
+      }
       const reminders = this.store.get('reminders', []);
-      console.log('Got reminders:', reminders);
+      console.log('Got reminders from electron-store:', reminders);
       return reminders;
     } catch (error) {
       console.error('Failed to get reminders:', error);
@@ -156,6 +166,17 @@ export class Storage {
     } catch (error) {
       console.error('Failed to get active reminders:', error);
       return [];
+    }
+  }
+
+  getRemindersLastUpdated(): number {
+    try {
+      if (this.reminderDb) return this.reminderDb.getLastUpdated();
+      // For electron-store, we don't have timestamps, so return current time
+      return Date.now();
+    } catch (error) {
+      console.error('Failed to get reminders last updated:', error);
+      return Date.now();
     }
   }
 
