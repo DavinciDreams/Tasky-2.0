@@ -427,124 +427,7 @@ export class ElectronTaskManager {
 
     // Execute a task in an external terminal via assigned agent
     ipcMain.handle('task:execute', async (event: any, id: string, options?: { agent?: 'claude' | 'gemini' }) => {
-      try {
-        const taskResult = await this.engine.getTask(id);
-        if (!taskResult.success || !taskResult.data) {
-          throw new Error(taskResult.error || 'Failed to get task');
-        }
-        const task = taskResult.data;
-
-        // Announce start and attempt to set status to IN_PROGRESS
-        try {
-          const assistant: any = (global as any).assistant;
-          if (assistant && typeof assistant.speak === 'function') {
-            assistant.speak(`Executing: ${task.schema.title}`);
-          }
-        } catch {}
-        try { await this.engine.updateTask(id, { status: TaskStatus.IN_PROGRESS } as any); } catch {}
-
-        // Quick built-in actions (no external CLI)
-        const baseDir = (() => {
-          try {
-            if (task.schema.executionPath) {
-              return path.isAbsolute(task.schema.executionPath)
-                ? task.schema.executionPath
-                : path.join(process.cwd(), task.schema.executionPath);
-            }
-          } catch {}
-          return process.cwd();
-        })();
-
-        const text = `${task.schema.title || ''}\n${task.schema.description || ''}`.toLowerCase();
-
-        // Handle: "create <folder> with file <name>" in one built-in action
-        const folderWithFileMatch = text.match(/create\s+(?:a\s+)?(?:new\s+)?(?:folder|directory)\s+(?:named\s+)?\"?([\w\-\.\s]+)\"?(?:\s+|.*?)(?:with\s+(?:a\s+)?)?(?:file|document)\s+(?:named\s+)?\"?([\w\-\.\s]+)\"?/i);
-        if (folderWithFileMatch && folderWithFileMatch[1] && folderWithFileMatch[2]) {
-          const rawFolder = folderWithFileMatch[1].trim();
-          const rawFile = folderWithFileMatch[2].trim();
-          const safeFolder = rawFolder.replace(/[\\\/:*?"<>|]/g, '').trim();
-          const safeFile = rawFile.replace(/[\\\/:*?"<>|]/g, '').trim();
-          if (!safeFolder || !safeFile) {
-            return { success: false, error: 'Invalid folder or file name' };
-          }
-          const folderPath = path.join(baseDir, safeFolder);
-          const filePath = path.join(folderPath, safeFile);
-          try {
-            fs.mkdirSync(folderPath, { recursive: true });
-            fs.writeFileSync(filePath, 'Test file created successfully!\n', 'utf-8');
-            try { new Notification({ title: 'Tasky', body: `Created: ${filePath}` }).show(); } catch {}
-            try { await this.engine.updateTask(id, { status: TaskStatus.COMPLETED } as any); } catch {}
-            return { success: true, performed: 'mkdir+file', folder: folderPath, file: filePath };
-          } catch (e) {
-            return { success: false, error: `Failed to create folder/file: ${(e as Error).message}` };
-          }
-        }
-
-        // Create folder pattern: "create a folder named X" or "create folder X"
-        const folderMatch = text.match(/create\s+(?:a\s+)?(?:new\s+)?(?:folder|directory)\s+(?:named\s+)?\"?([\w\-\.\s]+)\"?/i);
-        if (folderMatch && folderMatch[1]) {
-          const rawName = folderMatch[1].trim();
-          const safeName = rawName.replace(/[\\/:*?"<>|]/g, '').trim();
-          if (!safeName) {
-            return { success: false, error: 'Invalid folder name' };
-          }
-          const target = path.join(baseDir, safeName);
-          try {
-            fs.mkdirSync(target, { recursive: true });
-            try {
-              new Notification({ title: 'Tasky', body: `Created folder: ${target}` }).show();
-            } catch {}
-            return { success: true, performed: 'mkdir', path: target };
-          } catch (e) {
-            return { success: false, error: `Failed to create folder: ${(e as Error).message}` };
-          }
-        }
-
-        // Fallback to external agent execution
-        const provider: 'claude' | 'gemini' = (options?.agent as any)
-          || (task.schema.assignedAgent?.toLowerCase() === 'claude' ? 'claude' : undefined)
-          || 'gemini';
-
-        const { AgentTerminalExecutor } = await import('./agent-executor');
-        const exec = new AgentTerminalExecutor();
-        // Watch for sentinel file to auto-complete
-        const sentinelDir = path.join(baseDir, '.tasky', 'status');
-        const sentinelFile = `done-${id}`;
-        try { fs.mkdirSync(sentinelDir, { recursive: true }); } catch {}
-        const sentinelPath = path.join(sentinelDir, sentinelFile);
-        try { if (fs.existsSync(sentinelPath)) fs.unlinkSync(sentinelPath); } catch {}
-
-        // Launch execution without blocking the event loop
-        exec.execute(task, provider).catch((e) => logger.error('Agent execution failed:', e));
-
-        // Start a short-lived watcher to detect completion
-        const maxWaitMs = 60 * 1000; // 60s
-        const pollIntervalMs = 1000;
-        const start = Date.now();
-        const interval = setInterval(async () => {
-          try {
-            if (fs.existsSync(sentinelPath)) {
-              clearInterval(interval);
-              try { fs.unlinkSync(sentinelPath); } catch {}
-              try {
-                const result = await this.engine.updateTask(id, { status: TaskStatus.COMPLETED } as any);
-                if (result.success && result.data) {
-                  try { new Notification({ title: 'Tasky', body: `Completed: ${result.data.schema.title}` }).show(); } catch {}
-                }
-              } catch {}
-            } else if (Date.now() - start > maxWaitMs) {
-              clearInterval(interval);
-            }
-          } catch {
-            clearInterval(interval);
-          }
-        }, pollIntervalMs);
-
-        return { success: true };
-      } catch (error) {
-        logger.error('Error executing task:', error);
-        throw error;
-      }
+      return this.executeTask(id, options);
     });
 
     // Mark task as completed (explicit endpoint for integrations or quick-complete)
@@ -568,6 +451,91 @@ export class ElectronTaskManager {
         throw error;
       }
     });
+  }
+
+  /**
+   * Execute a task - public method that can be called directly or via IPC
+   */
+  public async executeTask(id: string, options?: { agent?: 'claude' | 'gemini' }): Promise<any> {
+    try {
+      const taskResult = await this.engine.getTask(id);
+      if (!taskResult.success || !taskResult.data) {
+        throw new Error(taskResult.error || 'Failed to get task');
+      }
+      const task = taskResult.data;
+
+      // Announce start and attempt to set status to IN_PROGRESS
+      try {
+        const assistant: any = (global as any).assistant;
+        if (assistant && typeof assistant.speak === 'function') {
+          assistant.speak(`Executing: ${task.schema.title}`);
+        }
+      } catch {}
+      try { await this.engine.updateTask(id, { status: TaskStatus.IN_PROGRESS } as any); } catch {}
+
+      // Determine execution directory
+      const baseDir = (() => {
+        try {
+          if (task.schema.executionPath) {
+            return path.isAbsolute(task.schema.executionPath)
+              ? task.schema.executionPath
+              : path.join(process.cwd(), task.schema.executionPath);
+          }
+        } catch {}
+        return process.cwd();
+      })();
+
+      // Always use external agent execution - no built-in actions
+      const provider: 'claude' | 'gemini' = (options?.agent as any)
+        || (task.schema.assignedAgent?.toLowerCase() === 'claude' ? 'claude' : undefined)
+        || 'gemini';
+
+      const { AgentTerminalExecutor } = await import('./agent-executor');
+      const exec = new AgentTerminalExecutor();
+      // Watch for sentinel file to auto-complete
+      const sentinelDir = path.join(baseDir, '.tasky', 'status');
+      const sentinelFile = `done-${id}`;
+      try { fs.mkdirSync(sentinelDir, { recursive: true }); } catch {}
+      const sentinelPath = path.join(sentinelDir, sentinelFile);
+      try { if (fs.existsSync(sentinelPath)) fs.unlinkSync(sentinelPath); } catch {}
+
+      // Launch execution without blocking the event loop
+      exec.execute(task, provider).catch((e) => logger.error('Agent execution failed:', e));
+
+      // Start a short-lived watcher to detect completion
+      const maxWaitMs = 60 * 1000; // 60s
+      const pollIntervalMs = 1000;
+      const start = Date.now();
+      const interval = setInterval(async () => {
+        try {
+          if (fs.existsSync(sentinelPath)) {
+            clearInterval(interval);
+            try { fs.unlinkSync(sentinelPath); } catch {}
+            try {
+              const result = await this.engine.updateTask(id, { status: TaskStatus.COMPLETED } as any);
+              if (result.success && result.data) {
+                // Use Tasky assistant notification instead of Windows notification
+                try {
+                  const assistant: any = (global as any).assistant;
+                  if (assistant && typeof assistant.speak === 'function') {
+                    assistant.speak(`Completed: ${result.data.schema.title}`);
+                  }
+                } catch {}
+              }
+            } catch {}
+          } else if (Date.now() - start > maxWaitMs) {
+            clearInterval(interval);
+          }
+        } catch {
+          clearInterval(interval);
+        }
+      }, pollIntervalMs);
+
+      return { success: true, performed: 'external agent execution', provider, taskId: id };
+    } catch (error) {
+      logger.error('Error executing task:', error);
+      throw error;
+    }
   }
 
   // Initialize task system
@@ -637,22 +605,11 @@ export class TaskNotificationManager {
 
   private sendTaskDueNotification(task: TaskyTask): void {
     try {
-      const notification = new Notification({
-        title: '📋 Tasky Task Due Soon',
-        body: `Task "${task.schema.title}" is due in 15 minutes!`,
-        icon: path.join(__dirname, '../assets/icon.ico'),
-        sound: path.join(__dirname, '../assets/notification.mp3'),
-        urgency: 'normal',
-        timeoutType: 'default'
-      });
-
-      notification.on('click', () => {
-        // Focus the main window when notification is clicked
-        // This would be handled by the main window manager
-        console.log(`Notification clicked for task: ${task.schema.id}`);
-      });
-
-      notification.show();
+      // Use Tasky assistant notification instead of Windows notification
+      const assistant: any = (global as any).assistant;
+      if (assistant && typeof assistant.speak === 'function') {
+        assistant.speak(`Task due soon: ${task.schema.title}`);
+      }
       
       // Remove from tracking after showing
       this.notifications.delete(task.schema.id);

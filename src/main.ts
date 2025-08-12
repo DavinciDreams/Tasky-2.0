@@ -13,6 +13,7 @@ import * as path from 'path';
 import * as os from 'os';
 import * as fs from 'fs';
 import { spawn } from 'child_process';
+import * as http from 'http';
 import logger from './lib/logger';
 import { MainWindow, TrayIcon } from './types/electron';
 import { Storage } from './electron/storage';
@@ -40,7 +41,69 @@ let scheduler: any = null;  // Reminder scheduling service (will be typed later)
 let store: Storage | null = null;      // Persistent data storage service
 let assistant: any = null;  // Desktop companion/assistant (will be typed later)
 let taskManager: ElectronTaskManager | null = null;  // Task management system
+let httpServer: http.Server | null = null;  // HTTP server for MCP integration
 
+/**
+ * Creates a simple HTTP server for MCP integration
+ */
+const createHttpServer = () => {
+  const server = http.createServer(async (req: http.IncomingMessage, res: http.ServerResponse) => {
+    // Enable CORS
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    
+    if (req.method === 'OPTIONS') {
+      res.writeHead(200);
+      res.end();
+      return;
+    }
+    
+    if (req.method === 'POST' && req.url === '/execute-task') {
+      try {
+        let body = '';
+        req.on('data', (chunk: any) => body += chunk.toString());
+        req.on('end', async () => {
+          try {
+            logger.info('HTTP execute-task request received, body:', body);
+            const { taskId, options } = JSON.parse(body);
+            logger.info('Parsed request - taskId:', taskId, 'options:', options);
+            
+            if (!taskManager) {
+              logger.error('Task manager not initialized');
+              res.writeHead(500, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ success: false, error: 'Task manager not initialized' }));
+              return;
+            }
+            
+            // Call the actual task execution logic
+            logger.info('Calling taskManager.executeTask with:', taskId, options);
+            const result = await (taskManager as any).executeTask(taskId, options);
+            logger.info('Execution result:', result);
+            
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify(result));
+          } catch (error) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: (error as Error).message }));
+          }
+        });
+      } catch (error) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: (error as Error).message }));
+      }
+    } else {
+      res.writeHead(404);
+      res.end('Not Found');
+    }
+  });
+  
+  server.listen(7844, 'localhost', () => {
+    logger.info('HTTP server for MCP integration running on http://localhost:7844');
+  });
+  
+  return server;
+};
 
 /**
  * Creates the main application window for settings and configuration.
@@ -178,6 +241,9 @@ app.whenReady().then(async () => {
   // Initialize task manager
   taskManager = new ElectronTaskManager();
   await taskManager.initialize();
+  
+  // Start HTTP server for MCP integration
+  httpServer = createHttpServer();
   
   // Initialize scheduler
   scheduler = new ReminderScheduler();

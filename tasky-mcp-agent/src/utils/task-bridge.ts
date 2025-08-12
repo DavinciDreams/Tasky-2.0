@@ -5,6 +5,7 @@ import Database from 'better-sqlite3';
 import path from 'path';
 import { format } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
+import * as http from 'http';
 
 type TaskStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'NEEDS_REVIEW' | 'ARCHIVED';
 
@@ -176,7 +177,7 @@ export class TaskBridge {
         human_approved: prev.humanApproved ? 1 : 0,
         reminder_enabled: nextTop.reminderEnabled ? 1 : 0,
         result: nextTop.result || null,
-        completed_at: completedAt ? completedAt.toISOString() : null,
+        completed_at: completedAt ? (completedAt instanceof Date ? completedAt.toISOString() : completedAt) : null,
         assigned_agent: nextSchema.assignedAgent || null,
         execution_path: nextSchema.executionPath || null,
         metadata: JSON.stringify({ ...(prev.metadata || {}), lastModified: now })
@@ -290,9 +291,83 @@ export class TaskBridge {
   }
 
   async executeTask(args: any): Promise<CallToolResult> {
-    const status: TaskStatus = (args?.status === 'COMPLETED' ? 'COMPLETED' : 'IN_PROGRESS');
-    const updates: any = { status };
-    return this.updateTask({ id: args?.id, updates });
+    const { id, status } = args || {};
+    if (!id) return { content: [{ type: 'text', text: 'id is required' }], isError: true };
+    
+    try {
+      // Call the main Tasky app's HTTP endpoint for actual task execution
+      const postData = JSON.stringify({
+        taskId: id,
+        options: { agent: 'claude' }
+      });
+
+      const result: any = await new Promise((resolve, reject) => {
+        const req = http.request({
+          hostname: 'localhost',
+          port: 7844,
+          path: '/execute-task',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(postData)
+          }
+        }, (res: any) => {
+          let data = '';
+          res.on('data', (chunk: any) => data += chunk);
+          res.on('end', () => {
+            try {
+              if (res.statusCode !== 200) {
+                reject(new Error(`HTTP ${res.statusCode}: ${data}`));
+              } else {
+                resolve(JSON.parse(data));
+              }
+            } catch (e) {
+              reject(e);
+            }
+          });
+        });
+
+        req.on('error', reject);
+        req.setTimeout(10000); // 10 second timeout
+        req.on('timeout', () => {
+          req.destroy();
+          reject(new Error('HTTP request timeout'));
+        });
+        
+        req.write(postData);
+        req.end();
+      });
+      
+      // If user specified COMPLETED status, update the task status after execution
+      if (status === 'COMPLETED') {
+        const completeResult = await this.updateTask({ id, updates: { status: 'COMPLETED' } });
+        if (completeResult.isError) return completeResult;
+      }
+      
+      return { content: [
+        { type: 'text', text: `Task execution started: ${result.performed || 'external agent execution'}` },
+        { type: 'text', text: JSON.stringify(result) }
+      ] };
+      
+    } catch (error) {
+      // Fallback to simple status update if HTTP call fails
+      const fallbackStatus: TaskStatus = (status === 'COMPLETED' ? 'COMPLETED' : 'IN_PROGRESS');
+      const updates: any = { status: fallbackStatus };
+      const fallbackResult = await this.updateTask({ id, updates });
+      
+      // Add error info to the response
+      if (!fallbackResult.isError) {
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        const errorType = errorMsg.includes('ECONNREFUSED') || errorMsg.includes('ENOTFOUND') || errorMsg.includes('timeout') 
+          ? 'Tasky app not running or not accessible' 
+          : errorMsg || 'Unknown connection error';
+        fallbackResult.content.push({ 
+          type: 'text', 
+          text: `Note: Task execution requires main Tasky app to be running (Error: ${errorType})` 
+        });
+      }
+      return fallbackResult;
+    }
   }
 }
 

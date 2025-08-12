@@ -153,26 +153,23 @@ export const TaskForm: React.FC<TaskFormProps> = ({ onCreateTask, initial, submi
               <FolderOpen className="h-4 w-4" />
               Execution Path
             </Label>
-            <div className="flex gap-2 items-start">
+            <div className="space-y-2">
               <Input
                 id="task-exec-path"
                 type="text"
                 placeholder="src/middleware"
                 value={formData.executionPath}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('executionPath', e.target.value)}
-                className="mt-1 flex-1 rounded-2xl"
+                className="mt-1 w-full rounded-2xl"
               />
-              <Button type="button" variant="outline" size="sm" className="rounded-xl" onClick={async () => {
-                const dir = await window.electronAPI.invoke('select-directory');
-                if (dir) setFormData(prev => ({ ...prev, executionPath: dir }));
-              }}>
-                <FolderOpen className="h-4 w-4" />
-              </Button>
-              <Button type="button" variant="outline" size="sm" className="rounded-xl" onClick={async () => {
-                if (formData.executionPath) await window.electronAPI.invoke('open-terminal', formData.executionPath, formData.assignedAgent);
-              }}>
-                <Terminal className="h-4 w-4" />
-              </Button>
+              <div>
+                <Button type="button" variant="outline" size="sm" className="rounded-xl" onClick={async () => {
+                  const dir = await window.electronAPI.invoke('select-directory');
+                  if (dir) setFormData(prev => ({ ...prev, executionPath: dir }));
+                }}>
+                  <Upload className="h-4 w-4 mr-2" /> Browse folder
+                </Button>
+              </div>
             </div>
           </div>
 

@@ -43,6 +43,8 @@ server.tool(
         throw new Error('Either title or random_string must be provided');
       }
 
+      const assignedAgent = args.assignedAgent || 'claude';
+      
       const result = await taskBridge.createTask({
         title,
         description: args.description,
@@ -53,7 +55,7 @@ server.tool(
         dependencies: args.dependencies || [],
         reminderEnabled: args.reminderEnabled || false,
         reminderTime: args.reminderTime,
-        assignedAgent: args.assignedAgent,
+        assignedAgent,
         executionPath: args.executionPath,
       });
 
@@ -158,6 +160,31 @@ server.tool(
           {
             type: 'text',
             text: `Error deleting task: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+);
+
+server.tool(
+  'tasky_execute_task',
+  'Execute a selected task by updating status to IN_PROGRESS or COMPLETED',
+  {
+    id: z.string().describe('Task ID to execute'),
+    status: z.enum(['IN_PROGRESS', 'COMPLETED']).optional().describe('New task status (defaults to IN_PROGRESS)'),
+  },
+  async (args) => {
+    try {
+      const result = await taskBridge.executeTask(args);
+      return result;
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Error executing task: ${error instanceof Error ? error.message : 'Unknown error'}`,
           },
         ],
         isError: true,

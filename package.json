@@ -39,8 +39,8 @@
     "agent:docker:up": "npm --prefix tasky-mcp-agent run docker:up",
     "agent:docker:down": "npm --prefix tasky-mcp-agent run docker:down",
     "agent:docker:logs": "npm --prefix tasky-mcp-agent run docker:logs",
-    "agent:health": "node -e \"require('node:http').get('http://localhost:7843/health',r=>r.pipe(process.stdout))\"",
-    "agent:tools": "node -e \"(async()=>{const res=await fetch('http://localhost:7843/mcp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'tools/list'})}); const j=await res.json(); console.log(JSON.stringify(j,null,2));})().catch(e=>{console.error(e);process.exit(1);})\"",
+    "agent:health": "node -e \"require('node:http').get('http://localhost:7844/health',r=>r.pipe(process.stdout))\"",
+    "agent:tools": "node -e \"(async()=>{const res=await fetch('http://localhost:7844/mcp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'tools/list'})}); const j=await res.json(); console.log(JSON.stringify(j,null,2));})().catch(e=>{console.error(e);process.exit(1);})\"",
     "agent:docker:rebuild": "docker compose -f tasky-mcp-agent/docker-compose.yml build --no-cache",
     "test:mcp:e2e": "node scripts/mcp-e2e-test.js"
   },

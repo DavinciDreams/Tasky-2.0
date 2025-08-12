@@ -1,23 +1,33 @@
 # Tasky MCP Agent
 
-Exposes Tasky task and reminder management over the Model Context Protocol (MCP).
+Model Context Protocol (MCP) agent for Tasky task and reminder management.
 
-## Tools
+## 🚀 Features
 
-Tasks
-- tasky_create_task
-- tasky_update_task
-- tasky_delete_task
-- tasky_list_tasks
-- tasky_execute_task
+**Task Management:**
+- `tasky_create_task` - Create new tasks with full metadata
+- `tasky_list_tasks` - List and filter tasks
+- `tasky_update_task` - Modify existing tasks
+- `tasky_delete_task` - Remove tasks
+- `tasky_execute_task` - Execute tasks (opens terminals, runs AI agents)
 
-Reminders
-- tasky_create_reminder
-- tasky_update_reminder
-- tasky_delete_reminder
-- tasky_get_reminder
-- tasky_list_reminders
-- tasky_toggle_reminder
+**Reminder Management:**
+- `tasky_create_reminder` - Create scheduled reminders
+- `tasky_list_reminders` - List and filter reminders
+- `tasky_update_reminder` - Modify existing reminders
+- `tasky_delete_reminder` - Remove reminders
+
+## 🔧 How It Works
+
+The MCP agent connects to the main Tasky application via:
+1. **Shared SQLite Database** - For data operations (CRUD)
+2. **HTTP API** - For task execution (opens terminals, runs Claude CLI)
+
+When you execute tasks through MCP, it works exactly like clicking "Execute" in the Tasky app:
+- Simple tasks (folder creation) execute immediately
+- Complex tasks open terminals with AI agent payloads
+- System notifications and TTS announcements
+- Automatic completion tracking via sentinel files
 
 ## Configure (Cursor MCP)
 
