@@ -8,7 +8,7 @@
  * - Orchestrates app lifecycle and applies persisted settings at startup
  */
 
-import { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, dialog, shell, OpenDialogReturnValue } from 'electron';
+import { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, dialog, shell, Notification, OpenDialogReturnValue } from 'electron';
 import * as path from 'path';
 import * as os from 'os';
 import * as fs from 'fs';
@@ -30,7 +30,10 @@ declare const MAIN_WINDOW_VITE_NAME: string;
 // Extend app object with custom properties
 (app as any).isQuiting = false;
 
-// Tasky uses its own notification system, no Windows-specific setup needed
+// Set AppUserModelID for Windows notifications to ensure proper notification behavior
+if (process.platform === 'win32') {
+  app.setAppUserModelId('com.tasky.reminderapp');
+}
 
 // Global application state
 let mainWindow: MainWindow | null = null;        // Main settings/UI window
