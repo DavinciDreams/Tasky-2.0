@@ -24,8 +24,10 @@ export class ReminderBridge {
       ? (path.isAbsolute(envDb) ? envDb : path.join(process.cwd(), envDb))
       : path.join(process.cwd(), 'data', 'tasky.db');
     this.db = new Database(this.dbPath);
-    this.db.pragma('journal_mode = WAL');
-    this.db.pragma('synchronous = NORMAL');
+    const requestedJournal = (process.env.TASKY_SQLITE_JOURNAL || 'DELETE').toUpperCase();
+    const journal = requestedJournal === 'WAL' ? 'WAL' : 'DELETE';
+    try { this.db.pragma(`journal_mode = ${journal}`); } catch {}
+    try { this.db.pragma('synchronous = NORMAL'); } catch {}
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS reminders (
         id TEXT PRIMARY KEY,

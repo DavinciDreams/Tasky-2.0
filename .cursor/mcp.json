@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "tasky-http": {
+      "type": "http",
+      "url": "http://localhost:7843/mcp",
+      "disabled": false
+    }
+  }
+}

@@ -13,9 +13,11 @@ export class SqliteTaskStorage implements ITaskStorage {
   async initialize(): Promise<ToolResult<void>> {
     try {
       this.db = new Database(this.dbPath);
-      this.db.pragma('journal_mode = WAL');
-      this.db.pragma('synchronous = NORMAL');
-      this.db.pragma('foreign_keys = ON');
+      const requestedJournal = (process.env.TASKY_SQLITE_JOURNAL || 'DELETE').toUpperCase();
+      const journal = requestedJournal === 'WAL' ? 'WAL' : 'DELETE';
+      try { this.db.pragma(`journal_mode = ${journal}`); } catch {}
+      try { this.db.pragma('synchronous = NORMAL'); } catch {}
+      try { this.db.pragma('foreign_keys = ON'); } catch {}
       this.db.exec(`
         CREATE TABLE IF NOT EXISTS tasks (
           id TEXT PRIMARY KEY,

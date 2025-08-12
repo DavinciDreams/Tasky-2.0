@@ -43,9 +43,11 @@ export class TaskBridge {
       ? (path.isAbsolute(envDb) ? envDb : path.join(process.cwd(), envDb))
       : path.join(process.cwd(), 'data', 'tasky.db');
     this.db = new Database(this.dbPath);
-    this.db.pragma('journal_mode = WAL');
-    this.db.pragma('synchronous = NORMAL');
-    this.db.pragma('foreign_keys = ON');
+    const requestedJournal = (process.env.TASKY_SQLITE_JOURNAL || 'DELETE').toUpperCase();
+    const journal = requestedJournal === 'WAL' ? 'WAL' : 'DELETE';
+    try { this.db.pragma(`journal_mode = ${journal}`); } catch {}
+    try { this.db.pragma('synchronous = NORMAL'); } catch {}
+    try { this.db.pragma('foreign_keys = ON'); } catch {}
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS tasks (
         id TEXT PRIMARY KEY,
@@ -101,7 +103,7 @@ export class TaskBridge {
         id,
         title: args.title,
         description: args.description || null,
-        status: 'PENDING',
+      status: 'PENDING',
         created_at: now.toISOString(),
         updated_at: now.toISOString(),
         due_date: args.dueDate ? new Date(args.dueDate).toISOString() : null,
@@ -168,7 +170,7 @@ export class TaskBridge {
         id,
         title: nextSchema.title,
         description: nextSchema.description || null,
-        status: nextStatus ?? prev.status,
+      status: nextStatus ?? prev.status,
         updated_at: now.toISOString(),
         due_date: nextSchema.dueDate ? new Date(nextSchema.dueDate).toISOString() : null,
         human_approved: prev.humanApproved ? 1 : 0,

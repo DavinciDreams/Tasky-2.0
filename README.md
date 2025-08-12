@@ -6,7 +6,10 @@ Tasky 2.0 – Task Management (Electron)
 
 ## Overview
 
-Tasky 2.0 is a cross‑platform desktop task manager built with Electron + React. It supports quick task creation, reminders/notifications, analytics, and optional MCP (Model Context Protocol) integration so external LLM tools can create and manage tasks.
+Tasky 2.0 is a cross‑platform desktop task manager built with Electron + React. 
+
+It supports task creation, reminders/notifications, analytics, and optional MCP (Model Context Protocol) integration so external LLM tools can create and manage tasks.
+
 ## Key features
 
 - Lightweight task management with tags, files, dependencies, and due dates
@@ -18,7 +21,7 @@ Tasky 2.0 is a cross‑platform desktop task manager built with Electron + React
 ## Project structure (high‑level)
 
 - `src/components` – React UI (including `tasks/TaskForm.tsx`)
-- `src/core/task-manager` – Engine (`TaskyEngine`) and JSON storage (`TaskStorage`)
+- `src/core/task-manager` – Engine (`TaskyEngine`) and storage abstraction
 - `src/electron` – Main-process IPC handlers and executor (`agent-executor.ts`)
 - `tasky-mcp-agent` – MCP server for external tool integration
 - `src/assets` – App assets and sample development tasks
@@ -99,7 +102,7 @@ What happens:
 
 ## MCP integration
 
-- Config: `mcp-config.json`
+- Config (DB-only): `mcp-config.json`
 
 ```json
 {
@@ -110,22 +113,20 @@ What happens:
       "cwd": ".",
       "env": {
         "NODE_ENV": "production",
-        "TASKY_TASKS_PATH": "./data/tasky-tasks.json",
-        "TASKY_CONFIG_PATH": "./data/tasky-config-v2.json"
+        "TASKY_DB_PATH": "./data/tasky.db"
       }
     }
   }
 }
 ```
 
-- Important: Ensure the Electron app uses the same `TASKY_TASKS_PATH` so both see the same tasks.
-- MCP tools available: create, update, delete, get, list; reminders CRUD; execute via status update (optional), but for full execution use the app’s IPC `task:execute`.
+- Important: Electron and MCP must share the same `TASKY_DB_PATH` (e.g., mount `./data` to `/app/data` in Docker).
+- MCP tools available: create, update, delete, get, list; reminders CRUD; execute via status update (optional); for full execution use the app’s IPC `task:execute`.
 
 ## Storage
 
-- Default path (Electron): `${app.getPath('userData')}/tasky-tasks.json`
-- Override via `TASKY_TASKS_PATH` env var (absolute or relative to CWD), which MCP also uses.
-- Dates are serialized to ISO in the JSON file and rehydrated to `Date` objects on load.
+- DB-only: SQLite at `TASKY_DB_PATH` (default `./data/tasky.db` when running from repo)
+- WAL mode enabled for reliability; keep `.db-shm`/`.db-wal` with the DB.
 
 ## Development
 
@@ -137,7 +138,8 @@ Prerequisites:
 Scripts:
 
 - `npm run dev` – build electron bundle then launch app
-- `npm run start` – clean, build renderer and electron, start app
+- `npm run start` – clean, build renderer and electron, start app (uses `TASKY_DB_PATH`)
+  - Useful extras: `npm run backup:db`, `npm run export:tasks`
 - `npm run build` – clean and build
 - `npm run dist` – build and package for all platforms (uses electron-builder)
 - `npm run dist:mac|dist:win|dist:linux` – platform specific
@@ -150,11 +152,8 @@ MCP agent (inside `tasky-mcp-agent`):
 ## Troubleshooting
 
 - Terminal doesn’t open on execute: ensure Gemini/Claude CLIs are installed and on PATH.
-- MCP tasks not visible in app: verify both processes point to the same `TASKY_TASKS_PATH`.
+- MCP tasks not visible in app: verify both processes point to the same `TASKY_DB_PATH`.
 - Dates display incorrectly: confirm your local timezone; storage persists ISO strings and the app rehydrates to `Date`.
 
 ## License
-
-MIT
-
 

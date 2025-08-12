@@ -32,8 +32,7 @@ Example `%APPDATA%/Cursor/User/mcp-config.json` on Windows:
       "args": ["C:/Users/trave/Desktop/Programs/Tasky 2.0/Agent/tasky-mcp-agent/dist/index.js"],
       "cwd": "C:/Users/trave/Desktop/Programs/Tasky 2.0",
       "env": {
-        "TASKY_TASKS_PATH": "C:/Users/trave/Desktop/Programs/Tasky 2.0/data/tasky-tasks.json",
-        "TASKY_CONFIG_PATH": "C:/Users/trave/Desktop/Programs/Tasky 2.0/data/tasky-config-v2.json"
+        "TASKY_DB_PATH": "C:/Users/trave/Desktop/Programs/Tasky 2.0/data/tasky.db"
       }
     }
   }
