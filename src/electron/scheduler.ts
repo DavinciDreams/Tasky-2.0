@@ -248,38 +248,31 @@ class ReminderScheduler {
   }
 
   /**
-   * Fallback notification method using Windows toast or console
+   * Fallback notification method using Tasky's notification system
    */
   showFallbackNotification(reminder: Reminder): void {
     try {
-      if (process.platform === 'win32') {
-        
-        const escapedMessage = reminder.message.replace(/'/g, "''").replace(/"/g, '""');
-        
-        // Use Windows system tray balloon notification
-        spawn('powershell', [
-          '-WindowStyle', 'Hidden',
-          '-Command',
-          `Add-Type -AssemblyName System.Windows.Forms; $balloon = New-Object System.Windows.Forms.NotifyIcon; $balloon.Icon = [System.Drawing.SystemIcons]::Information; $balloon.BalloonTipTitle = '📋 Tasky Reminder'; $balloon.BalloonTipText = '${escapedMessage}'; $balloon.Visible = $true; $balloon.ShowBalloonTip(5000); Start-Sleep -Seconds 6; $balloon.Dispose();`
-        ], { windowsHide: true })
-        .on('close', (code: number | null) => {
-          if (code !== 0) {
-            // Try Windows 10/11 toast as secondary fallback
-            spawn('powershell', [
-              '-WindowStyle', 'Hidden', 
-              '-Command',
-              `[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] > $null; try { $template = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::ToastText02); $toastXml = [xml] $template.GetXml(); $toastXml.GetElementsByTagName("text")[0].AppendChild($toastXml.CreateTextNode("📋 Tasky Reminder")) > $null; $toastXml.GetElementsByTagName("text")[1].AppendChild($toastXml.CreateTextNode("${escapedMessage}")) > $null; $toast = [Windows.UI.Notifications.ToastNotification]::new($toastXml); [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier("Tasky").Show($toast); } catch { Write-Host "Toast failed" }`
-            ], { windowsHide: true })
-            .on('close', (toastCode: number | null) => {
-              // Handle toast completion
-            });
-          }
-        });
-      } else {
-        
-      }
-    } catch (error) {
+      // Use Tasky's notification utility for proper desktop notifications
+      const { notificationUtility } = require('./notification-utility');
+      notificationUtility.showNotification({
+        title: '🔔 Reminder',
+        body: reminder.message,
+        type: 'info',
+        clickable: true
+      });
       
+      // Also try Tasky assistant bubble notification
+      const assistant: any = (global as any).assistant;
+      if (assistant && typeof assistant.speak === 'function') {
+        assistant.speak(`Reminder: ${reminder.message}`);
+      }
+      
+      // Console fallback for all platforms
+      console.log(`[REMINDER] ${reminder.message} - ${reminder.time} on ${reminder.days.join(', ')}`);
+    } catch (error) {
+      logger.debug('Fallback notification failed:', error);
+      // Final fallback to console
+      console.log(`[REMINDER] ${reminder.message} - ${reminder.time} on ${reminder.days.join(', ')}`);
     }
   }
 

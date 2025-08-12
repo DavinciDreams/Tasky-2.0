@@ -62,3 +62,5 @@ data/*.db-shm
 data/*.db-wal
 data/tasky-backup-*.db
 data/tasky-*.json
+data/tasky.db
+data/tasky.db

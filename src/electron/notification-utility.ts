@@ -2,10 +2,10 @@
  * NotificationUtility - Centralized notification system for Tasky
  * 
  * Provides notifications for task and reminder creation events,
- * supporting both native system notifications and Tasky assistant bubbles.
+ * using Tasky's built-in notification system with desktop notifications.
  */
 
-import { Notification, app } from 'electron';
+import { app, Notification } from 'electron';
 import * as path from 'path';
 import logger from '../lib/logger';
 
@@ -23,19 +23,8 @@ export class NotificationUtility {
   private assistant: any = null;
 
   constructor() {
-    // Try to get global assistant reference
-    try {
-      this.assistant = (global as any).assistant;
-    } catch (error) {
-      logger.debug('Assistant not available for notifications');
-    }
-  }
-
-  /**
-   * Set the assistant reference for bubble notifications
-   */
-  setAssistant(assistant: any): void {
-    this.assistant = assistant;
+    // Get assistant reference from global scope
+    this.assistant = (global as any).assistant;
   }
 
   /**
@@ -43,6 +32,7 @@ export class NotificationUtility {
    */
   toggleNotifications(enabled: boolean): void {
     this.notificationsEnabled = enabled;
+    logger.debug('Notifications toggled:', enabled);
   }
 
   /**
@@ -50,19 +40,16 @@ export class NotificationUtility {
    */
   toggleSound(enabled: boolean): void {
     this.soundEnabled = enabled;
+    logger.debug('Sound toggled:', enabled);
   }
 
   /**
-   * Show a notification for task creation
+   * Show task creation notification
    */
-  showTaskCreatedNotification(taskTitle: string, taskDescription?: string): void {
-    if (!this.notificationsEnabled) return;
-
+  showTaskCreatedNotification(title: string, description?: string): void {
     const options: NotificationOptions = {
       title: '📋 New Task Created',
-      body: taskDescription 
-        ? `${taskTitle}\n\n${taskDescription}`
-        : taskTitle,
+      body: description ? `${title}\n\n${description}` : title,
       type: 'task-created',
       clickable: true
     };
@@ -71,12 +58,10 @@ export class NotificationUtility {
   }
 
   /**
-   * Show a notification for reminder creation
+   * Show reminder creation notification
    */
   showReminderCreatedNotification(message: string, time: string, days: string[]): void {
-    if (!this.notificationsEnabled) return;
-
-    const daysText = days.length === 7 ? 'every day' : days.join(', ');
+    const daysText = days.join(', ');
     const options: NotificationOptions = {
       title: '🔔 New Reminder Set',
       body: `${message}\n\n⏰ ${time} on ${daysText}`,
@@ -94,54 +79,52 @@ export class NotificationUtility {
     if (!this.notificationsEnabled) return;
 
     try {
-      // Try native system notification first
-      if (Notification.isSupported()) {
-        this.showNativeNotification(options);
-      } else {
-        this.showFallbackNotification(options);
-      }
-
-      // Also show Tasky assistant bubble if available
+      // Show desktop notification first
+      this.showDesktopNotification(options);
+      
+      // Show Tasky assistant bubble notification
       this.showAssistantBubble(options);
+      
+      // Show console notification as fallback
+      this.showConsoleNotification(options);
     } catch (error) {
       logger.warn('Error showing notification:', error);
-      this.showFallbackNotification(options);
+      this.showConsoleNotification(options);
     }
   }
 
   /**
-   * Show native system notification
+   * Show desktop notification using Electron's built-in system
    */
-  private showNativeNotification(options: NotificationOptions): void {
+  private showDesktopNotification(options: NotificationOptions): void {
     try {
-      const notification = new Notification({
-        title: options.title,
-        body: options.body,
-        urgency: 'normal',
-        timeoutType: 'default',
-        silent: !this.soundEnabled,
-        icon: path.join(__dirname, '../assets/app-icon.png')
-      });
-
-      notification.show();
-
-      if (options.clickable) {
-        notification.on('click', () => {
-          // Show main window when notification is clicked
-          try {
-            const mainWindow = (global as any).mainWindow;
-            if (mainWindow) {
-              mainWindow.show();
-              mainWindow.focus();
-            }
-          } catch (error) {
-            logger.debug('Could not show main window:', error);
-          }
+      if (Notification.isSupported()) {
+        const notification = new Notification({
+          title: options.title,
+          body: options.body,
+          silent: !this.soundEnabled,
+          icon: path.join(__dirname, '../assets/app-icon.png')
         });
+
+        notification.show();
+
+        if (options.clickable) {
+          notification.on('click', () => {
+            // Show main window when notification is clicked
+            try {
+              const mainWindow = (global as any).mainWindow;
+              if (mainWindow) {
+                mainWindow.show();
+                mainWindow.focus();
+              }
+            } catch (error) {
+              logger.debug('Could not show main window:', error);
+            }
+          });
+        }
       }
     } catch (error) {
-      logger.warn('Native notification failed, using fallback:', error);
-      this.showFallbackNotification(options);
+      logger.debug('Desktop notification failed:', error);
     }
   }
 
@@ -173,39 +156,15 @@ export class NotificationUtility {
   }
 
   /**
-   * Show fallback notification (console or other methods)
+   * Show console notification as fallback
    */
-  private showFallbackNotification(options: NotificationOptions): void {
+  private showConsoleNotification(options: NotificationOptions): void {
     try {
-      // Try Windows toast notification
-      if (process.platform === 'win32') {
-        this.showWindowsToastNotification(options);
-      } else {
-        // Console fallback for other platforms
-        console.log(`[${options.type.toUpperCase()}] ${options.title}: ${options.body}`);
-      }
+      // Console fallback for all platforms
+      console.log(`[${options.type.toUpperCase()}] ${options.title}: ${options.body}`);
     } catch (error) {
       // Final fallback to console
       console.log(`[${options.type.toUpperCase()}] ${options.title}: ${options.body}`);
-    }
-  }
-
-  /**
-   * Show Windows toast notification using PowerShell
-   */
-  private showWindowsToastNotification(options: NotificationOptions): void {
-    try {
-      const { spawn } = require('child_process');
-      const powershell = spawn('powershell.exe', [
-        '-Command',
-        `[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null; [Windows.UI.Notifications.ToastNotification, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null; [Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime] | Out-Null; $template = @'<toast><visual><binding template="ToastGeneric"><text>${options.title}</text><text>${options.body}</text></binding></visual></toast>'@; $xml = New-Object Windows.Data.Xml.Dom.XmlDocument; $xml.LoadXml($template); $toast = New-Object Windows.UI.Notifications.ToastNotification $xml; [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier("Tasky").Show($toast);`
-      ]);
-
-      powershell.on('error', (error: any) => {
-        logger.debug('PowerShell toast notification failed:', error);
-      });
-    } catch (error) {
-      logger.debug('Windows toast notification failed:', error);
     }
   }
 }

@@ -8,7 +8,7 @@
  * - Orchestrates app lifecycle and applies persisted settings at startup
  */
 
-import { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, dialog, shell, Notification, OpenDialogReturnValue } from 'electron';
+import { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, dialog, shell, OpenDialogReturnValue } from 'electron';
 import * as path from 'path';
 import * as os from 'os';
 import * as fs from 'fs';
@@ -30,10 +30,7 @@ declare const MAIN_WINDOW_VITE_NAME: string;
 // Extend app object with custom properties
 (app as any).isQuiting = false;
 
-// Set AppUserModelID for Windows notifications to ensure proper notification behavior
-if (process.platform === 'win32') {
-  app.setAppUserModelId('com.tasky.reminderapp');
-}
+// Tasky uses its own notification system, no Windows-specific setup needed
 
 // Global application state
 let mainWindow: MainWindow | null = null;        // Main settings/UI window
@@ -272,12 +269,7 @@ const createWindow = () => {
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(async () => {
-  // Request notification permissions for Windows
-  if (process.platform === 'win32') {
-    // AppUserModelID is set at startup above. Optionally log notification support in dev.
-    const { Notification } = require('electron');
-    logger.debug('Notification support:', Notification.isSupported());
-  }
+  // Tasky uses its own notification system, no Windows permissions needed
   
   // Initialize storage
   store = new Storage();
@@ -302,8 +294,7 @@ app.whenReady().then(async () => {
   const savedAvatar = settings.selectedAvatar || 'Tasky';
   assistant.setAvatar(savedAvatar);
   
-  // Set up notification utility with assistant reference
-  notificationUtility.setAssistant(assistant);
+  // Notification utility now gets assistant reference from global scope automatically
   
   // If it's a custom avatar, set the custom path
   if (savedAvatar === 'Custom' || savedAvatar.startsWith('custom_')) {
