@@ -171,50 +171,77 @@ ipcRenderer.on('set-initial-avatar', (_event, data) => {
 
 ipcRenderer.on('tasky-speak', (_event, message: string) => {
   if (bubble) {
-    // Bubble visible; hit-test will ensure capture
+    // Enhanced bubble design with modern styling
     bubble.style.position = 'absolute';
-    bubble.style.background = notificationColor;
+    bubble.style.background = `linear-gradient(135deg, ${notificationColor}ee, ${notificationColor}dd)`;
     bubble.style.color = notificationTextColor;
-    bubble.style.padding = '12px 16px';
+    bubble.style.padding = '14px 18px';
     bubble.style.boxSizing = 'border-box';
-    bubble.style.borderRadius = '20px';
-    // top will be set precisely in positionBubble(); clear any centering transform
+    bubble.style.borderRadius = '24px';
     bubble.style.transform = 'none';
     bubble.style.zIndex = '1000';
-    bubble.style.opacity = '1';
     bubble.style.display = 'block';
     bubble.style.fontSize = '14px';
+    bubble.style.lineHeight = '1.5';
+    bubble.style.fontWeight = '500';
     (bubble.style as any).wordWrap = 'break-word';
     (bubble.style as any).wordBreak = 'break-word';
     (bubble.style as any).overflowWrap = 'break-word';
     bubble.style.whiteSpace = 'normal';
     bubble.style.width = 'auto';
     bubble.style.minWidth = '180px';
+    
+    // Add beautiful shadow for depth
+    bubble.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.15), 0 2px 8px rgba(0, 0, 0, 0.1)';
+    
+    // Add subtle border for definition
+    bubble.style.border = '1px solid rgba(255, 255, 255, 0.1)';
+    
+    // Add backdrop blur for glass effect (if supported)
+    (bubble.style as any).backdropFilter = 'blur(10px)';
+    (bubble.style as any).webkitBackdropFilter = 'blur(10px)';
+    
+    // Smooth animation
+    bubble.style.transition = 'opacity 0.3s ease-in-out, transform 0.3s ease-in-out';
+    bubble.style.opacity = '0';
+    bubble.style.transform = 'scale(0.95) translateY(5px)';
 
     // Apply custom font
     if (notificationFont === 'system') {
-      bubble.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      bubble.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif';
     } else {
       bubble.style.fontFamily = notificationFont;
     }
 
-    // Position after content applied to avoid overlap using actual width/height
-    requestAnimationFrame(positionBubble);
-
+    // Set content first
     bubble.textContent = message;
+    
+    // Position after content applied to avoid overlap using actual width/height
+    requestAnimationFrame(() => {
+      positionBubble();
+      // Animate in after positioning
+      requestAnimationFrame(() => {
+        bubble.style.opacity = '1';
+        bubble.style.transform = 'scale(1) translateY(0)';
+      });
+    });
 
     bubbleVisible = true;
     try {
       ipcRenderer.send('assistant:bubble-visible', true);
     } catch {}
+    
+    // Hide with animation
     setTimeout(() => {
-      bubble.style.display = 'none';
-      // When bubble hides, allow click-through again if not dragging
-      bubbleVisible = false;
-      // Hit-test loop will restore ignore state
-      try {
-        ipcRenderer.send('assistant:bubble-visible', false);
-      } catch {}
+      bubble.style.opacity = '0';
+      bubble.style.transform = 'scale(0.95) translateY(5px)';
+      setTimeout(() => {
+        bubble.style.display = 'none';
+        bubbleVisible = false;
+        try {
+          ipcRenderer.send('assistant:bubble-visible', false);
+        } catch {}
+      }, 300); // Wait for animation to complete
     }, 5000);
   }
 });

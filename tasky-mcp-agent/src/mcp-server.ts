@@ -199,17 +199,31 @@ server.tool(
   'Create a new Tasky reminder',
   {
     message: z.string().describe('Reminder message'),
-    time: z.string().describe('Time in HH:MM format'),
+    time: z.string().describe('Time in HH:MM format or relative time like "in 5 minutes"'),
     days: z.array(z.enum(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'])).describe('Days of the week'),
     enabled: z.boolean().optional().describe('Whether reminder is enabled').default(true),
+    oneTime: z.boolean().optional().describe('Whether this is a one-time reminder').default(false),
   },
   async (args) => {
     try {
+      // Parse relative time if needed
+      let finalTime = args.time;
+      let isOneTime = args.oneTime || false;
+      
+      // Check if it's a relative time (contains "in" or "from now")
+      if (args.time.toLowerCase().includes('in ') || args.time.toLowerCase().includes('from now')) {
+        const { parseRelativeTime } = await import('./utils/time-parser.js');
+        const parsed = parseRelativeTime(args.time);
+        finalTime = parsed.time;
+        isOneTime = true; // Relative times should be one-time by default
+      }
+      
       const result = await reminderBridge.createReminder({
         message: args.message,
-        time: args.time,
+        time: finalTime,
         days: args.days,
         enabled: args.enabled,
+        oneTime: isOneTime,
       });
       return result;
     } catch (error) {

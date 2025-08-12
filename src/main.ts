@@ -8,7 +8,7 @@
  * - Orchestrates app lifecycle and applies persisted settings at startup
  */
 
-import { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, dialog, shell, Notification, OpenDialogReturnValue } from 'electron';
+import { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, dialog, shell, OpenDialogReturnValue } from 'electron';
 import * as path from 'path';
 import * as os from 'os';
 import * as fs from 'fs';
@@ -30,10 +30,7 @@ declare const MAIN_WINDOW_VITE_NAME: string;
 // Extend app object with custom properties
 (app as any).isQuiting = false;
 
-// Set AppUserModelID for Windows notifications to ensure proper notification behavior
-if (process.platform === 'win32') {
-  app.setAppUserModelId('com.tasky.reminderapp');
-}
+// Tasky uses bubble notifications only; no OS-specific setup required
 
 // Global application state
 let mainWindow: MainWindow | null = null;        // Main settings/UI window
@@ -272,10 +269,7 @@ const createWindow = () => {
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(async () => {
-  // Request notification permissions for proper desktop notifications
-  if (Notification.isSupported()) {
-    logger.debug('Desktop notifications are supported');
-  }
+  // No desktop notification permission required; Tasky uses bubble notifications
   
   // Initialize storage
   store = new Storage();

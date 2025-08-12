@@ -4,6 +4,8 @@ export interface Reminder {
   time: string;
   days: string[];
   enabled: boolean;
+  oneTime?: boolean;
+  triggeredAt?: Date;
   createdAt?: Date;
   updatedAt?: Date;
 }

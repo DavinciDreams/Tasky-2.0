@@ -7,7 +7,7 @@
  */
 
 import * as cron from 'node-cron';
-import { Notification, app, shell, BrowserWindow } from 'electron';
+import { app, shell, BrowserWindow } from 'electron';
 import * as path from 'path';
 import { spawn, ChildProcess } from 'child_process';
 import * as fs from 'fs';
@@ -203,46 +203,39 @@ class ReminderScheduler {
     } else {
       this.showNotification(reminder);
     }
+    
+    // If this is a one-time reminder, disable it after triggering
+    if (reminder.oneTime) {
+      logger.debug('One-time reminder triggered, disabling:', reminder.id);
+      this.removeReminder(reminder.id);
+      
+      // Update the reminder in storage to mark it as triggered
+      try {
+        const { Storage } = require('./storage');
+        const store = new Storage();
+        store.updateReminder(reminder.id, { 
+          enabled: false, 
+          triggeredAt: new Date() 
+        });
+      } catch (error) {
+        logger.debug('Failed to update one-time reminder status:', error);
+      }
+    }
   }
 
   /**
-   * Show native system notification
+   * Show Tasky bubble notification via notification utility
    */
   showNotification(reminder: Reminder): void {
     try {
-      // Check if notifications are supported
-      if (!Notification.isSupported()) {
-        if (process.env.NODE_ENV === 'development') {
-          
-        }
-        this.showFallbackNotification(reminder);
-        return;
-      }
-      const notification = new Notification({
-        title: '📋 Tasky Reminder',
+      const { notificationUtility } = require('./notification-utility');
+      notificationUtility.showNotification({
+        title: '🔔 Reminder',
         body: reminder.message,
-        urgency: 'normal',
-        timeoutType: 'default',
-        silent: false,
-        icon: path.join(__dirname, '../assets/app-icon.png')
+        type: 'info',
+        clickable: true
       });
-
-      notification.show();
-      
-      notification.on('click', () => {
-        if (global.mainWindow) {
-          global.mainWindow.show();
-          global.mainWindow.focus();
-        }
-      });
-
-      // Note: 'failed' event doesn't exist on Notification, 
-      // we handle errors through try-catch instead
-
     } catch (error) {
-      if (process.env.NODE_ENV === 'development') {
-        
-      }
       this.showFallbackNotification(reminder);
     }
   }

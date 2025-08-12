@@ -5,7 +5,7 @@
  * using Tasky's built-in notification system with desktop notifications.
  */
 
-import { app, Notification } from 'electron';
+import { app } from 'electron';
 import * as path from 'path';
 import logger from '../lib/logger';
 
@@ -79,9 +79,6 @@ export class NotificationUtility {
     if (!this.notificationsEnabled) return;
 
     try {
-      // Show desktop notification first
-      this.showDesktopNotification(options);
-      
       // Show Tasky assistant bubble notification
       this.showAssistantBubble(options);
       
@@ -94,46 +91,14 @@ export class NotificationUtility {
   }
 
   /**
-   * Show desktop notification using Electron's built-in system
-   */
-  private showDesktopNotification(options: NotificationOptions): void {
-    try {
-      if (Notification.isSupported()) {
-        const notification = new Notification({
-          title: options.title,
-          body: options.body,
-          silent: !this.soundEnabled,
-          icon: path.join(__dirname, '../assets/app-icon.png')
-        });
-
-        notification.show();
-
-        if (options.clickable) {
-          notification.on('click', () => {
-            // Show main window when notification is clicked
-            try {
-              const mainWindow = (global as any).mainWindow;
-              if (mainWindow) {
-                mainWindow.show();
-                mainWindow.focus();
-              }
-            } catch (error) {
-              logger.debug('Could not show main window:', error);
-            }
-          });
-        }
-      }
-    } catch (error) {
-      logger.debug('Desktop notification failed:', error);
-    }
-  }
-
-  /**
    * Show Tasky assistant bubble notification
    */
   private showAssistantBubble(options: NotificationOptions): void {
     try {
-      if (this.assistant && typeof this.assistant.speak === 'function') {
+      // Get assistant from global scope at runtime, not from constructor
+      const assistant = (global as any).assistant;
+      
+      if (assistant && typeof assistant.speak === 'function') {
         // Create a concise message for the bubble
         let bubbleMessage = '';
         
@@ -148,7 +113,10 @@ export class NotificationUtility {
             bubbleMessage = options.body;
         }
 
-        this.assistant.speak(bubbleMessage);
+        assistant.speak(bubbleMessage);
+        logger.debug('Assistant bubble notification sent:', bubbleMessage);
+      } else {
+        logger.debug('Assistant not available for bubble notification');
       }
     } catch (error) {
       logger.debug('Assistant bubble notification failed:', error);

@@ -688,6 +688,7 @@ const ReminderForm: React.FC<ReminderFormProps> = ({ onAddReminder, onEditRemind
   const [time, setTime] = useState('09:00');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [emojiData, setEmojiData] = useState<any>(null);
+  const [oneTime, setOneTime] = useState(false);
   const [days, setDays] = useState<{[key: string]: boolean}>({
     monday: true,
     tuesday: true,
@@ -722,6 +723,7 @@ const ReminderForm: React.FC<ReminderFormProps> = ({ onAddReminder, onEditRemind
     if (editingReminder) {
       setMessage(editingReminder.message);
       setTime(editingReminder.time);
+      setOneTime(editingReminder.oneTime || false);
       const dayObj: {[key: string]: boolean} = {};
       Object.keys(days).forEach(day => {
         dayObj[day] = editingReminder.days.includes(day);
@@ -749,26 +751,41 @@ const ReminderForm: React.FC<ReminderFormProps> = ({ onAddReminder, onEditRemind
       time,
       days: selectedDays,
       enabled: true,
+      oneTime: oneTime,
     };
 
     if (editingReminder && onEditReminder) {
       onEditReminder(editingReminder.id, reminder);
       if (onCancelEdit) onCancelEdit();
+      // Reset form after editing
+      setMessage('');
+      setTime('09:00');
+      setOneTime(false);
+      setDays({
+        monday: true,
+        tuesday: true,
+        wednesday: true,
+        thursday: true,
+        friday: true,
+        saturday: false,
+        sunday: false,
+      });
     } else {
       onAddReminder(reminder);
+      // Reset form after adding
+      setMessage('');
+      setTime('09:00');
+      setOneTime(false);
+      setDays({
+        monday: true,
+        tuesday: true,
+        wednesday: true,
+        thursday: true,
+        friday: true,
+        saturday: false,
+        sunday: false,
+      });
     }
-    
-    setMessage('');
-    setTime('09:00');
-    setDays({
-      monday: true,
-      tuesday: true,
-      wednesday: true,
-      thursday: true,
-      friday: true,
-      saturday: false,
-      sunday: false,
-    });
   };
 
   const handleDayChange = (day: string) => {
@@ -1005,9 +1022,23 @@ const ReminderForm: React.FC<ReminderFormProps> = ({ onAddReminder, onEditRemind
       </div>
 
       <div className="space-y-3">
+        <div className="flex items-center justify-between p-4 rounded-xl bg-secondary/20 border border-border/20">
+          <Label className="text-sm font-medium text-card-foreground flex items-center gap-2">
+            <Clock size={16} />
+            One-time reminder
+            <span className="text-xs text-muted-foreground ml-2">(Triggers once then disables)</span>
+          </Label>
+          <CustomSwitch
+            checked={oneTime}
+            onChange={() => setOneTime(!oneTime)}
+          />
+        </div>
+      </div>
+
+      <div className="space-y-3">
         <Label className="text-sm font-medium text-card-foreground flex items-center gap-2">
           <Calendar size={16} />
-          Days of the week
+          {oneTime ? 'Trigger day' : 'Days of the week'}
         </Label>
         <div className="grid grid-cols-2 gap-3">
           {Object.keys(days).map(day => (
@@ -1021,10 +1052,16 @@ const ReminderForm: React.FC<ReminderFormProps> = ({ onAddReminder, onEditRemind
               <CustomSwitch
                 checked={days[day]}
                 onChange={() => handleDayChange(day)}
+                disabled={oneTime && Object.values(days).filter(v => v).length > 0 && !days[day]}
               />
             </div>
           ))}
         </div>
+        {oneTime && (
+          <p className="text-xs text-muted-foreground mt-2">
+            For one-time reminders, select the day when it should trigger.
+          </p>
+        )}
       </div>
 
       <Button 
@@ -1104,6 +1141,13 @@ const ReminderItem: React.FC<ReminderItemProps> = ({ reminder, onRemove, onEdit,
           <Calendar size={16} />
           <span>{formatDays(reminder.days)}</span>
         </div>
+        {reminder.oneTime && (
+          <div className="flex items-center gap-2">
+            <span className="text-xs bg-yellow-500/20 text-yellow-600 px-2 py-1 rounded-md font-medium">
+              One-time
+            </span>
+          </div>
+        )}
       </div>
       
       {/* Action buttons */}

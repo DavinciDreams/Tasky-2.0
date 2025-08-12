@@ -36,6 +36,8 @@ export class ReminderBridge {
         time TEXT NOT NULL,
         days TEXT,
         enabled INTEGER NOT NULL DEFAULT 1,
+        one_time INTEGER NOT NULL DEFAULT 0,
+        triggered_at TEXT,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );
@@ -82,20 +84,35 @@ export class ReminderBridge {
   }
 
   async createReminder(args: any): Promise<CallToolResult> {
-    const { message, time, days, enabled } = args;
+    const { message, time, days, enabled, oneTime } = args;
     if (!message || !time || !Array.isArray(days) || days.length === 0) {
       return { content: [{ type: 'text', text: 'Invalid reminder: require message, time, days[]' }], isError: true };
     }
     const nowIso = new Date().toISOString();
+    const reminderId = this.genId();
+    
+    // First check if the table has the one_time column
+    try {
+      this.db.exec(`ALTER TABLE reminders ADD COLUMN one_time INTEGER NOT NULL DEFAULT 0`);
+    } catch {
+      // Column already exists, ignore
+    }
+    try {
+      this.db.exec(`ALTER TABLE reminders ADD COLUMN triggered_at TEXT`);
+    } catch {
+      // Column already exists, ignore
+    }
+    
     this.db.prepare(`
-      INSERT INTO reminders (id,message,time,days,enabled,created_at,updated_at)
-      VALUES (@id,@message,@time,@days,@enabled,@created_at,@updated_at)
+      INSERT INTO reminders (id,message,time,days,enabled,one_time,created_at,updated_at)
+      VALUES (@id,@message,@time,@days,@enabled,@one_time,@created_at,@updated_at)
     `).run({
-      id: this.genId(),
+      id: reminderId,
       message: String(message),
       time: String(time),
       days: JSON.stringify(days.map((d: any) => String(d))),
       enabled: enabled !== false ? 1 : 0,
+      one_time: oneTime === true ? 1 : 0,
       created_at: nowIso,
       updated_at: nowIso
     });
