@@ -1,6 +1,6 @@
 // Use require to avoid TS module resolution issues with electron types in lint
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const { ipcMain, app, BrowserWindow } = require('electron');
+const { ipcMain, app, BrowserWindow, Notification } = require('electron');
 import * as path from 'path';
 import * as fs from 'fs';
 import { TaskyEngine } from '../core/task-manager/tasky-engine';

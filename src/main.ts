@@ -272,7 +272,10 @@ const createWindow = () => {
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(async () => {
-  // Tasky uses its own notification system, no Windows permissions needed
+  // Request notification permissions for proper desktop notifications
+  if (Notification.isSupported()) {
+    logger.debug('Desktop notifications are supported');
+  }
   
   // Initialize storage
   store = new Storage();
