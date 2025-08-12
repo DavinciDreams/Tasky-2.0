@@ -3,6 +3,7 @@ import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 // @ts-ignore - use runtime types only
 import Database from 'better-sqlite3';
 import path from 'path';
+import { request } from 'http';
 
 type Reminder = {
   id: string;
@@ -46,6 +47,40 @@ export class ReminderBridge {
     return `rem_${ts}_${Math.random().toString(36).slice(2, 8)}`;
   }
 
+  /**
+   * Notify the main application about a created reminder
+   */
+  private async notifyReminderCreated(message: string, time: string, days: string[]): Promise<void> {
+    try {
+      const postData = JSON.stringify({ message, time, days });
+      
+      const req = request({
+        hostname: 'localhost',
+        port: 7844,
+        path: '/notify-reminder-created',
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(postData)
+        }
+      }, (res) => {
+        if (res.statusCode !== 200) {
+          console.warn(`Notification request failed with status: ${res.statusCode}`);
+        }
+      });
+
+      req.on('error', (error) => {
+        console.warn('Failed to notify main app about reminder creation:', error);
+      });
+
+      req.write(postData);
+      req.end();
+    } catch (error) {
+      // Log but don't throw - notification failure shouldn't break reminder creation
+      console.warn('Failed to notify main app about reminder creation:', error);
+    }
+  }
+
   async createReminder(args: any): Promise<CallToolResult> {
     const { message, time, days, enabled } = args;
     if (!message || !time || !Array.isArray(days) || days.length === 0) {
@@ -64,6 +99,15 @@ export class ReminderBridge {
       created_at: nowIso,
       updated_at: nowIso
     });
+    
+    // Notify the main application about the created reminder
+    try {
+      await this.notifyReminderCreated(message, time, days);
+    } catch (error) {
+      // Don't fail the reminder creation if notification fails
+      console.warn('Failed to send reminder creation notification:', error);
+    }
+    
     return { content: [{ type: 'text', text: JSON.stringify({ success: true }) }] };
   }
 

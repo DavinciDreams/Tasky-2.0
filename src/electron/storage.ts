@@ -9,6 +9,7 @@ const Store = require('electron-store');
 import { Settings, Reminder } from '../types';
 import { ReminderSqliteStorage } from '../core/storage/ReminderSqliteStorage';
 import * as path from 'path';
+import * as fs from 'fs';
 
 interface StoreSchema {
   reminders: Reminder[];
@@ -54,31 +55,34 @@ export class Storage {
     });
     // If TASKY_DB_PATH is set, use SQLite for reminders
     const envDbPath = process.env.TASKY_DB_PATH;
-    console.log('Storage constructor - TASKY_DB_PATH:', envDbPath);
     if (envDbPath && typeof envDbPath === 'string' && envDbPath.trim().length > 0) {
       const resolvedDb = path.isAbsolute(envDbPath) ? envDbPath : path.join(process.cwd(), envDbPath);
-      console.log('Storage constructor - resolved DB path:', resolvedDb);
       this.reminderDb = new ReminderSqliteStorage(resolvedDb);
-      console.log('Storage constructor - ReminderSqliteStorage created');
     } else {
-      console.log('Storage constructor - Using electron-store for reminders');
+      // Fallback: if a default DB exists at data/tasky.db, use it automatically
+      try {
+        const defaultDbPath = path.join(process.cwd(), 'data', 'tasky.db');
+        if (fs.existsSync(defaultDbPath)) {
+          this.reminderDb = new ReminderSqliteStorage(defaultDbPath);
+        }
+      } catch {
+        // keep electron-store fallback
+      }
     }
   }
 
   // Reminder methods
   getReminders(): Reminder[] {
     try {
-      console.log('getReminders called - reminderDb exists:', !!this.reminderDb);
+      
       if (this.reminderDb) {
         const reminders = this.reminderDb.getReminders();
-        console.log('Got reminders from SQLite:', reminders);
         return reminders;
       }
       const reminders = this.store.get('reminders', []);
-      console.log('Got reminders from electron-store:', reminders);
       return reminders;
     } catch (error) {
-      console.error('Failed to get reminders:', error);
+      
       return [];
     }
   }
@@ -89,10 +93,10 @@ export class Storage {
       const reminders = this.getReminders();
       reminders.push(reminder);
       this.store.set('reminders', reminders);
-      console.log('Added reminder:', reminder);
+      
       return true;
     } catch (error) {
-      console.error('Failed to add reminder:', error);
+      
       return false;
     }
   }
@@ -104,16 +108,16 @@ export class Storage {
       const index = reminders.findIndex(r => r.id === id);
       
       if (index === -1) {
-        console.error('Reminder not found:', id);
+        
         return false;
       }
 
       reminders[index] = { ...reminders[index], ...updates };
       this.store.set('reminders', reminders);
-      console.log('Updated reminder:', reminders[index]);
+      
       return true;
     } catch (error) {
-      console.error('Failed to update reminder:', error);
+      
       return false;
     }
   }
@@ -125,15 +129,15 @@ export class Storage {
       const filteredReminders = reminders.filter(r => r.id !== id);
       
       if (filteredReminders.length === reminders.length) {
-        console.error('Reminder not found:', id);
+        
         return false;
       }
 
       this.store.set('reminders', filteredReminders);
-      console.log('Deleted reminder:', id);
+      
       return true;
     } catch (error) {
-      console.error('Failed to delete reminder:', error);
+      
       return false;
     }
   }
@@ -148,10 +152,10 @@ export class Storage {
       if (this.reminderDb) return this.reminderDb.getReminderById(id);
       const reminders = this.getReminders();
       const reminder = reminders.find(r => r.id === id);
-      console.log('Got reminder by ID:', reminder);
+      
       return reminder || null;
     } catch (error) {
-      console.error('Failed to get reminder by ID:', error);
+      
       return null;
     }
   }
@@ -161,10 +165,9 @@ export class Storage {
       if (this.reminderDb) return this.reminderDb.getActiveReminders();
       const reminders = this.getReminders();
       const activeReminders = reminders.filter(r => r.enabled);
-      console.log('Got active reminders:', activeReminders);
       return activeReminders;
     } catch (error) {
-      console.error('Failed to get active reminders:', error);
+      
       return [];
     }
   }
@@ -175,7 +178,7 @@ export class Storage {
       // For electron-store, we don't have timestamps, so return current time
       return Date.now();
     } catch (error) {
-      console.error('Failed to get reminders last updated:', error);
+      
       return Date.now();
     }
   }
@@ -184,10 +187,9 @@ export class Storage {
   getSetting<K extends keyof Settings>(key: K): Settings[K] | undefined {
     try {
       const value = this.store.get(`settings.${key}` as any);
-      console.log(`Got setting ${key}:`, value);
       return value;
     } catch (error) {
-      console.error(`Failed to get setting ${key}:`, error);
+      
       return undefined;
     }
   }
@@ -195,10 +197,9 @@ export class Storage {
   setSetting<K extends keyof Settings>(key: K, value: Settings[K]): boolean {
     try {
       this.store.set(`settings.${key}` as any, value);
-      console.log(`Set setting ${key}:`, value);
       return true;
     } catch (error) {
-      console.error(`Failed to set setting ${key}:`, error);
+      
       return false;
     }
   }
@@ -221,10 +222,10 @@ export class Storage {
       if (changed) {
         this.store.set('settings', settings);
       }
-      console.log('Got all settings:', settings);
+      
       return settings;
     } catch (error) {
-      console.error('Failed to get all settings:', error);
+      
       // Return default settings
       return {
         enableNotifications: true,
@@ -259,10 +260,9 @@ export class Storage {
       const currentSettings = this.getAllSettings();
       const updatedSettings = { ...currentSettings, ...newSettings };
       this.store.set('settings', updatedSettings);
-      console.log('Updated settings:', updatedSettings);
       return true;
     } catch (error) {
-      console.error('Failed to update settings:', error);
+      
       return false;
     }
   }
@@ -271,10 +271,9 @@ export class Storage {
   clearCache(): boolean {
     try {
       this.store.clear();
-      console.log('Cache cleared');
       return true;
     } catch (error) {
-      console.error('Failed to clear cache:', error);
+      
       return false;
     }
   }
@@ -283,7 +282,7 @@ export class Storage {
     try {
       return JSON.stringify(this.store.store).length;
     } catch (error) {
-      console.error('Failed to get cache size:', error);
+      
       return 0;
     }
   }
@@ -297,7 +296,7 @@ export class Storage {
       };
       return JSON.stringify(data, null, 2);
     } catch (error) {
-      console.error('Failed to export data:', error);
+      
       return null;
     }
   }
@@ -311,13 +310,13 @@ export class Storage {
       }
       
       if (data.settings && typeof data.settings === 'object') {
-        this.store.set('settings', data.settings);
+      this.store.set('settings', data.settings);
       }
       
-      console.log('Data imported successfully');
+      
       return true;
     } catch (error) {
-      console.error('Failed to import data:', error);
+      
       return false;
     }
   }
@@ -328,12 +327,12 @@ export class Storage {
       const version = this.store.get('version', '1.0.0');
       
       // Add migration logic here if needed
-      console.log(`Storage migrated from version ${version}`);
+      
       
       this.store.set('version', '2.0.0');
       return true;
     } catch (error) {
-      console.error('Failed to migrate storage:', error);
+      
       return false;
     }
   }

@@ -7,6 +7,7 @@ import { TaskyEngine } from '../core/task-manager/tasky-engine';
 import { SqliteTaskStorage } from '../core/storage/SqliteTaskStorage';
 import { TaskyTask, TaskyTaskSchema, TaskStatus, CreateTaskInput, UpdateTaskInput } from '../types/task';
 import logger from '../lib/logger';
+import { notificationUtility } from './notification-utility';
 
 /**
  * ElectronTaskManager
@@ -74,6 +75,12 @@ export class ElectronTaskManager {
         }
         
         const task = result.data!;
+        
+        // Show creation notification
+        notificationUtility.showTaskCreatedNotification(
+          task.schema.title,
+          task.schema.description
+        );
         
         // Schedule notification if task has due date
         if (task.schema.dueDate) {
@@ -552,7 +559,7 @@ export class ElectronTaskManager {
       const tasksResult = await this.engine.getTasks();
       
       if (!tasksResult.success || !tasksResult.data) {
-        console.warn('Failed to load tasks for notification scheduling:', tasksResult.error);
+        logger.warn('Failed to load tasks for notification scheduling:', tasksResult.error);
         return;
       }
       
@@ -564,7 +571,7 @@ export class ElectronTaskManager {
         }
       }
       
-      console.log(`Initialized task manager with ${tasks.length} tasks`);
+      logger.info(`Initialized task manager with ${tasks.length} tasks`);
     } catch (error) {
       logger.error('Error initializing task manager:', error);
       throw error;
@@ -600,7 +607,7 @@ export class TaskNotificationManager {
     this.cancelNotification(task.schema.id);
     this.notifications.set(task.schema.id, timeout);
 
-    console.log(`Scheduled notification for task "${task.schema.title}" at ${notificationTime.toLocaleString()}`);
+   logger.debug(`Scheduled notification for task "${task.schema.title}" at ${notificationTime.toLocaleString()}`);
   }
 
   private sendTaskDueNotification(task: TaskyTask): void {
@@ -614,9 +621,9 @@ export class TaskNotificationManager {
       // Remove from tracking after showing
       this.notifications.delete(task.schema.id);
       
-      console.log(`Sent notification for task: ${task.schema.title}`);
+      logger.debug(`Sent notification for task: ${task.schema.title}`);
     } catch (error) {
-      console.error('Error sending task notification:', error);
+      logger.warn('Error sending task notification:', error);
     }
   }
 
@@ -625,7 +632,7 @@ export class TaskNotificationManager {
     if (timeout) {
       clearTimeout(timeout);
       this.notifications.delete(taskId);
-      console.log(`Cancelled notification for task: ${taskId}`);
+    logger.debug(`Cancelled notification for task: ${taskId}`);
     }
   }
 
@@ -638,6 +645,6 @@ export class TaskNotificationManager {
       }
     });
     this.notifications.clear();
-    console.log('Cleaned up all task notifications');
+   logger.debug('Cleaned up all task notifications');
   }
 }

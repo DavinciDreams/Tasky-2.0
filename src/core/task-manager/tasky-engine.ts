@@ -653,7 +653,7 @@ export class TaskyEngine {
   private async executeAction(action: TaskAction): Promise<void> {
     // Implementation would depend on the specific action type
     // This is where you'd integrate with notification systems, UI updates, etc.
-    console.log(`Executing action: ${action.type} for task ${action.taskId}`);
+    // Reduced verbosity: keep engine quiet in production
   }
 
   private getStatusDistribution(): Record<TaskStatus, number> {

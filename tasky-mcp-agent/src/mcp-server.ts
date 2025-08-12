@@ -307,10 +307,12 @@ server.tool(
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error('Tasky MCP Server running on stdio');
+  // keep quiet; host tools already show tool availability
 }
 
 main().catch((error) => {
-  console.error('Fatal error in MCP server:', error);
+  // minimal fatal log
+  // eslint-disable-next-line no-console
+  console.error('MCP server fatal error');
   process.exit(1);
 });

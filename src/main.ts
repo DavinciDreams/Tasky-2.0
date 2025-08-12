@@ -20,6 +20,7 @@ import { Storage } from './electron/storage';
 import ReminderScheduler from './electron/scheduler';
 import TaskyAssistant from './electron/assistant';
 import { ElectronTaskManager } from './electron/task-manager';
+import { notificationUtility } from './electron/notification-utility';
 import type { Reminder, Settings } from './types/index';
 
 // Vite globals for Electron
@@ -65,9 +66,8 @@ const createHttpServer = () => {
         req.on('data', (chunk: any) => body += chunk.toString());
         req.on('end', async () => {
           try {
-            logger.info('HTTP execute-task request received, body:', body);
             const { taskId, options } = JSON.parse(body);
-            logger.info('Parsed request - taskId:', taskId, 'options:', options);
+            logger.info('MCP task execution request:', taskId);
             
             if (!taskManager) {
               logger.error('Task manager not initialized');
@@ -77,12 +77,57 @@ const createHttpServer = () => {
             }
             
             // Call the actual task execution logic
-            logger.info('Calling taskManager.executeTask with:', taskId, options);
             const result = await (taskManager as any).executeTask(taskId, options);
-            logger.info('Execution result:', result);
+            logger.info('Task execution completed:', taskId, result.success ? '✓' : '✗');
             
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify(result));
+          } catch (error) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: (error as Error).message }));
+          }
+        });
+      } catch (error) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: (error as Error).message }));
+      }
+    } else if (req.method === 'POST' && req.url === '/notify-task-created') {
+      try {
+        let body = '';
+        req.on('data', (chunk: any) => body += chunk.toString());
+        req.on('end', async () => {
+          try {
+            const { title, description } = JSON.parse(body);
+            logger.info('MCP task creation notification:', title);
+            
+            // Show notification for MCP-created task
+            notificationUtility.showTaskCreatedNotification(title, description);
+            
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true }));
+          } catch (error) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: (error as Error).message }));
+          }
+        });
+      } catch (error) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: (error as Error).message }));
+      }
+    } else if (req.method === 'POST' && req.url === '/notify-reminder-created') {
+      try {
+        let body = '';
+        req.on('data', (chunk: any) => body += chunk.toString());
+        req.on('end', async () => {
+          try {
+            const { message, time, days } = JSON.parse(body);
+            logger.info('MCP reminder creation notification:', message);
+            
+            // Show notification for MCP-created reminder
+            notificationUtility.showReminderCreatedNotification(message, time, days);
+            
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true }));
           } catch (error) {
             res.writeHead(400, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ success: false, error: (error as Error).message }));
@@ -257,6 +302,9 @@ app.whenReady().then(async () => {
   const savedAvatar = settings.selectedAvatar || 'Tasky';
   assistant.setAvatar(savedAvatar);
   
+  // Set up notification utility with assistant reference
+  notificationUtility.setAssistant(assistant);
+  
   // If it's a custom avatar, set the custom path
   if (savedAvatar === 'Custom' || savedAvatar.startsWith('custom_')) {
     const customPath = settings.customAvatarPath;
@@ -301,10 +349,14 @@ app.whenReady().then(async () => {
     }
   }, 3000);
   
-  // Apply settings to scheduler
-  scheduler.toggleNotifications(settings.enableNotifications);
-  scheduler.toggleSound(settings.enableSound);
-  scheduler.setNotificationType(settings.notificationType || 'custom');
+      // Apply settings to scheduler
+    scheduler.toggleNotifications(settings.enableNotifications);
+    scheduler.toggleSound(settings.enableSound);
+    scheduler.setNotificationType(settings.notificationType || 'custom');
+    
+    // Apply notification settings to notification utility
+    notificationUtility.toggleNotifications(settings.enableNotifications);
+    notificationUtility.toggleSound(settings.enableSound);
   
   // Configure auto-launch if enabled
   if (settings.autoStart) {
@@ -502,16 +554,12 @@ app.on('before-quit', () => {
 
 // IPC handlers for renderer communication
 ipcMain.handle('get-reminders', () => {
-  console.log('IPC get-reminders called from renderer');
   const reminders = store ? store.getReminders() : [];
-  console.log('IPC get-reminders returning:', reminders);
   return reminders;
 });
 
 ipcMain.handle('reminder:last-updated', () => {
-  console.log('IPC reminder:last-updated called from renderer');
   const timestamp = store ? store.getRemindersLastUpdated() : Date.now();
-  console.log('IPC reminder:last-updated returning:', timestamp);
   return timestamp;
 });
 
@@ -523,6 +571,9 @@ ipcMain.on('add-reminder', (event, reminder) => {
     if (store && scheduler) {
       store.addReminder(reminder);
       scheduler.scheduleReminder(reminder);
+      
+      // Show creation notification
+      notificationUtility.showReminderCreatedNotification(message, time, days);
     }
   } catch {
     // noop
@@ -561,9 +612,11 @@ ipcMain.on('set-setting', (event, key, value) => {
       switch (key) {
         case 'enableNotifications':
           scheduler.toggleNotifications(value);
+          notificationUtility.toggleNotifications(value);
           break;
         case 'enableSound':
           scheduler.toggleSound(value);
+          notificationUtility.toggleSound(value);
           break;
         case 'enableAssistant':
           if (value && assistant) {

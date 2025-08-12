@@ -1134,7 +1134,7 @@ const App: React.FC = () => {
   
   // Debug: Log reminders state changes
   useEffect(() => {
-    console.log('Reminders state changed:', reminders);
+    // renderer: reduce noise; keep only critical errors in console
   }, [reminders]);
   const [tasks, setTasks] = useState<TaskyTask[]>([]);
   const [settings, setSettings] = useState<Partial<AppSettings>>({
@@ -1184,16 +1184,16 @@ const App: React.FC = () => {
     let lastSeen = 0;
     const interval = setInterval(async () => {
       try {
-        console.log('Task polling check running...');
+        // polling: silent unless change detected
         const lu = await (window as any).electronAPI.invoke('task:last-updated');
-        console.log('Task polling check - lastUpdated:', lu, 'lastSeen:', lastSeen);
+        
         if (typeof lu === 'number' && lu !== lastSeen) {
-          console.log('External task change detected, reloading tasks');
+          
           lastSeen = lu;
           loadTasks();
         }
       } catch (error) {
-        console.log('Task polling error:', error);
+        
       }
     }, 3000);
     return () => clearInterval(interval);
@@ -1205,14 +1205,14 @@ const App: React.FC = () => {
     const interval = setInterval(async () => {
       try {
         const lu = await (window as any).electronAPI.invoke('reminder:last-updated');
-        console.log('Reminder polling check - lastUpdated:', lu, 'lastSeen:', lastSeenReminders);
+        
         if (typeof lu === 'number' && lu !== lastSeenReminders) {
-          console.log('External reminder change detected, reloading reminders');
+          
           lastSeenReminders = lu;
           loadReminders();
         }
       } catch (error) {
-        console.log('Reminder polling error:', error);
+        
       }
     }, 3000);
     return () => clearInterval(interval);
@@ -1220,17 +1220,17 @@ const App: React.FC = () => {
 
   const loadReminders = async () => {
     try {
-      console.log('loadReminders called in renderer');
+      
       const savedReminders = await window.electronAPI.getReminders();
-      console.log('loadReminders - got reminders from main process:', savedReminders);
+      
       // Ensure all reminders have an enabled property (default to true for backwards compatibility)
       const remindersWithEnabled = (savedReminders || []).map(reminder => ({
         ...reminder,
         enabled: reminder.enabled !== undefined ? reminder.enabled : true
       }));
-      console.log('loadReminders - processed reminders:', remindersWithEnabled);
+      
       setReminders(remindersWithEnabled);
-      console.log('loadReminders - reminders set in state');
+      
     } catch (error) {
       console.error('Failed to load reminders:', error);
     }

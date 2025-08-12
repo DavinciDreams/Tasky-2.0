@@ -123,7 +123,7 @@ class ReminderScheduler {
       task.stop();
       this.scheduledTasks.delete(id);
       if (process.env.NODE_ENV === 'development') {
-        console.log(`Reminder ${id} removed`);
+        // quiet
       }
     }
   }
@@ -213,7 +213,7 @@ class ReminderScheduler {
       // Check if notifications are supported
       if (!Notification.isSupported()) {
         if (process.env.NODE_ENV === 'development') {
-          console.error('Native notifications are not supported on this system');
+          
         }
         this.showFallbackNotification(reminder);
         return;
@@ -241,7 +241,7 @@ class ReminderScheduler {
 
     } catch (error) {
       if (process.env.NODE_ENV === 'development') {
-        console.error('Failed to show native notification:', error);
+        
       }
       this.showFallbackNotification(reminder);
     }
@@ -253,7 +253,7 @@ class ReminderScheduler {
   showFallbackNotification(reminder: Reminder): void {
     try {
       if (process.platform === 'win32') {
-        console.log('Using Windows PowerShell BalloonTip as fallback');
+        
         const escapedMessage = reminder.message.replace(/'/g, "''").replace(/"/g, '""');
         
         // Use Windows system tray balloon notification
@@ -276,12 +276,10 @@ class ReminderScheduler {
           }
         });
       } else {
-        console.log('Non-Windows platform, using console notification');
-        console.log(`🔔 REMINDER: ${reminder.message}`);
+        
       }
     } catch (error) {
-      console.error('Fallback notification failed:', error);
-      console.log(`🔔 EMERGENCY REMINDER: ${reminder.message}`);
+      
     }
   }
 
@@ -389,34 +387,31 @@ class ReminderScheduler {
               <source src="${fileUrl}" type="audio/wav">
             </audio>
             <script>
-              console.log('Audio script starting...');
+              
               const audio = document.getElementById('audio');
               
               // Set volume
               audio.volume = 0.7;
               
               // Add event listeners
-              audio.addEventListener('loadstart', () => console.log('Audio load started'));
-              audio.addEventListener('canplay', () => console.log('Audio can play'));
-              audio.addEventListener('canplaythrough', () => console.log('Audio can play through'));
-              audio.addEventListener('playing', () => console.log('Audio is playing!'));
+              
               audio.addEventListener('ended', () => {
-                console.log('Audio ended');
+                
                 setTimeout(() => window.close(), 100);
               });
               audio.addEventListener('error', (e) => {
-                console.error('Audio error:', e, audio.error);
+                
                 setTimeout(() => window.close(), 100);
               });
               
               // Try to play immediately
-              console.log('Attempting to play audio...');
+              
               const playPromise = audio.play();
               
               if (playPromise !== undefined) {
                 playPromise
                   .then(() => {
-                    console.log('Audio play() succeeded');
+                    
                     // Auto-close after audio duration + buffer
                     setTimeout(() => {
                       if (!soundWindow || !soundWindow.isDestroyed()) {
@@ -425,7 +420,7 @@ class ReminderScheduler {
                     }, 3000);
                   })
                   .catch(error => {
-                    console.error('Audio play() failed:', error);
+                    
                     window.close();
                   });
               }
@@ -489,7 +484,7 @@ class ReminderScheduler {
           <head><title>Audio Context Player</title></head>
           <body>
             <script>
-              console.log('AudioContext method starting...');
+              
               
               const audioData = 'data:audio/mpeg;base64,${base64Audio}';
               
@@ -511,15 +506,15 @@ class ReminderScheduler {
                   gainNode.connect(audioContext.destination);
                   
                   source.onended = () => {
-                    console.log('AudioContext playback ended');
+                    
                     setTimeout(() => window.close(), 100);
                   };
                   
                   source.start();
-                  console.log('AudioContext playback started');
+                  
                 })
                 .catch(error => {
-                  console.error('AudioContext failed:', error);
+                  
                   setTimeout(() => window.close(), 100);
                 });
               
@@ -601,7 +596,7 @@ class ReminderScheduler {
               
               setTimeout(() => window.close(), 1000);
             } catch (error) {
-              console.error('Beep failed:', error);
+              
               window.close();
             }
           </script>
@@ -665,7 +660,7 @@ class ReminderScheduler {
    */
   loadReminders(reminders: Reminder[]): void {
     if (process.env.NODE_ENV === 'development') {
-      console.log(`Loading ${reminders.length} reminders`);
+      
     }
     
     // Clear existing tasks
@@ -703,7 +698,7 @@ class ReminderScheduler {
    */
   destroy(): void {
     if (process.env.NODE_ENV === 'development') {
-      console.log('Destroying scheduler...');
+      
     }
     this.scheduledTasks.forEach((task, id) => {
       try {
@@ -711,7 +706,7 @@ class ReminderScheduler {
         (task as any).destroy?.();
       } catch (error) {
         if (process.env.NODE_ENV === 'development') {
-          console.error(`Error stopping task ${id}:`, error);
+          
         }
       }
     });
@@ -728,7 +723,7 @@ class ReminderScheduler {
         }).unref();
       } catch (error) {
         if (process.env.NODE_ENV === 'development') {
-          console.error('Error cleaning up PowerShell processes:', error);
+          
         }
       }
     }

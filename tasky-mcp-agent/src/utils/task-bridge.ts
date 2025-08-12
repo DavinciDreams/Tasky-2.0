@@ -6,6 +6,7 @@ import path from 'path';
 import { format } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
 import * as http from 'http';
+import { request } from 'http';
 
 type TaskStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'NEEDS_REVIEW' | 'ARCHIVED';
 
@@ -90,6 +91,40 @@ export class TaskBridge {
     return `${prefix}_${timestamp}_${uuid}`;
   }
 
+  /**
+   * Notify the main application about a created task
+   */
+  private async notifyTaskCreated(title: string, description?: string): Promise<void> {
+    try {
+      const postData = JSON.stringify({ title, description });
+      
+      const req = request({
+        hostname: 'localhost',
+        port: 7844,
+        path: '/notify-task-created',
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(postData)
+        }
+      }, (res) => {
+        if (res.statusCode !== 200) {
+          console.warn(`Notification request failed with status: ${res.statusCode}`);
+        }
+      });
+
+      req.on('error', (error) => {
+        console.warn('Failed to notify main app about task creation:', error);
+      });
+
+      req.write(postData);
+      req.end();
+    } catch (error) {
+      // Log but don't throw - notification failure shouldn't break task creation
+      console.warn('Failed to notify main app about task creation:', error);
+    }
+  }
+
   async createTask(args: any): Promise<CallToolResult> {
     if (!args?.title || typeof args.title !== 'string') {
       return { content: [{ type: 'text', text: 'title is required' }], isError: true };
@@ -123,6 +158,15 @@ export class TaskBridge {
       }
     });
     t();
+    
+    // Notify the main application about the created task
+    try {
+      await this.notifyTaskCreated(args.title, args.description);
+    } catch (error) {
+      // Don't fail the task creation if notification fails
+      console.warn('Failed to send task creation notification:', error);
+    }
+    
     const created = await this.getTask({ id });
     return created;
   }
@@ -328,7 +372,7 @@ export class TaskBridge {
         });
 
         req.on('error', reject);
-        req.setTimeout(10000); // 10 second timeout
+        req.setTimeout(8000); // 8s timeout to keep logs concise
         req.on('timeout', () => {
           req.destroy();
           reject(new Error('HTTP request timeout'));
