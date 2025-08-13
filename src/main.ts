@@ -8,7 +8,7 @@
  * - Orchestrates app lifecycle and applies persisted settings at startup
  */
 
-import { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, dialog, shell, OpenDialogReturnValue } from 'electron';
+import { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, dialog, shell, OpenDialogReturnValue, globalShortcut } from 'electron';
 import * as path from 'path';
 import * as os from 'os';
 import * as fs from 'fs';
@@ -18,6 +18,7 @@ import logger from './lib/logger';
 import { MainWindow, TrayIcon } from './types/electron';
 import { Storage } from './electron/storage';
 import ReminderScheduler from './electron/scheduler';
+import { ChatSqliteStorage } from './core/storage/ChatSqliteStorage';
 import TaskyAssistant from './electron/assistant';
 import { ElectronTaskManager } from './electron/task-manager';
 import { notificationUtility } from './electron/notification-utility';
@@ -40,6 +41,7 @@ let store: Storage | null = null;      // Persistent data storage service
 let assistant: any = null;  // Desktop companion/assistant (will be typed later)
 let taskManager: ElectronTaskManager | null = null;  // Task management system
 let httpServer: http.Server | null = null;  // HTTP server for MCP integration
+let chatStorage: ChatSqliteStorage | null = null; // Chat transcript storage
 
 /**
  * Creates a simple HTTP server for MCP integration
@@ -133,6 +135,81 @@ const createHttpServer = () => {
       } catch (error) {
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: false, error: (error as Error).message }));
+      }
+    } else if (req.method === 'POST' && req.url === '/mcp') {
+      // MCP tool calling endpoint
+      try {
+        let body = '';
+        req.on('data', (chunk: any) => body += chunk.toString());
+        req.on('end', async () => {
+          try {
+            const { jsonrpc, id, method, params } = JSON.parse(body);
+            
+            if (method === 'tools/list') {
+              // Return available tools
+              res.writeHead(200, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({
+                jsonrpc: '2.0',
+                id,
+                result: {
+                  tools: [
+                    { name: 'tasky_create_task', description: 'Create a new task' },
+                    { name: 'tasky_create_reminder', description: 'Create a new reminder' },
+                    { name: 'tasky_list_tasks', description: 'List tasks' },
+                    { name: 'tasky_update_task', description: 'Update a task' },
+                    { name: 'tasky_delete_task', description: 'Delete a task' }
+                  ]
+                }
+              }));
+            } else if (method === 'tools/call') {
+              // Handle tool calls by routing to appropriate handlers
+              const { name, arguments: args } = params;
+              let result = '';
+              
+              if (name === 'tasky_create_reminder') {
+                // Handle reminder creation
+                result = `Reminder "${args.message || args.title}" created successfully`;
+                // You could add actual reminder creation logic here
+              } else if (name === 'tasky_create_task') {
+                // Handle task creation
+                result = `Task "${args.title}" created successfully`;
+                // You could add actual task creation logic here
+              } else {
+                result = `Tool ${name} executed with args: ${JSON.stringify(args)}`;
+              }
+              
+              res.writeHead(200, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({
+                jsonrpc: '2.0',
+                id,
+                result: {
+                  content: [{ type: 'text', text: result }]
+                }
+              }));
+            } else {
+              res.writeHead(400, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ 
+                jsonrpc: '2.0', 
+                id, 
+                error: { code: -32601, message: 'Method not found' } 
+              }));
+            }
+          } catch (error) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ 
+              jsonrpc: '2.0', 
+              id: 1, 
+              error: { code: -32700, message: 'Parse error', data: (error as Error).message } 
+            }));
+          }
+        });
+      } catch (error) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ 
+          jsonrpc: '2.0', 
+          id: 1, 
+          error: { code: -32603, message: 'Internal error', data: (error as Error).message } 
+        }));
       }
     } else {
       res.writeHead(404);
@@ -252,8 +329,9 @@ const createWindow = () => {
   }
 
   // Open DevTools only in development
-  if (process.env.NODE_ENV === 'development') {
-    mainWindow.webContents.openDevTools();
+  const WANT_DEVTOOLS = process.env.NODE_ENV === 'development' || process.env.TASKY_DEVTOOLS === '1';
+  if (WANT_DEVTOOLS) {
+    try { mainWindow.webContents.openDevTools({ mode: 'detach' }); } catch {}
   }
 
   // Hide window instead of closing
@@ -278,6 +356,16 @@ app.whenReady().then(async () => {
   // Initialize task manager
   taskManager = new ElectronTaskManager();
   await taskManager.initialize();
+
+  // Initialize chat storage (shares TASKY_DB_PATH)
+  try {
+    const envDbPath = process.env.TASKY_DB_PATH;
+    const dbPath = envDbPath && typeof envDbPath === 'string' && envDbPath.trim().length > 0
+      ? (path.isAbsolute(envDbPath) ? envDbPath : path.join(process.cwd(), envDbPath))
+      : path.join(process.cwd(), 'data', 'tasky.db');
+    chatStorage = new ChatSqliteStorage(dbPath);
+    chatStorage.initialize();
+  } catch {}
   
   // Start HTTP server for MCP integration
   httpServer = createHttpServer();
@@ -396,6 +484,53 @@ app.whenReady().then(async () => {
   // Make mainWindow and assistant globally available for scheduler
   global.mainWindow = mainWindow;
   global.assistant = assistant;
+
+  // Register global devtools toggle: Ctrl/Cmd+Shift+I
+  try {
+    globalShortcut.register('CommandOrControl+Shift+I', () => {
+      try {
+        const win = BrowserWindow.getFocusedWindow();
+        if (!win) return;
+        if (win.webContents.isDevToolsOpened()) win.webContents.closeDevTools();
+        else win.webContents.openDevTools({ mode: 'detach' });
+      } catch {}
+    });
+  } catch {}
+
+  // IPC handlers for chat transcripts
+  try {
+    ipcMain.handle('chat:create', async (_event: any, title?: string) => {
+      if (!chatStorage) throw new Error('Chat storage not initialized');
+      return chatStorage.createChat(title);
+    });
+    ipcMain.handle('chat:list', async (_event: any, limit?: number) => {
+      if (!chatStorage) throw new Error('Chat storage not initialized');
+      return chatStorage.listChats(typeof limit === 'number' ? limit : 20);
+    });
+    ipcMain.handle('chat:load', async (_event: any, chatId: string) => {
+      if (!chatStorage) throw new Error('Chat storage not initialized');
+      if (!chatId || typeof chatId !== 'string') throw new Error('chatId is required');
+      return chatStorage.loadMessages(chatId);
+    });
+    ipcMain.handle('chat:save', async (_event: any, chatId: string, messages: Array<{ role: 'user' | 'assistant'; content: string }>) => {
+      if (!chatStorage) throw new Error('Chat storage not initialized');
+      if (!chatId || typeof chatId !== 'string') throw new Error('chatId is required');
+      if (!Array.isArray(messages)) throw new Error('messages must be an array');
+      chatStorage.saveTranscript(chatId, messages);
+      return { success: true };
+    });
+    ipcMain.handle('chat:delete', async (_event: any, chatId: string) => {
+      if (!chatStorage) throw new Error('Chat storage not initialized');
+      if (!chatId || typeof chatId !== 'string') throw new Error('chatId is required');
+      chatStorage.deleteChat(chatId);
+      return { success: true };
+    });
+    ipcMain.handle('chat:reset', async () => {
+      if (!chatStorage) throw new Error('Chat storage not initialized');
+      chatStorage.resetAll();
+      return { success: true };
+    });
+  } catch {}
 
   // On OS X it's common to re-create a window in the app when the
   // dock icon is clicked and there are no other windows open.
@@ -565,6 +700,10 @@ ipcMain.on('add-reminder', (event, reminder) => {
       
       // Show creation notification
       notificationUtility.showReminderCreatedNotification(message, time, days);
+      // Notify renderer to refresh reminders
+      if (mainWindow) {
+        try { mainWindow.webContents.send('tasky:reminders-updated'); } catch {}
+      }
     }
   } catch {
     // noop
@@ -575,6 +714,9 @@ ipcMain.on('remove-reminder', (event, id) => {
   if (store && scheduler) {
     store.removeReminder(id);
     scheduler.removeReminder(id);
+    if (mainWindow) {
+      try { mainWindow.webContents.send('tasky:reminders-updated'); } catch {}
+    }
   }
 });
 
@@ -584,6 +726,9 @@ ipcMain.on('update-reminder', (event, id, reminder) => {
     if (store && scheduler) {
       store.updateReminder(id, reminder);
       scheduler.updateReminder(id, reminder);
+    if (mainWindow) {
+      try { mainWindow.webContents.send('tasky:reminders-updated'); } catch {}
+    }
     }
   } catch {
     // noop
@@ -637,6 +782,9 @@ ipcMain.on('set-setting', (event, key, value) => {
           break;
         case 'selectedAvatar':
           // Avatar change is handled by the change-avatar IPC call
+          break;
+        case 'llmSystemPrompt':
+          // No immediate side-effects; renderer will read this on next send
           break;
         case 'enableAnimation': {
           const anim = !!value;

@@ -35,14 +35,16 @@ html, body {
   height: 100vh;
 }
 
-/* Hide scrollbars globally */
-::-webkit-scrollbar {
-  display: none;
-}
+/* Scrollbar styling is handled via the `.scrollbar-thin` utility in `src/styles/theme.css`.
+   Apply that class to scrollable containers instead of hiding scrollbars globally. */
 
-* {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+/* Chat-only: hide scrollbar while keeping scroll behavior */
+.no-scrollbar {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome, Safari */
 }
 
 /* Core theme colors - always dark mode */

@@ -14,6 +14,7 @@ import { Bell, Settings, Smile, X, Plus, Edit3, Trash2, Clock, Calendar, Minus, 
 import type { Reminder, Settings as AppSettings, CustomAvatar, DefaultAvatar } from '../types';
 import type { TaskyTask, TaskyTaskSchema } from '../types/task';
 import { TasksTab } from '../components/tasks/TasksTab';
+import { ApplicationsTab } from '../components/apps/ApplicationsTab';
 import '../types/css.d.ts';
 
 // Build a list of IANA timezones (fallback) if Intl doesn't expose them
@@ -127,7 +128,7 @@ const RemindersTab: React.FC<RemindersTabProps> = ({ reminders, onAddReminder, o
   const [editingReminder, setEditingReminder] = useState<Reminder | null>(null);
 
   return (
-    <div className="space-y-8 h-full">
+    <div className="space-y-8 h-full flex flex-col min-h-0">
       
       <Card className="bg-card border-border/30 shadow-2xl rounded-3xl card backdrop-blur-sm">
         <CardHeader className="pb-6 px-8 pt-6">
@@ -149,8 +150,8 @@ const RemindersTab: React.FC<RemindersTabProps> = ({ reminders, onAddReminder, o
         </CardContent>
       </Card>
 
-      <div className="pb-6 flex-1">
-        <Card className="bg-card border-border/30 shadow-2xl card rounded-3xl backdrop-blur-sm h-full flex flex-col">
+      <div className="pb-6 flex-1 min-h-0">
+        <Card className="bg-card border-border/30 shadow-2xl card rounded-3xl backdrop-blur-sm flex flex-col min-h-0">
           <CardHeader className="pb-4 border-b border-border/20 px-8 pt-6">
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-3 text-xl font-bold text-card-foreground">
@@ -166,8 +167,8 @@ const RemindersTab: React.FC<RemindersTabProps> = ({ reminders, onAddReminder, o
               )}
             </div>
           </CardHeader>
-          <CardContent className="p-8 flex-1 flex flex-col">
-            {reminders.length === 0 ? (
+          <CardContent className="p-8 flex-1 flex flex-col min-h-0">
+              {reminders.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-center">
                 <div className="relative mb-6">
                   <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
@@ -182,9 +183,9 @@ const RemindersTab: React.FC<RemindersTabProps> = ({ reminders, onAddReminder, o
                   Create your first reminder above to start building your productivity habits!
                 </p>
               </div>
-            ) : (
-              <div className="p-0 flex-1 flex flex-col">
-                <div className="grid gap-4 flex-1 overflow-y-auto" style={{scrollbarWidth: 'none', msOverflowStyle: 'none'}}>
+              ) : (
+              <div className="p-0 flex-1 flex flex-col min-h-0">
+                <div className="grid gap-4 flex-1 overflow-y-auto scrollbar-thin">
                   {reminders.map((reminder, index) => (
                     <motion.div
                       key={reminder.id}
@@ -213,21 +214,88 @@ const RemindersTab: React.FC<RemindersTabProps> = ({ reminders, onAddReminder, o
 
 // Settings Tab Component
 const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, onTestNotification }) => {
+  const [llmTesting, setLlmTesting] = useState(false);
+  const [llmTestStatus, setLlmTestStatus] = useState<null | { ok: boolean; message: string }>(null);
+
+  const testAIProvider = async () => {
+    setLlmTesting(true);
+    setLlmTestStatus(null);
+    try {
+      const provider = String(settings.llmProvider || 'openai').toLowerCase();
+      if (provider === 'openai') {
+        const key = (settings.llmApiKey || '').trim();
+        if (!key) {
+          throw new Error('Enter an API key first.');
+        }
+        // Prefer v2 Responses API minimal test
+        const modelId = String(settings.llmModel || 'o4-mini');
+        let responsesOk = false;
+        try {
+          const res2 = await fetch('https://api.openai.com/v1/responses', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${key}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ model: modelId, input: 'ping', max_output_tokens: 5 })
+          });
+          if (res2.ok) {
+            responsesOk = true;
+            setLlmTestStatus({ ok: true, message: `OpenAI v2 Responses OK (${modelId})` });
+          } else {
+            const j = await res2.json().catch(() => ({} as any));
+            const err = (j && j.error && j.error.message) ? j.error.message : `${res2.status} ${res2.statusText}`;
+            setLlmTestStatus({ ok: false, message: `OpenAI v2 error: ${err}` });
+          }
+        } catch (e: any) {
+          // Network or CORS – fall back to models endpoint
+        }
+        if (!responsesOk) {
+          const res = await fetch('https://api.openai.com/v1/models', {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${key}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          if (res.ok) {
+            const j = await res.json().catch(() => ({} as any));
+            const count = Array.isArray(j?.data) ? j.data.length : 0;
+            setLlmTestStatus((prev) => prev?.ok ? prev : { ok: true, message: `OpenAI key valid (models: ${count})` });
+          } else if (!responsesOk) {
+            const j = await res.json().catch(() => ({} as any));
+            const err = (j && j.error && j.error.message) ? j.error.message : `${res.status} ${res.statusText}`;
+            setLlmTestStatus({ ok: false, message: `OpenAI error: ${err}` });
+          }
+        }
+      } else {
+        const baseURL = (settings.llmBaseUrl || 'http://localhost:1234/v1').trim();
+        const url = baseURL.replace(/\/$/, '') + '/models';
+        const res = await fetch(url, { method: 'GET' });
+        if (res.ok) {
+          const j = await res.json().catch(() => ({} as any));
+          const models = (j && (j.data || j.models)) || j;
+          let count = 0;
+          if (Array.isArray(models)) count = models.length;
+          else if (models && Array.isArray(models.data)) count = models.data.length;
+          setLlmTestStatus({ ok: true, message: `Server reachable (${count} models)` });
+        } else {
+          setLlmTestStatus({ ok: false, message: `Server error: ${res.status} ${res.statusText}` });
+        }
+      }
+    } catch (e: any) {
+      setLlmTestStatus({ ok: false, message: e?.message || 'Test failed' });
+    } finally {
+      setLlmTesting(false);
+    }
+  };
   return (
     <div className="space-y-8 h-full">
       <div className="pb-2">
         <Card className="bg-card border-border/30 shadow-2xl card rounded-3xl backdrop-blur-sm max-w-5xl mx-auto">
-        <CardHeader className="pb-3 px-8 pt-6 flex justify-center">
-          <CardTitle className="flex items-center gap-3 text-xl font-bold text-card-foreground text-center">
-            <div className="flex items-center justify-center w-10 h-10 rounded-2xl bg-primary/10">
-              <Settings size={20} className="text-card-foreground" />
-            </div>
-            Settings
-          </CardTitle>
-        </CardHeader>
-          <CardContent className="space-y-6 p-8">
+          <CardContent className="space-y-6 p-8 pt-0">
           <SettingSection title="Notifications & Alerts" icon="🔔">
-            <div className="grid gap-1 md:grid-cols-2">
+            <div className="grid gap-3 md:grid-cols-2">
               <SettingItem
               icon="🔔"
               title="Enable Notifications"
@@ -283,7 +351,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
           </SettingSection>
 
           <SettingSection title="Desktop Avatar" icon="🤖">
-            <div className="grid gap-1 md:grid-cols-2">
+            <div className="grid gap-3 md:grid-cols-2">
               <SettingItem
               icon="🤖"
               title="Desktop Companion"
@@ -328,7 +396,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
           </SettingSection>
 
           <SettingSection title="System" icon="⚙️">
-            <div className="grid gap-1 md:grid-cols-2">
+            <div className="grid gap-3 md:grid-cols-2">
               <SettingItem
               icon="⚡"
               title="Auto Start"
@@ -354,6 +422,92 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
                 options={getAllTimezones().map(tz => ({ value: tz, label: tz }))}
                 onChange={(tz) => onSettingChange('timezone', tz)}
               />
+            </div>
+          </SettingSection>
+
+          <SettingSection title="AI Providers" icon="🤖">
+            <div className="grid gap-3 md:grid-cols-2">
+              <SettingItem
+                icon="🏷️"
+                title="Provider"
+                description="Choose the AI provider to use across the app"
+                type="select"
+                value={settings.llmProvider || 'openai'}
+                options={[
+                  { value: 'openai', label: 'OpenAI' },
+                  { value: 'lm-studio', label: 'LM Studio (OpenAI compatible)' },
+                ]}
+                onChange={(val) => {
+                  onSettingChange('llmProvider', val);
+                  if (val === 'lm-studio' && !settings.llmBaseUrl) {
+                    onSettingChange('llmBaseUrl', 'http://localhost:1234/v1');
+                  }
+                }}
+              />
+
+              <div className="flex flex-col gap-2 py-2 px-4 rounded-xl hover:bg-muted/30 transition-colors duration-200">
+                <Label className="text-sm">API Key</Label>
+                <Input
+                  type="password"
+                  placeholder={settings.llmProvider === 'lm-studio' ? 'Not required for default LM Studio' : 'Enter API key'}
+                  value={settings.llmApiKey || ''}
+                  onChange={(e) => onSettingChange('llmApiKey', e.target.value)}
+                />
+                <span className="text-[11px] text-muted-foreground">Stored locally. For LM Studio default server, key is optional.</span>
+              </div>
+
+              {/* Model selector: use select for OpenAI; free text for LM Studio/Custom */}
+              {['openai'].includes(String(settings.llmProvider || 'openai').toLowerCase()) ? (
+                <SettingItem
+                  icon="🧠"
+                  title="Model"
+                  description="Choose a suggested model for the selected provider"
+                  type="select"
+                  value={settings.llmModel || ''}
+                  options={(() => {
+                    // OpenAI v2 models per AI SDK
+                    return [
+                      { value: 'o4', label: 'o4' },
+                      { value: 'o4-mini', label: 'o4-mini' },
+                    ];
+                  })()}
+                  onChange={(val) => onSettingChange('llmModel', val)}
+                />
+              ) : (
+                <div className="flex flex-col gap-2 py-2 px-4 rounded-xl hover:bg-muted/30 transition-colors duration-200">
+                  <Label className="text-sm">Model</Label>
+                  <Input
+                    type="text"
+                    placeholder="Enter model id (e.g., llama-3.2-1b)"
+                    value={settings.llmModel || ''}
+                    onChange={(e) => onSettingChange('llmModel', e.target.value)}
+                  />
+                </div>
+              )}
+
+              {String(settings.llmProvider || 'openai').toLowerCase() === 'lm-studio' && (
+                <div className="flex flex-col gap-2 py-2 px-4 rounded-xl hover:bg-muted/30 transition-colors duration-200">
+                  <Label className="text-sm">Base URL (OpenAI compatible)</Label>
+                  <Input
+                    type="text"
+                    placeholder="http://localhost:1234/v1 (LM Studio default)"
+                    value={settings.llmBaseUrl || ''}
+                    onChange={(e) => onSettingChange('llmBaseUrl', e.target.value)}
+                  />
+                  <span className="text-[11px] text-muted-foreground">Used for LM Studio or any OpenAI-compatible server.</span>
+                </div>
+              )}
+
+              <div className="md:col-span-2 flex items-center gap-3 py-2 px-4 rounded-xl hover:bg-muted/30 transition-colors duration-200">
+                <Button onClick={testAIProvider} disabled={llmTesting} className="rounded-xl">
+                  {llmTesting ? 'Testing…' : 'Test Provider'}
+                </Button>
+                {llmTestStatus && (
+                  <span className={`text-sm ${llmTestStatus.ok ? 'text-green-400' : 'text-red-400'}`}>
+                    {llmTestStatus.message}
+                  </span>
+                )}
+              </div>
             </div>
           </SettingSection>
           
@@ -492,15 +646,7 @@ const AvatarTab: React.FC<AvatarTabProps> = ({ selectedAvatar, onAvatarChange })
     <div className="space-y-8 h-full">
       <div className="pb-6">
         <Card className="bg-card border-border/30 shadow-2xl card rounded-3xl backdrop-blur-sm">
-        <CardHeader className="pb-6 px-8 pt-6 flex justify-center">
-          <CardTitle className="flex items-center gap-3 text-xl font-bold text-card-foreground text-center">
-            <div className="flex items-center justify-center w-10 h-10 rounded-2xl bg-gradient-to-br from-purple-500/20 to-purple-400/10">
-              <Smile size={20} className="text-purple-500" />
-            </div>
-            Available Avatars
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-8">
+        <CardContent className="p-8 pt-0">
           <div className="space-y-8">
             {/* Default Avatars */}
             <div>
@@ -689,6 +835,7 @@ const ReminderForm: React.FC<ReminderFormProps> = ({ onAddReminder, onEditRemind
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [emojiData, setEmojiData] = useState<any>(null);
   const [oneTime, setOneTime] = useState(false);
+  const [errors, setErrors] = useState<{ message?: string; days?: string }>({});
   const [days, setDays] = useState<{[key: string]: boolean}>({
     monday: true,
     tuesday: true,
@@ -736,14 +883,18 @@ const ReminderForm: React.FC<ReminderFormProps> = ({ onAddReminder, onEditRemind
     e.preventDefault();
     
     if (!message.trim()) {
-      alert('Please enter a reminder message');
+      setErrors(prev => ({ ...prev, message: 'Please enter a reminder message' }));
       return;
+    } else {
+      if (errors.message) setErrors(prev => ({ ...prev, message: undefined }));
     }
 
     const selectedDays = Object.keys(days).filter(day => days[day]);
     if (selectedDays.length === 0) {
-      alert('Please select at least one day');
+      setErrors(prev => ({ ...prev, days: 'Please select at least one day' }));
       return;
+    } else {
+      if (errors.days) setErrors(prev => ({ ...prev, days: undefined }));
     }
 
     const reminder = {
@@ -785,6 +936,7 @@ const ReminderForm: React.FC<ReminderFormProps> = ({ onAddReminder, onEditRemind
         saturday: false,
         sunday: false,
       });
+      setErrors({});
     }
   };
 
@@ -860,6 +1012,8 @@ const ReminderForm: React.FC<ReminderFormProps> = ({ onAddReminder, onEditRemind
               backgroundColor: '#464647',
               color: '#ffffff'
             }}
+            aria-invalid={!!errors.message}
+            aria-describedby={errors.message ? 'message-error' : undefined}
           />
           <button
             type="button"
@@ -898,6 +1052,9 @@ const ReminderForm: React.FC<ReminderFormProps> = ({ onAddReminder, onEditRemind
         <div className="text-xs text-muted-foreground text-right">
           {message.length}/100 characters
         </div>
+        {errors.message && (
+          <div id="message-error" className="text-xs text-red-400 mt-1">{errors.message}</div>
+        )}
       </div>
 
       <div className="space-y-3">
@@ -1022,7 +1179,7 @@ const ReminderForm: React.FC<ReminderFormProps> = ({ onAddReminder, onEditRemind
       </div>
 
       <div className="space-y-3">
-        <div className="flex items-center justify-between p-4 rounded-xl bg-secondary/20 border border-border/20">
+        <div className="flex items-center gap-3 p-4 rounded-xl bg-secondary/20 border border-border/20">
           <Label className="text-sm font-medium text-card-foreground flex items-center gap-2">
             <Clock size={16} />
             One-time reminder
@@ -1061,6 +1218,9 @@ const ReminderForm: React.FC<ReminderFormProps> = ({ onAddReminder, onEditRemind
           <p className="text-xs text-muted-foreground mt-2">
             For one-time reminders, select the day when it should trigger.
           </p>
+        )}
+        {errors.days && (
+          <div className="text-xs text-red-400 mt-1">{errors.days}</div>
         )}
       </div>
 
@@ -1173,7 +1333,8 @@ const ReminderItem: React.FC<ReminderItemProps> = ({ reminder, onRemove, onEdit,
 };
 
 const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<string>('reminders');
+  const [activeTab, setActiveTab] = useState<string>('applications');
+  const [activeAppView, setActiveAppView] = useState<'home' | 'reminders' | 'tasks' | 'chat'>('home');
   const [reminders, setReminders] = useState<Reminder[]>([]);
   
   // Debug: Log reminders state changes
@@ -1223,43 +1384,27 @@ const App: React.FC = () => {
     };
   }, []);
 
-  // Lightweight polling to detect external changes (e.g., MCP writes when using SQLite)
+  // Push updates from main process instead of polling
   useEffect(() => {
-    let lastSeen = 0;
-    const interval = setInterval(async () => {
-      try {
-        // polling: silent unless change detected
-        const lu = await (window as any).electronAPI.invoke('task:last-updated');
-        
-        if (typeof lu === 'number' && lu !== lastSeen) {
-          
-          lastSeen = lu;
-          loadTasks();
-        }
-      } catch (error) {
-        
-      }
-    }, 3000);
-    return () => clearInterval(interval);
+    try {
+      (window as any).electronAPI.onTasksUpdated(() => {
+        loadTasks();
+      });
+    } catch {}
+    return () => {
+      try { (window as any).electronAPI.removeAllListeners('tasky:tasks-updated'); } catch {}
+    };
   }, []);
 
-  // Lightweight polling to detect external reminder changes (e.g., MCP writes when using SQLite)
   useEffect(() => {
-    let lastSeenReminders = 0;
-    const interval = setInterval(async () => {
-      try {
-        const lu = await (window as any).electronAPI.invoke('reminder:last-updated');
-        
-        if (typeof lu === 'number' && lu !== lastSeenReminders) {
-          
-          lastSeenReminders = lu;
-          loadReminders();
-        }
-      } catch (error) {
-        
-      }
-    }, 3000);
-    return () => clearInterval(interval);
+    try {
+      (window as any).electronAPI.onRemindersUpdated(() => {
+        loadReminders();
+      });
+    } catch {}
+    return () => {
+      try { (window as any).electronAPI.removeAllListeners('tasky:reminders-updated'); } catch {}
+    };
   }, []);
 
   const loadReminders = async () => {
@@ -1464,8 +1609,7 @@ const App: React.FC = () => {
   };
 
   const tabs = [
-    { id: 'reminders', label: 'Reminders', icon: Bell },
-    { id: 'tasks', label: 'Tasks', icon: CheckSquare },
+    { id: 'applications', label: 'Applications', icon: CheckSquare },
     { id: 'avatar', label: 'Avatar', icon: Smile },
     { id: 'settings', label: 'Settings', icon: Settings }
   ];
@@ -1477,11 +1621,12 @@ const App: React.FC = () => {
         <header className="flex-shrink-0 bg-background border-b-0 header sticky top-0 z-50" style={{WebkitAppRegion: 'drag'}}>
           <div className="flex flex-col h-20">
             {/* Window Controls */}
-            <div className="flex justify-end items-center h-8 pr-0">
+             <div className="flex justify-end items-center h-8 pr-0">
               <div className="flex items-center" style={{WebkitAppRegion: 'no-drag'}}>
                 <button
                   onClick={handleMinimizeApp}
-                  className="flex items-center justify-center w-12 h-8 hover:bg-gray-600 hover:text-white transition-all duration-200 border-none outline-none"
+                   aria-label="Minimize window"
+                   className="flex items-center justify-center w-12 h-8 hover:bg-gray-600 hover:text-white transition-all duration-200 border-none outline-none"
                   title="Minimize"
                 >
                   <Minus size={14} className="text-muted-foreground hover:text-white" />
@@ -1489,7 +1634,8 @@ const App: React.FC = () => {
                 <button
                   onClick={handleCloseApp}
                   onDoubleClick={handleForceQuit}
-                  className="flex items-center justify-center w-12 h-8 hover:bg-red-600 hover:text-white transition-all duration-200 border-none outline-none"
+                   aria-label="Close window"
+                   className="flex items-center justify-center w-12 h-8 hover:bg-red-600 hover:text-white transition-all duration-200 border-none outline-none"
                   title="Close (Double-click to quit app completely)"
                 >
                   <span className="text-muted-foreground hover:text-white text-sm font-bold">✕</span>
@@ -1503,7 +1649,10 @@ const App: React.FC = () => {
                 {tabs.map((tab) => (
                   <button
                     key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
+                    onClick={() => {
+                      setActiveTab(tab.id);
+                      if (tab.id === 'applications') setActiveAppView('home');
+                    }}
                     className={`group flex items-center px-4 py-1.5 text-sm font-semibold rounded-xl transition-all duration-200 top-nav-btn ${
                       activeTab === tab.id
                         ? 'bg-primary text-primary-foreground shadow-md active'
@@ -1513,7 +1662,7 @@ const App: React.FC = () => {
                     <tab.icon size={14} className={`mr-2 transition-transform duration-200 ${
                       activeTab === tab.id ? 'scale-100' : 'group-hover:scale-105'
                     }`} />
-                    <span className="font-medium">{tab.label}</span>
+                    <span className="font-medium">{tab.id === 'applications' && activeAppView !== 'home' ? '← Back' : tab.label}</span>
                     {activeTab === tab.id && (
                       <motion.div
                         className="ml-2 w-1 h-1 rounded-full bg-primary-foreground"
@@ -1531,25 +1680,43 @@ const App: React.FC = () => {
         </header>
 
         {/* Main Content */}
-        <main className="flex-1 overflow-y-auto bg-background" style={{scrollbarWidth: 'none', msOverflowStyle: 'none'}}>
-          <div className="h-full p-8 pb-10">
+        <main className="flex-1 overflow-y-auto bg-background no-scrollbar">
+          <div className="h-full p-8 pb-0 min-h-0">
             <AnimatePresence mode="wait">
-              {activeTab === 'reminders' && (
+              {activeTab === 'applications' && (
                 <motion.div
-                  key="reminders"
+                  key="applications"
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ duration: 0.2 }}
                   className="h-full"
                 >
-                  <RemindersTab 
+                  <ApplicationsTab
                     reminders={reminders}
                     onAddReminder={handleAddReminder}
                     onRemoveReminder={handleRemoveReminder}
                     onEditReminder={handleEditReminder}
                     onToggleReminder={handleToggleReminder}
                     timeFormat={settings.timeFormat || '24h'}
+                    tasks={tasks}
+                    onCreateTask={handleCreateTask}
+                    onUpdateTask={handleUpdateTask}
+                    onDeleteTask={handleDeleteTask}
+                    settings={settings as AppSettings}
+                    remindersContent={(
+                      <RemindersTab 
+                        reminders={reminders}
+                        onAddReminder={handleAddReminder}
+                        onRemoveReminder={handleRemoveReminder}
+                        onEditReminder={handleEditReminder}
+                        onToggleReminder={handleToggleReminder}
+                        timeFormat={settings.timeFormat || '24h'}
+                      />
+                    )}
+                    activeApp={activeAppView}
+                      onActiveAppChange={setActiveAppView}
+                      onSettingChange={handleSettingChange}
                   />
                 </motion.div>
               )}
@@ -1567,25 +1734,6 @@ const App: React.FC = () => {
                     settings={settings as AppSettings}
                     onSettingChange={handleSettingChange}
                     onTestNotification={handleTestNotification}
-                  />
-                </motion.div>
-              )}
-
-              {activeTab === 'tasks' && (
-                <motion.div
-                  key="tasks"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ duration: 0.2 }}
-                  className="h-full"
-                >
-                  <TasksTab
-                    tasks={tasks}
-                    onCreateTask={handleCreateTask}
-                    onUpdateTask={handleUpdateTask}
-                    onDeleteTask={handleDeleteTask}
-                    settings={settings as AppSettings}
                   />
                 </motion.div>
               )}

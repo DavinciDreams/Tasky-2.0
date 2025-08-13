@@ -106,7 +106,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onUpdateTask, onDeleteTask, t
     handleStatusChange(newStatus);
   };
 
-  const dueDateInfo = null;
+  // Placeholder for future due date rendering logic
 
   return (
     <Card className={`task-item bg-card text-card-foreground border border-border/30 rounded-2xl shadow-xl hover:shadow-2xl transition-all ${task.status === TaskStatus.COMPLETED ? 'opacity-80' : ''}`}>
@@ -186,6 +186,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onUpdateTask, onDeleteTask, t
               variant="outline"
               className="rounded-xl"
               title="Edit Task"
+              aria-label="Edit task"
               onClick={() => {
                 // Delegate to parent to open the main modal
                 const ev = new CustomEvent('tasky:edit', { detail: task });
@@ -202,6 +203,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onUpdateTask, onDeleteTask, t
               variant="outline"
               className="rounded-xl"
               title="Execute Task"
+              aria-label="Execute task"
               onClick={() => {
                 const provider = (task.schema.assignedAgent || '').toLowerCase() === 'claude' ? 'claude' : 'gemini';
                 window.electronAPI?.executeTask?.(task.schema.id, { agent: provider }).catch(console.error);
@@ -216,6 +218,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onUpdateTask, onDeleteTask, t
               variant="outline"
               className="rounded-xl text-red-600 hover:text-red-800 hover:bg-red-50"
               title="Delete Task"
+              aria-label="Delete task"
               onClick={() => onDeleteTask(task.schema.id)}
             >
               <Trash2 className="h-5 w-5" />

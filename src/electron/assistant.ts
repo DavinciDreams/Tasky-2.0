@@ -81,6 +81,14 @@ class TaskyAssistant {
     // Let renderer decide ignore/capture based on hit-testing; default capture on start
     try { this.window.setIgnoreMouseEvents(false); } catch {}
 
+    // Open DevTools if requested
+    try {
+      const WANT_DEVTOOLS = process.env.NODE_ENV === 'development' || process.env.TASKY_DEVTOOLS === '1';
+      if (WANT_DEVTOOLS) {
+        this.window.webContents.openDevTools({ mode: 'detach' });
+      }
+    } catch {}
+
     // Register per-window mouse pass-through toggle listener (once per window)
     const toggleIgnoreChannel = 'assistant:set-ignore-mouse-events';
     const toggleHandler = (_event: any, ignore: boolean) => {

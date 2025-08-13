@@ -21,6 +21,8 @@ const electronAPI: ElectronAPI = {
   // Settings management
   getSetting: (key) => ipcRenderer.invoke('get-setting', key),
   setSetting: (key, value) => ipcRenderer.send('set-setting', key, value),
+  // Persist system prompt
+  setSystemPrompt: (text: string) => ipcRenderer.send('set-setting', 'llmSystemPrompt', text),
   
   // Notification controls
   testNotification: () => ipcRenderer.send('test-notification'),
@@ -53,6 +55,14 @@ const electronAPI: ElectronAPI = {
   exportTasks: () => ipcRenderer.invoke('task:export'),
   importTasks: (importData) => ipcRenderer.invoke('task:import', importData),
   executeTask: (id, options) => ipcRenderer.invoke('task:execute', id, options),
+
+  // Chat transcript persistence
+  createChat: (title?: string) => ipcRenderer.invoke('chat:create', title),
+  listChats: (limit?: number) => ipcRenderer.invoke('chat:list', limit),
+  loadChat: (chatId: string) => ipcRenderer.invoke('chat:load', chatId),
+  saveChat: (chatId: string, messages: Array<{ role: 'user' | 'assistant'; content: string }>) => ipcRenderer.invoke('chat:save', chatId, messages),
+  deleteChat: (chatId: string) => ipcRenderer.invoke('chat:delete', chatId),
+  resetChats: () => ipcRenderer.invoke('chat:reset'),
   
   // Task-reminder integration
   // Not implemented in main process yet; provide stubs to satisfy typing
@@ -68,6 +78,9 @@ const electronAPI: ElectronAPI = {
   onReminderNotification: (callback) => ipcRenderer.on('reminder-notification', callback),
   onAssistantMessage: (callback) => ipcRenderer.on('assistant-message', callback),
   onSettingsUpdate: (callback) => ipcRenderer.on('settings-update', callback),
+  // Push update listeners
+  onTasksUpdated: (callback: () => void) => ipcRenderer.on('tasky:tasks-updated', callback as any),
+  onRemindersUpdated: (callback: () => void) => ipcRenderer.on('tasky:reminders-updated', callback as any),
   
   // Remove listeners
   removeAllListeners: (channel) => ipcRenderer.removeAllListeners(channel),

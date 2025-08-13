@@ -37,6 +37,15 @@ export class ElectronTaskManager {
     this.setupIpcHandlers();
   }
 
+  private emitTasksUpdated(): void {
+    try {
+      const wins = BrowserWindow.getAllWindows();
+      if (wins && wins.length > 0) {
+        wins[0].webContents.send('tasky:tasks-updated');
+      }
+    } catch {}
+  }
+
   private setupIpcHandlers(): void {
     const isNonEmptyString = (v: unknown): v is string => typeof v === 'string' && v.trim().length > 0;
     const isAssignedAgent = (v: any) => v === undefined || v === 'gemini' || v === 'claude';
@@ -87,6 +96,7 @@ export class ElectronTaskManager {
           this.notificationManager.scheduleTaskDueNotification(task);
         }
         
+        this.emitTasksUpdated();
         return task;
       } catch (error) {
         logger.error('Error creating task:', error);
@@ -127,6 +137,7 @@ export class ElectronTaskManager {
           }
         }
         
+        this.emitTasksUpdated();
         return task;
       } catch (error) {
         logger.error('Error updating task:', error);
@@ -143,6 +154,7 @@ export class ElectronTaskManager {
         }
         
         this.notificationManager.cancelNotification(id);
+        this.emitTasksUpdated();
         return result.data;
       } catch (error) {
         logger.error('Error deleting task:', error);
@@ -270,6 +282,7 @@ export class ElectronTaskManager {
           }
         }
         
+        this.emitTasksUpdated();
         return results;
       } catch (error) {
         logger.error('Error archiving completed tasks:', error);
@@ -412,6 +425,7 @@ export class ElectronTaskManager {
             const input = normalizeRecord(rec);
             if (input.title) await tryCreate(input);
           }
+          this.emitTasksUpdated();
           return createdTasks;
         }
 
@@ -422,9 +436,11 @@ export class ElectronTaskManager {
             const input = normalizeRecord(rawRec);
             if (input.title) await tryCreate(input);
           }
+          this.emitTasksUpdated();
           return createdTasks;
         }
 
+        this.emitTasksUpdated();
         return createdTasks;
       } catch (error) {
         logger.error('Error importing tasks:', error);

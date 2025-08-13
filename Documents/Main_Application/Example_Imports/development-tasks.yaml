@@ -12,7 +12,7 @@
 
 - title: Improve task import UX
   description: Add multi-format imports (JSON, CSV, YAML, XML) and a modal-based create form.
-  assignedAgent: gpt-4o
+  assignedAgent: gemini
   affectedFiles:
     - src/renderer/App.tsx
     - src/components/tasks/TaskForm.tsx

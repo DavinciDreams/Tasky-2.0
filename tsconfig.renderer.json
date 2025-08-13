@@ -16,6 +16,7 @@
   "include": [
     "src/renderer/**/*",
     "src/components/**/*",
+    "src/ai/**/*",
     "src/lib/**/*",
     "src/types/**/*"
   ],

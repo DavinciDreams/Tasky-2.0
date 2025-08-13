@@ -2,158 +2,149 @@
   <img src="./tasky-banner.png" alt="Tasky 2.0 Banner" width="800" />
 </p>
 
-Tasky 2.0 – Task Management (Electron)
+### Tasky 2.0 – Desktop Task Management (Electron + React)
 
-## Overview
+Tasky 2.0 is a cross‑platform desktop task manager with a lightweight UI, a desktop companion, reminders, analytics, and optional MCP integration so external LLM tools can create and manage tasks. Storage is a single SQLite database shared by the app and the MCP agent.
 
-Tasky 2.0 is a cross‑platform desktop task manager built with Electron + React. 
+## Features
 
-It supports task creation, reminders/notifications, analytics, and optional MCP (Model Context Protocol) integration so external LLM tools can create and manage tasks.
+- **Tasks**: title, description, due date, tags, dependencies, affected files, execution path
+- **Reminders**: desktop bubble notifications, sound, 15‑minute pre‑due alerts
+- **Assistant**: on‑desktop companion with configurable avatar, position, style
+- **AI execution**: run tasks via external agents (Claude or Gemini CLIs) in a terminal
+- **MCP**: Model Context Protocol agent for CRUD + execution from compatible clients
+- **Import/Export**: JSON/CSV/YAML/XML import; JSON export; basic analytics
 
-## Key features
+## Quick start
 
-- Lightweight task management with tags, files, dependencies, and due dates
-- Desktop notifications (15 minutes before due)
-- Optional execution via “agents” (Gemini or Claude) that open a terminal with a structured prompt
-- MCP server for creating/updating/listing tasks from compatible clients
-- Import/export helpers and basic analytics
+Prerequisites:
 
-## Project structure (high‑level)
+- Node.js 18+
+- Windows/macOS/Linux. For AI execution, install CLI(s): `claude` and/or `gemini` on PATH
 
-- `src/components` – React UI (including `tasks/TaskForm.tsx`)
-- `src/core/task-manager` – Engine (`TaskyEngine`) and storage abstraction
-- `src/electron` – Main-process IPC handlers and executor (`agent-executor.ts`)
-- `tasky-mcp-agent` – MCP server for external tool integration
-- `src/assets` – App assets and sample development tasks
+Clone, install, run (development):
 
-## Task schema (app‑level)
+```bash
+npm install
+npm run dev
+```
 
-Dates are real `Date` objects in the app. They are persisted as ISO strings in storage.
+Production‑like run (build then start Electron):
 
-Schema highlights:
+```bash
+# Uses TASKY_DB_PATH=./data/tasky.db by default
+npm start
+```
 
-- `TaskyTask.schema`:
-  - `id: string`
-  - `title: string`
-  - `description?: string`
-  - `dueDate?: Date`
-  - `createdAt: Date`
-  - `updatedAt?: Date`
-  - `tags?: string[]`
-  - `affectedFiles?: string[]`
-  - `estimatedDuration?: number`
-  - `dependencies?: string[]`
-  - `assignedAgent?: 'gemini' | 'claude'` (string)
-  - `executionPath?: string`
-- Top‑level:
-  - `status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'NEEDS_REVIEW' | 'ARCHIVED'`
-  - `humanApproved: boolean`
-  - `result?: string`
-  - `completedAt?: Date`
-  - `reminderEnabled?: boolean`
-  - `reminderTime?: string`
-  - `metadata?: { version: number; createdBy: string; lastModified: Date; archivedAt?: Date }`
+Build distributables:
 
-Note: The legacy `notes` field has been removed.
+```bash
+npm run dist      # all platforms
+npm run dist:win  # or dist:mac, dist:linux
+```
+
+## Configuration
+
+- `TASKY_DB_PATH` (default `./data/tasky.db`): location of the SQLite database
+- `TASKY_SQLITE_JOURNAL` (`DELETE`|`WAL`, default `DELETE`): SQLite journal mode
+- `NODE_ENV` (`development`|`production`): enables DevTools in development
+
+Both the Electron app and the MCP agent must reference the same `TASKY_DB_PATH`.
+
+## Architecture
+
+- `src/renderer` – React UI (settings, reminders, tasks UI)
+- `src/electron` – main process: tray + window, assistant, scheduler, task manager, HTTP bridge
+- `src/core/task-manager` – `TaskyEngine` (CRUD, analytics, OODA helpers)
+- `src/core/storage` – SQLite persistence via `better-sqlite3`
+- `tasky-mcp-agent` – MCP server exposing Tasky tools over stdio
+
+The main process also runs a lightweight HTTP server on `http://localhost:7844` for MCP integration:
+
+- `POST /execute-task` → executes a task via an external agent terminal
+- `POST /notify-task-created` → shows a creation bubble
+- `POST /notify-reminder-created` → shows a creation bubble
+
+## Data model
+
+Dates are real `Date` instances in‑app; they are persisted as ISO strings.
+
+```text
+TaskyTask.schema
+- id: string
+- title: string
+- description?: string
+- dueDate?: Date
+- createdAt: Date
+- updatedAt?: Date
+- tags?: string[]
+- affectedFiles?: string[]
+- estimatedDuration?: number
+- dependencies?: string[]
+- assignedAgent?: 'gemini' | 'claude'
+- executionPath?: string
+
+TaskyTask (top‑level)
+- status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'NEEDS_REVIEW' | 'ARCHIVED'
+- humanApproved: boolean
+- result?: string
+- completedAt?: Date
+- reminderEnabled?: boolean
+- reminderTime?: string
+- metadata?: { version: number; createdBy: string; lastModified: Date; archivedAt?: Date }
+```
 
 ## Creating tasks
 
-### 1) UI (recommended)
+- UI: use the Task form in the app
+- IPC: `window.electronAPI.invoke('task:create', createTaskInput)`
+- Import: `window.electronAPI.invoke('task:import', { filePath | tasks })` supporting JSON/CSV/YAML/XML
+- MCP: see “MCP integration” below
 
-- Use the “Create New Dev Task” form in the app (`TaskForm.tsx`).
-- Choose an agent from `['gemini','claude']` (optional).
-- On submit, the renderer calls IPC `task:create` with `CreateTaskInput`.
+## Executing tasks (AI agents)
 
-### 2) Programmatic (IPC)
-
-- From renderer code: `window.electronAPI.invoke('task:create', createTaskInput)`
-- `TaskyEngine.createTask` validates and persists via `TaskStorage`.
-
-### 3) MCP tools
-
-- Start the MCP server and call the `tasky_create_task` tool.
-- Accepts JSON fields analogous to `CreateTaskInput`; ISO date strings are converted to `Date` internally.
-- Configure via `mcp-config.json` (see below).
-
-### 4) Import (bulk)
-
-- Preferred: map flat JSON rows to `CreateTaskInput` and call `task:create` per row.
-- Or use `task:import` with nested objects shaped like `TaskyTask` (containing a `schema` object).
-
-## Executing tasks (agents)
-
-Trigger execution:
-
-- IPC: `window.electronAPI.invoke('task:execute', id, { agent?: 'claude' | 'gemini' })`
-- If no agent is passed, the app uses `schema.assignedAgent === 'claude' ? 'claude' : 'gemini'`.
+```ts
+window.electronAPI.invoke('task:execute', taskId, { agent: 'claude' | 'gemini' })
+```
 
 What happens:
 
-- `AgentTerminalExecutor` builds a prompt from the task details (title, description, tags, affected files, due date, status).
-- It sets the working directory to `schema.executionPath` (resolved from project root if relative).
-- It opens a terminal and pipes the prompt into the selected CLI:
-  - Gemini: `gemini --stdin`
-  - Claude: `claude --dangerously-skip-permissions`
-  - Windows uses Windows Terminal/PowerShell/WSL; macOS/Linux use Terminal/Bash.
-
-## Notifications
-
-- If a task has `dueDate` and `reminderEnabled` (default true), the app schedules a desktop notification 15 minutes before due time.
+- Builds a structured prompt from the task details
+- Resolves the working directory to `schema.executionPath` (relative to project root if needed)
+- Opens a terminal and pipes the prompt to the selected CLI
+  - Windows prefers WSL if available, otherwise PowerShell
+  - macOS/Linux use Terminal/Bash
+- Creates a sentinel file `.tasky/status/done-<id>` on success to auto‑complete the task
 
 ## MCP integration
 
-- Config (DB-only): `mcp-config.json`
+Install and build the agent:
+
+```bash
+npm run agent:build
+```
+
+Example MCP client config (Cursor `mcp-config.json`):
 
 ```json
 {
   "mcpServers": {
-    "tasky": {
+    "tasky-command": {
+      "type": "command",
       "command": "node",
-      "args": ["./tasky-mcp-agent/dist/index.js"],
+      "args": ["tasky-mcp-agent/dist/mcp-server.js"],
       "cwd": ".",
       "env": {
-        "NODE_ENV": "production",
-        "TASKY_DB_PATH": "./data/tasky.db"
-      }
+        "TASKY_DB_PATH": "data/tasky.db"
+      },
+      "disabled": false
     }
   }
 }
 ```
 
-- Important: Electron and MCP must share the same `TASKY_DB_PATH` (e.g., mount `./data` to `/app/data` in Docker).
-- MCP tools available: create, update, delete, get, list; reminders CRUD; execute via status update (optional); for full execution use the app’s IPC `task:execute`.
+Notes:
 
-## Storage
-
-- DB-only: SQLite at `TASKY_DB_PATH` (default `./data/tasky.db` when running from repo)
-- WAL mode enabled for reliability; keep `.db-shm`/`.db-wal` with the DB.
-
-## Development
-
-Prerequisites:
-
-- Node 18+
-- Electron (installed via devDependencies)
-
-Scripts:
-
-- `npm run dev` – build electron bundle then launch app
-- `npm run start` – clean, build renderer and electron, start app (uses `TASKY_DB_PATH`)
-  - Useful extras: `npm run backup:db`, `npm run export:tasks`
-- `npm run build` – clean and build
-- `npm run dist` – build and package for all platforms (uses electron-builder)
-- `npm run dist:mac|dist:win|dist:linux` – platform specific
-
-MCP agent (inside `tasky-mcp-agent`):
-
-- `npm run build` – compile to `dist`
-- `npm start` – run MCP server (after build)
-
-## Troubleshooting
-
-- Terminal doesn’t open on execute: ensure Gemini/Claude CLIs are installed and on PATH.
-- MCP tasks not visible in app: verify both processes point to the same `TASKY_DB_PATH`.
-- Dates display incorrectly: confirm your local timezone; storage persists ISO strings and the app rehydrates to `Date`.
-
-## License
+- The Tasky app must be running for full execution via `POST /execute-task`. If it’s not, the MCP agent falls back to status updates only.
+- Ensure the MCP agent and the app share the same `TASKY_DB_PATH`.
 

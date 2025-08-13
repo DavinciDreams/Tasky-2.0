@@ -36,6 +36,14 @@ export interface Settings {
   taskSortBy: 'dueDate' | 'created' | 'status';
   showTaskStats: boolean;
   taskStoragePath?: string;
+  // LLM provider settings
+  llmProvider?: string;
+  llmApiKey?: string;
+  llmModel?: string;
+  llmBaseUrl?: string;
+  // Prompt engineering
+  llmSystemPrompt?: string;
+  llmUseCustomPrompt?: boolean;
 }
 
 export interface CustomAvatar {
@@ -65,6 +73,7 @@ export interface ElectronAPI {
   // Settings management
   getSetting: (key: keyof Settings) => Promise<any>;
   setSetting: (key: keyof Settings, value: any) => void;
+  setSystemPrompt?: (text: string) => void;
   
   // Notification controls
   testNotification: () => void;
@@ -97,6 +106,13 @@ export interface ElectronAPI {
   exportTasks: () => Promise<any>;
   importTasks: (importData: any) => Promise<any[]>;
   executeTask: (id: string, options?: { agent?: 'claude' | 'gemini' }) => Promise<any>;
+  // Chat transcript persistence
+  createChat: (title?: string) => Promise<string>;
+  listChats: (limit?: number) => Promise<Array<{ id: string; title: string | null; createdAt: string; updatedAt: string }>>;
+  loadChat: (chatId: string) => Promise<Array<{ id: string; chatId: string; role: 'user' | 'assistant'; content: string; createdAt: string }>>;
+  saveChat: (chatId: string, messages: Array<{ role: 'user' | 'assistant'; content: string }>) => Promise<{ success: boolean }>;
+  deleteChat: (chatId: string) => Promise<{ success: boolean }>;
+  resetChats: () => Promise<{ success: boolean }>;
   
   // Task-reminder integration
   convertReminderToTask: (reminderId: string) => Promise<any>;
@@ -112,6 +128,9 @@ export interface ElectronAPI {
   onAssistantMessage: (callback: (event: any, ...args: any[]) => void) => void;
   onSettingsUpdate: (callback: (event: any, ...args: any[]) => void) => void;
   removeAllListeners: (channel: string) => void;
+  // Push updates
+  onTasksUpdated?: (callback: () => void) => void;
+  onRemindersUpdated?: (callback: () => void) => void;
 }
 
 // Component prop types are declared alongside components and not exported globally

@@ -1,4 +1,4 @@
 title,description,assignedAgent,affectedFiles,executionPath
 Refactor authentication middleware,"The current authentication middleware is tightly coupled and difficult to test. Refactor to use dependency injection and make it more modular.",claude,"src/middleware/auth.middleware.ts|src/guards/jwt.guard.ts|src/decorators/roles.decorator.ts|tests/auth.middleware.test.ts",src/middleware
-Improve task import UX,"Add multi-format imports (JSON, CSV, YAML, XML) and a modal-based create form.",gpt-4o,"src/renderer/App.tsx|src/components/tasks/TaskForm.tsx|src/main.ts",src
+Improve task import UX,"Add multi-format imports (JSON, CSV, YAML, XML) and a modal-based create form.",gemini,"src/renderer/App.tsx|src/components/tasks/TaskForm.tsx|src/main.ts",src
 
