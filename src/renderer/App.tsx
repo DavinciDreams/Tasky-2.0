@@ -1413,7 +1413,7 @@ const App: React.FC = () => {
       const savedReminders = await window.electronAPI.getReminders();
       
       // Ensure all reminders have an enabled property (default to true for backwards compatibility)
-      const remindersWithEnabled = (savedReminders || []).map(reminder => ({
+      const remindersWithEnabled = ((savedReminders || []) as Reminder[]).map((reminder: Reminder) => ({
         ...reminder,
         enabled: reminder.enabled !== undefined ? reminder.enabled : true
       }));

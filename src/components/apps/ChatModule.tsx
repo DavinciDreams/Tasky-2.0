@@ -821,11 +821,17 @@ export const ChatModule: React.FC<ChatModuleProps> = ({ settings, onSettingChang
                     transition={{ duration: 0.3, ease: "easeOut" }}
                   >
                   {/* Header */}
-                  <div className="flex items-center gap-4 mb-6 rounded-xl p-4 text-card-foreground bg-card border border-border/30">
-                    <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-primary/10 text-primary font-semibold">{pendingConfirm.name.includes('delete') ? 'Delete' : 'Confirm'}</div>
+                  <div className={`flex items-center gap-4 mb-6 rounded-xl p-4 border ${
+                    pendingConfirm.name.includes('delete')
+                      ? 'bg-destructive text-destructive-foreground border-destructive'
+                      : 'bg-card text-card-foreground border-border/30'
+                  }`}>
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center font-semibold ${
+                      pendingConfirm.name.includes('delete') ? 'bg-white/10' : 'bg-primary/10 text-primary'
+                    }`}></div>
                     <div>
-                      <h3 className="font-semibold text-lg">Confirm Action</h3>
-                      <p className="text-sm text-muted-foreground">Review the details before proceeding</p>
+                      <h3 className={`font-semibold text-lg ${pendingConfirm.name.includes('delete') ? 'text-destructive-foreground' : ''}`}>Confirm Action</h3>
+                      <p className={`text-sm ${pendingConfirm.name.includes('delete') ? 'text-destructive-foreground/90' : 'text-muted-foreground'}`}>Review the details before proceeding</p>
                     </div>
                   </div>
                   
@@ -946,14 +952,10 @@ export const ChatModule: React.FC<ChatModuleProps> = ({ settings, onSettingChang
                         if (pendingConfirm.name.includes('delete')) {
                           return (
                             <div className="space-y-2">
-                              <div className="flex items-center gap-2">
-                                <span className="text-lg text-red-500">🗑️</span>
-                                <span className="font-medium text-red-900">Delete {pendingConfirm.name.includes('chat') ? 'Chat' : pendingConfirm.name.includes('task') ? 'Task' : 'Reminder'}</span>
-                              </div>
-                              <div className="pl-7 text-sm text-red-700">
-                                <div className="bg-red-50 border border-red-200 rounded p-2">
-                                  <div className="font-medium">⚠️ This action cannot be undone</div>
-                                  {args?.id && <div className="text-xs mt-1">ID: {String(args.id)}</div>}
+                              <div className="text-sm">
+                                <div className="bg-destructive/10 text-destructive rounded p-3 border border-destructive/30">
+                                  <div className="font-medium">This action cannot be undone</div>
+                                  {args?.id && <div className="text-xs mt-1 opacity-90">ID: {String(args.id)}</div>}
                                 </div>
                               </div>
                             </div>
@@ -983,7 +985,7 @@ export const ChatModule: React.FC<ChatModuleProps> = ({ settings, onSettingChang
                     <Button 
                       size="lg"
                       variant="outline" 
-                      className="flex-1 rounded-xl border-2 border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 font-medium py-3" 
+                      className={`flex-1 rounded-xl border-2 transition-all duration-200 font-medium py-3 ${pendingConfirm.name.includes('delete') ? 'border-white/40 text-destructive-foreground hover:bg-white/10' : 'border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400'}`}
                       onClick={() => {
                         if (pendingConfirm.name === 'delete_chat') {
                           setPendingConfirm(null);
@@ -997,12 +999,11 @@ export const ChatModule: React.FC<ChatModuleProps> = ({ settings, onSettingChang
                         setPendingConfirm(null);
                       }}
                     >
-                      <span className="mr-2">✗</span>
                       Cancel
                     </Button>
                     <Button 
                       size="lg"
-                      className="flex-1 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 font-medium py-3" 
+                      className={`flex-1 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 font-medium py-3 ${pendingConfirm.name.includes('delete') ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90' : 'bg-primary text-primary-foreground hover:bg-primary/90'}`}
                       onClick={async () => {
                         if (pendingConfirm.name === 'delete_chat') {
                           try {
@@ -1035,7 +1036,6 @@ export const ChatModule: React.FC<ChatModuleProps> = ({ settings, onSettingChang
                         setPendingConfirm(null);
                       }}
                     >
-                      <span className="mr-2">✓</span>
                       Confirm
                     </Button>
                   </div>
