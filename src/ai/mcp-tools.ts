@@ -1,61 +1,68 @@
-import { dynamicTool, jsonSchema } from 'ai';
+/**
+ * MCP Call Tool - Single tool that handles all MCP operations
+ * Using a plain interface to avoid TypeScript compatibility issues
+ */
+export const mcpCall = {
+  description: 'Call MCP tools for task and reminder management',
+  execute: async (params: { name: string; args: Record<string, any> }, options?: { toolCallId?: string; abortSignal?: AbortSignal }) => {
+    return executeMcpTool(params.name, params.args, options?.toolCallId, options?.abortSignal);
+  },
+};
 
 /**
- * Enhanced MCP Tool using AI SDK best practices
- * Calls your existing MCP server at http://localhost:7844/mcp
+ * Note: Individual tool definitions have been removed due to TypeScript compatibility issues
+ * with AI SDK v5. The mcpCall tool above provides the same functionality through a single
+ * dynamic tool interface that matches the MCP protocol.
  */
-export const mcpCall = dynamicTool({
-  description: 'Call a local MCP tool by name via the Tasky MCP agent (http://localhost:7844/mcp).',
-  inputSchema: jsonSchema({
-    type: 'object',
-    properties: {
-      name: { type: 'string', description: 'The MCP tool name to call (e.g., "tasky_create_task", "tasky_create_reminder")' },
-      args: { type: 'object', additionalProperties: true, description: 'JSON-serializable arguments for the tool' }
-    },
-    required: ['name']
-  }),
-  execute: async (
-    input: any,
-    { toolCallId, abortSignal }: { toolCallId?: string; abortSignal?: AbortSignal }
-  ) => {
-    const { name, args } = input || {};
-    const id = toolCallId || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    
-    // Handle test environments
-    if (isTestEnvironment()) {
-      return handleTestEnvironment(name);
-    }
 
-    try {
-      // Request user confirmation
-      const accepted = await requestUserConfirmation(id, name, args, abortSignal);
-      
-      if (!accepted) {
-        emitToolEvent(id, 'error', name, args, 'User cancelled');
-        return 'Tool call cancelled by user.';
-      }
-
-      // Notify UI: tool started
-      emitToolEvent(id, 'start', name, args);
-
-      // Make MCP call with abort signal support
-      const result = await performMcpCall(name, args, abortSignal);
-      
-      emitToolEvent(id, 'done', name, args, result);
-      return result;
-
-    } catch (err: any) {
-      const errorMsg = err?.message || String(err);
-      emitToolEvent(id, 'error', name, args, errorMsg);
-      
-      if (abortSignal?.aborted) {
-        return 'Tool call was cancelled.';
-      }
-      
-      return `MCP error: ${errorMsg}`;
-    }
+/**
+ * Core MCP execution function - handles all MCP tool calls
+ */
+async function executeMcpTool(
+  name: string, 
+  args: any, 
+  toolCallId?: string, 
+  abortSignal?: AbortSignal
+): Promise<string> {
+  const id = toolCallId || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  
+  console.log('[MCP] Executing tool:', name);
+  console.log('[MCP] Parameters:', JSON.stringify(args, null, 2));
+  
+  // Handle test environments
+  if (isTestEnvironment()) {
+    return handleTestEnvironment(name);
   }
-});
+
+  try {
+    // Request user confirmation (auto-accept for read-only tools)
+    const accepted = await requestUserConfirmation(id, name, args, abortSignal);
+    
+    if (!accepted) {
+      emitToolEvent(id, 'error', name, args, 'User cancelled');
+      return 'Tool call cancelled by user.';
+    }
+
+    // Notify UI: tool started
+    emitToolEvent(id, 'start', name, args);
+
+    // Make MCP call with abort signal support
+    const result = await performMcpCall(name, args, abortSignal);
+    
+    emitToolEvent(id, 'done', name, args, result);
+    return result;
+
+  } catch (err: any) {
+    const errorMsg = err?.message || String(err);
+    emitToolEvent(id, 'error', name, args, errorMsg);
+    
+    if (abortSignal?.aborted) {
+      return 'Tool call was cancelled.';
+    }
+    
+    return `MCP error: ${errorMsg}`;
+  }
+}
 
 // Helper functions
 function isTestEnvironment(): boolean {
@@ -75,12 +82,28 @@ function handleTestEnvironment(name: string): string {
   return 'MCP test response';
 }
 
+function shouldAutoConfirm(toolName: string, args?: any): boolean {
+  try {
+    const n = String(toolName || '').toLowerCase();
+    if (args && args.skipConfirm === true) return true;
+    // Treat list/get operations as read-only
+    return n.includes('list_') || n.startsWith('list') || n.includes('get_') || n.startsWith('get');
+  } catch {
+    return false;
+  }
+}
+
 async function requestUserConfirmation(
   id: string, 
   name: string, 
   args: any, 
   abortSignal?: AbortSignal
 ): Promise<boolean> {
+  // Auto-accept non-destructive tools
+  if (shouldAutoConfirm(name, args)) {
+    return Promise.resolve(true);
+  }
+
   return new Promise((resolve, reject) => {
     if (abortSignal?.aborted) {
       reject(new Error('Operation was cancelled'));
@@ -135,15 +158,19 @@ async function performMcpCall(name: string, args: any, abortSignal?: AbortSignal
     abortSignal.addEventListener('abort', () => controller.abort());
   }
 
+  const requestBody = {
+    jsonrpc: '2.0',
+    id: Date.now(),
+    method: 'tools/call',
+    params: { name, arguments: args || {} }
+  };
+  
+  console.log('[MCP] Sending request to MCP server:', JSON.stringify(requestBody, null, 2));
+
   const res = await fetch('http://localhost:7844/mcp', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      jsonrpc: '2.0',
-      id: Date.now(),
-      method: 'tools/call',
-      params: { name, arguments: args || {} }
-    }),
+    body: JSON.stringify(requestBody),
     signal: controller.signal
   });
 

@@ -215,7 +215,7 @@ export class TaskBridge {
         id,
         title: nextSchema.title,
         description: nextSchema.description || null,
-      status: nextStatus ?? prev.status,
+        status: nextStatus ?? prev.status,
         updated_at: now.toISOString(),
         due_date: nextSchema.dueDate ? new Date(nextSchema.dueDate).toISOString() : null,
         human_approved: prev.humanApproved ? 1 : 0,

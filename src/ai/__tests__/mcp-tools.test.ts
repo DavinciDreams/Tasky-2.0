@@ -7,12 +7,9 @@ describe('mcpCall tool', () => {
 		global.fetch = undefined
 	})
 
-    it('exposes valid AI SDK tool structure', () => {
+    it('exposes valid tool structure', () => {
         expect(mcpCall.description).toBeDefined()
         expect(typeof mcpCall.description).toBe('string')
-        // dynamicTool exposes inputSchema; avoid peeking deeply, just assert execute exists
-        // @ts-ignore
-        expect(mcpCall.inputSchema).toBeDefined()
         expect(mcpCall.execute).toBeDefined()
         expect(typeof mcpCall.execute).toBe('function')
     })

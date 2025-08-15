@@ -15,9 +15,11 @@ interface TaskFormProps {
   onSubmitOverride?: (task: Omit<TaskyTaskSchema, 'id' | 'createdAt'>) => void;
   forceExpanded?: boolean;
   onCancel?: () => void;
+  // New prop to disable card wrapper when used in modals
+  noCard?: boolean;
 }
 
-export const TaskForm: React.FC<TaskFormProps> = ({ onCreateTask, initial, submitLabel, onSubmitOverride, forceExpanded, onCancel }) => {
+export const TaskForm: React.FC<TaskFormProps> = ({ onCreateTask, initial, submitLabel, onSubmitOverride, forceExpanded, onCancel, noCard }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [formData, setFormData] = useState({
     title: (initial?.title as string) || '',
@@ -92,13 +94,11 @@ export const TaskForm: React.FC<TaskFormProps> = ({ onCreateTask, initial, submi
     );
   }
 
-  return (
-    <Card className="task-form-expanded rounded-2xl bg-card text-card-foreground border border-border/30 shadow-xl">
-      <CardContent className="pt-4 px-6 pb-6">
-        <form onSubmit={handleSubmit} className="space-y-4 max-w-5xl mx-auto w-full">
+  const formContent = (
+    <form onSubmit={handleSubmit} className="space-y-4 max-w-5xl mx-auto w-full">
           {/* Title - Required */}
           <div>
-            <Label htmlFor="task-title" className="text-sm font-medium text-card-foreground">
+            <Label htmlFor="task-title" className="text-sm font-medium text-foreground">
               Task Title *
             </Label>
             <Input
@@ -107,14 +107,14 @@ export const TaskForm: React.FC<TaskFormProps> = ({ onCreateTask, initial, submi
               placeholder="What needs to be done?"
               value={formData.title}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('title', e.target.value)}
-              className="mt-1 bg-card text-card-foreground border-border/30 rounded-2xl"
+              className="mt-1 bg-background text-foreground border-border/30 rounded-2xl"
               required
             />
           </div>
 
           {/* Description */}
           <div>
-            <Label htmlFor="task-description" className="text-sm font-medium text-card-foreground">
+            <Label htmlFor="task-description" className="text-sm font-medium text-foreground">
               Description
             </Label>
             <textarea
@@ -122,14 +122,14 @@ export const TaskForm: React.FC<TaskFormProps> = ({ onCreateTask, initial, submi
               placeholder="Add more details about this task..."
               value={formData.description}
               onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleInputChange('description', e.target.value)}
-              className="mt-1 w-full bg-card text-card-foreground border border-border/30 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-colors resize-none shadow"
+              className="mt-1 w-full bg-background text-foreground border border-border/30 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-colors resize-none shadow"
               rows={4}
             />
           </div>
 
           {/* Assigned Agent */}
           <div className="grid md:grid-cols-2 gap-3 items-center">
-            <Label htmlFor="task-agent" className="text-sm font-medium flex items-center gap-1 text-card-foreground">
+            <Label htmlFor="task-agent" className="text-sm font-medium flex items-center gap-1 text-foreground">
               <User className="h-4 w-4" />
               Assigned Agent
             </Label>
@@ -149,7 +149,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ onCreateTask, initial, submi
 
           {/* Execution Path */}
           <div>
-            <Label htmlFor="task-exec-path" className="text-sm font-medium flex items-center gap-1 text-card-foreground">
+            <Label htmlFor="task-exec-path" className="text-sm font-medium flex items-center gap-1 text-foreground">
               <FolderOpen className="h-4 w-4" />
               Execution Path
             </Label>
@@ -163,7 +163,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ onCreateTask, initial, submi
                 className="mt-1 w-full rounded-2xl"
               />
               <div>
-                <Button type="button" variant="outline" size="sm" className="rounded-xl" onClick={async () => {
+                <Button type="button" size="sm" className="bg-white text-gray-900 hover:bg-gray-100 rounded-xl border border-gray-300" onClick={async () => {
                   const dir = await window.electronAPI.invoke('select-directory');
                   if (dir) setFormData(prev => ({ ...prev, executionPath: dir }));
                 }}>
@@ -175,7 +175,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ onCreateTask, initial, submi
 
           {/* Affected Files */}
           <div>
-            <Label htmlFor="task-affected-files" className="text-sm font-medium flex items-center gap-1 text-card-foreground">
+            <Label htmlFor="task-affected-files" className="text-sm font-medium flex items-center gap-1 text-foreground">
               <FileText className="h-4 w-4" />
               Affected Files (one per line or comma-separated)
             </Label>
@@ -185,11 +185,11 @@ export const TaskForm: React.FC<TaskFormProps> = ({ onCreateTask, initial, submi
                 placeholder="src/middleware/auth.middleware.ts\nsrc/guards/jwt.guard.ts"
                 value={formData.affectedFiles}
                 onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleInputChange('affectedFiles', e.target.value)}
-                className="mt-1 w-full bg-card text-card-foreground border border-border/30 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-colors resize-none shadow"
+                className="mt-1 w-full bg-background text-foreground border border-border/30 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-colors resize-none shadow"
                 rows={4}
               />
               <div>
-                <Button type="button" variant="outline" size="sm" className="rounded-xl" onClick={async () => {
+                <Button type="button" size="sm" className="bg-white text-gray-900 hover:bg-gray-100 rounded-xl border border-gray-300" onClick={async () => {
                   const files: string[] = await window.electronAPI.invoke('select-files');
                   if (files && files.length) {
                     const merged = [formData.affectedFiles, ...files].filter(Boolean).join('\n');
@@ -204,22 +204,22 @@ export const TaskForm: React.FC<TaskFormProps> = ({ onCreateTask, initial, submi
 
           {/* Action Buttons */}
           <div className="flex gap-3 pt-2">
-            <Button type="submit" className="flex-1 rounded-2xl shadow-xl">
+            <Button type="submit" className="w-full rounded-2xl shadow-xl bg-white text-gray-900 hover:bg-gray-100 border border-gray-300">
               <Plus className="h-4 w-4 mr-2" />
               {submitLabel || 'Create Task'}
             </Button>
-            <Button 
-              type="button" 
-              variant="outline" 
-              className="rounded-2xl"
-              onClick={() => {
-                if (onCancel) onCancel(); else setIsExpanded(false);
-              }}
-            >
-              Cancel
-            </Button>
           </div>
         </form>
+  );
+
+  if (noCard) {
+    return formContent;
+  }
+
+  return (
+    <Card className="task-form-expanded rounded-2xl bg-card text-card-foreground border border-border/30 shadow-xl">
+      <CardContent className="pt-4 px-6 pb-6">
+        {formContent}
       </CardContent>
     </Card>
   );

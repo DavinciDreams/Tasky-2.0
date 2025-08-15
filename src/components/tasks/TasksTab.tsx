@@ -6,6 +6,7 @@ import { TaskList } from './TaskList';
 import { Button } from '../ui/button';
 import { Upload, Plus } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
+import { Modal } from '../ui/modal';
 
 // Simplified UI: filters removed
 
@@ -57,8 +58,10 @@ export const TasksTab: React.FC<TasksTabProps> = ({
   };
 
   return (
-    <div className="tasks-tab p-6 space-y-6">
-      <div className="tasks-header text-center">
+    <div className="h-full flex flex-col">
+      <Card className="flex-1 bg-card border-border shadow-2xl rounded-3xl overflow-hidden">
+        <CardContent className="p-6 h-full flex flex-col">
+          <div className="tasks-header text-center mb-6">
         <h1 className="text-2xl font-bold text-card-foreground">
           📋 Task Management
         </h1>
@@ -68,7 +71,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
         <div className="mt-4 flex items-center justify-center gap-3">
           <Button 
             onClick={() => setShowCreateModal(true)}
-            className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-elegant rounded-xl px-4 py-2 flex items-center gap-2"
+            className="bg-white text-gray-900 hover:bg-gray-100 shadow-xl rounded-xl px-4 py-2 flex items-center gap-2"
           >
             <Plus className="h-4 w-4" />
             <span className="font-semibold">New Task</span>
@@ -87,68 +90,68 @@ export const TasksTab: React.FC<TasksTabProps> = ({
       {/* Removed Task Overview and Filters per request */}
       
       {/* Modal create form */}
-      {showCreateModal && (
-        <div className="fixed inset-0 z-50 bg-background flex items-stretch justify-stretch p-0">
-          <div className="w-full h-full">
-            <Card className="rounded-none shadow-none h-full flex flex-col bg-background text-foreground border-0">
-              <CardHeader className="pb-2 flex items-center justify-between border-b border-border/20 bg-background">
-                <CardTitle className="text-lg font-semibold text-foreground">Create New Task</CardTitle>
-                <button onClick={() => setShowCreateModal(false)} className="text-muted-foreground hover:text-foreground text-xl leading-none">×</button>
-              </CardHeader>
-              <CardContent className="pt-4 pb-4 overflow-y-auto flex-1 bg-background">
-                <TaskForm 
-                  forceExpanded 
-                  onCreateTask={(t) => { onCreateTask(t); setShowCreateModal(false); }}
-                  onCancel={() => setShowCreateModal(false)}
-                />
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      )}
+      <Modal
+        open={showCreateModal}
+        title="Create New Task"
+        onClose={() => setShowCreateModal(false)}
+        maxWidth={560}
+        fullHeight
+        tone="background"
+        backdropClass="bg-black/60"
+      >
+        <TaskForm 
+          forceExpanded 
+          noCard
+          onCreateTask={(t) => { onCreateTask(t); setShowCreateModal(false); }}
+          onCancel={() => setShowCreateModal(false)}
+        />
+      </Modal>
 
       {/* Modal edit form */}
-      {editingTask && (
-        <div className="fixed inset-0 z-50 bg-background flex items-stretch justify-stretch p-0">
-          <div className="w-full h-full">
-            <Card className="rounded-none shadow-none h-full flex flex-col bg-card text-card-foreground border-0">
-              <CardHeader className="pb-2 flex items-center justify-between border-b border-border/20 bg-background">
-                <CardTitle className="text-lg font-semibold">Edit Task</CardTitle>
-                <button onClick={() => setEditingTask(null)} className="text-muted-foreground hover:text-foreground text-xl leading-none">×</button>
-              </CardHeader>
-              <CardContent className="pt-4 pb-4 overflow-y-auto flex-1 bg-background">
-                <TaskForm
-                  forceExpanded
-                  initial={editingTask.schema as any}
-                  submitLabel="Save Changes"
-                  onSubmitOverride={(updates) => {
-                    const flatUpdates: any = {
-                      title: updates.title,
-                      description: updates.description,
-                      assignedAgent: updates.assignedAgent,
-                      executionPath: updates.executionPath,
-                      affectedFiles: updates.affectedFiles,
-                    };
-                    onUpdateTask(editingTask.schema.id, flatUpdates);
-                    setEditingTask(null);
-                  }}
-                  onCancel={() => setEditingTask(null)}
-                  // onCreateTask is required by type but unused when onSubmitOverride is provided
-                  onCreateTask={() => {}}
-                />
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      )}
+      <Modal
+        open={!!editingTask}
+        title="Edit Task"
+        onClose={() => setEditingTask(null)}
+        maxWidth={560}
+        fullHeight
+        tone="background"
+        backdropClass="bg-black/60"
+      >
+        {editingTask && (
+          <TaskForm
+            forceExpanded
+            noCard
+            initial={editingTask.schema as any}
+            submitLabel="Save Changes"
+            onSubmitOverride={(updates) => {
+              const flatUpdates: any = {
+                title: updates.title,
+                description: updates.description,
+                assignedAgent: updates.assignedAgent,
+                executionPath: updates.executionPath,
+                affectedFiles: updates.affectedFiles,
+              };
+              onUpdateTask(editingTask.schema.id, flatUpdates);
+              setEditingTask(null);
+            }}
+            onCancel={() => setEditingTask(null)}
+            // onCreateTask is required by type but unused when onSubmitOverride is provided
+            onCreateTask={() => {}}
+          />
+        )}
+      </Modal>
       
-      <TaskList 
-        tasks={filteredTasks}
-        onUpdateTask={onUpdateTask}
-        onDeleteTask={onDeleteTask}
-        onEditTask={(t) => setEditingTask(t)}
-        timeFormat={settings.timeFormat || '12h'}
-      />
+          <div className="flex-1 overflow-y-auto min-h-0 no-scrollbar">
+            <TaskList 
+              tasks={filteredTasks}
+              onUpdateTask={onUpdateTask}
+              onDeleteTask={onDeleteTask}
+              onEditTask={(t) => setEditingTask(t)}
+              timeFormat={settings.timeFormat || '12h'}
+            />
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };

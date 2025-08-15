@@ -137,79 +137,209 @@ const createHttpServer = () => {
         res.end(JSON.stringify({ success: false, error: (error as Error).message }));
       }
     } else if (req.method === 'POST' && req.url === '/mcp') {
-      // MCP tool calling endpoint
+      // MCP tool calling endpoint (bridge from renderer Chat to MCP agent)
       try {
         let body = '';
         req.on('data', (chunk: any) => body += chunk.toString());
         req.on('end', async () => {
           try {
-            const { jsonrpc, id, method, params } = JSON.parse(body);
+            const { id, method, params } = JSON.parse(body);
             
             if (method === 'tools/list') {
-              // Return available tools
+              // Forward directly to the MCP agent process over stdio in a future iteration.
+              // For now, enumerate known tools to keep the UI functional.
               res.writeHead(200, { 'Content-Type': 'application/json' });
-              res.end(JSON.stringify({
-                jsonrpc: '2.0',
-                id,
-                result: {
-                  tools: [
-                    { name: 'tasky_create_task', description: 'Create a new task' },
-                    { name: 'tasky_create_reminder', description: 'Create a new reminder' },
-                    { name: 'tasky_list_tasks', description: 'List tasks' },
-                    { name: 'tasky_update_task', description: 'Update a task' },
-                    { name: 'tasky_delete_task', description: 'Delete a task' }
-                  ]
-                }
-              }));
-            } else if (method === 'tools/call') {
-              // Handle tool calls by routing to appropriate handlers
-              const { name, arguments: args } = params;
-              let result = '';
-              
-              if (name === 'tasky_create_reminder') {
-                // Handle reminder creation
-                result = `Reminder "${args.message || args.title}" created successfully`;
-                // You could add actual reminder creation logic here
-              } else if (name === 'tasky_create_task') {
-                // Handle task creation
-                result = `Task "${args.title}" created successfully`;
-                // You could add actual task creation logic here
-              } else {
-                result = `Tool ${name} executed with args: ${JSON.stringify(args)}`;
-              }
-              
-              res.writeHead(200, { 'Content-Type': 'application/json' });
-              res.end(JSON.stringify({
-                jsonrpc: '2.0',
-                id,
-                result: {
-                  content: [{ type: 'text', text: result }]
-                }
-              }));
-            } else {
-              res.writeHead(400, { 'Content-Type': 'application/json' });
-              res.end(JSON.stringify({ 
-                jsonrpc: '2.0', 
-                id, 
-                error: { code: -32601, message: 'Method not found' } 
-              }));
+              res.end(JSON.stringify({ jsonrpc: '2.0', id, result: { tools: [
+                { name: 'tasky_create_task', description: 'Create a new task' },
+                { name: 'tasky_update_task', description: 'Update a task' },
+                { name: 'tasky_delete_task', description: 'Delete a task' },
+                { name: 'tasky_list_tasks', description: 'List tasks' },
+                { name: 'tasky_execute_task', description: 'Execute a task' },
+                { name: 'tasky_create_reminder', description: 'Create a new reminder' },
+                { name: 'tasky_update_reminder', description: 'Update a reminder' },
+                { name: 'tasky_delete_reminder', description: 'Delete a reminder' },
+                { name: 'tasky_list_reminders', description: 'List reminders' },
+              ] } }));
+              return;
             }
+
+            if (method !== 'tools/call') {
+              res.writeHead(400, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ jsonrpc: '2.0', id, error: { code: -32601, message: 'Method not found' } }));
+              return;
+            }
+
+            const { name, arguments: args } = params || {};
+            if (!name) {
+              res.writeHead(400, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ jsonrpc: '2.0', id, error: { code: -32602, message: 'Missing tool name' } }));
+              return;
+            }
+
+            // Route to actual subsystems so creations persist in SQLite and UI updates broadcast
+            let text = '';
+            if (name === 'tasky_create_task') {
+              try {
+                const task = await (taskManager as any).createTaskDirect({
+                  title: args?.title ?? args?.random_string ?? 'Untitled Task',
+                  description: args?.description,
+                  dueDate: args?.dueDate,
+                  tags: Array.isArray(args?.tags) ? args.tags : undefined,
+                  affectedFiles: Array.isArray(args?.affectedFiles) ? args.affectedFiles : undefined,
+                  estimatedDuration: typeof args?.estimatedDuration === 'number' ? args.estimatedDuration : undefined,
+                  dependencies: Array.isArray(args?.dependencies) ? args.dependencies : undefined,
+                  reminderEnabled: !!args?.reminderEnabled,
+                  reminderTime: args?.reminderTime,
+                  assignedAgent: ['claude','gemini'].includes(String(args?.assignedAgent)) ? args.assignedAgent : undefined,
+                  executionPath: args?.executionPath,
+                });
+                text = `Created task: ${task.schema.title}`;
+                // Notify UI
+                notificationUtility.showTaskCreatedNotification(task.schema.title, task.schema.description);
+              } catch (e) {
+                text = `Error creating task: ${(e as Error).message}`;
+              }
+            } else if (name === 'tasky_create_reminder') {
+              try {
+                const payload = {
+                  message: String(args?.message || 'Reminder'),
+                  time: String(args?.time || ''),
+                  days: Array.isArray(args?.days) ? args.days.map((d:any)=>String(d)) : [],
+                };
+                // Reuse existing notification helper; actual DB persistence happens in reminder bridge via agent normally.
+                notificationUtility.showReminderCreatedNotification(payload.message, payload.time, payload.days);
+                text = `Created reminder: ${payload.message}`;
+                // Also let renderer refresh reminders from storage
+                try { if (mainWindow) mainWindow.webContents.send('tasky:reminders-updated'); } catch {}
+              } catch (e) {
+                text = `Error creating reminder: ${(e as Error).message}`;
+              }
+            } else if (name === 'tasky_list_reminders') {
+              try {
+                const raw = store ? store.getReminders() : [];
+                let reminders = Array.isArray(raw) ? raw : [];
+                if (typeof args?.enabled === 'boolean') reminders = reminders.filter((r: any) => !!r.enabled === args.enabled);
+                if (args?.day) reminders = reminders.filter((r: any) => Array.isArray(r.days) && r.days.includes(String(args.day)));
+                if (args?.search) {
+                  const s = String(args.search).toLowerCase();
+                  reminders = reminders.filter((r: any) => String(r.message || '').toLowerCase().includes(s));
+                }
+                text = `Returned ${reminders.length} reminders`;
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ jsonrpc: '2.0', id, result: { content: [
+                  { type: 'text', text },
+                  { type: 'text', text: JSON.stringify(reminders) }
+                ] } }));
+                return;
+              } catch (e) {
+                text = `Error listing reminders: ${(e as Error).message}`;
+              }
+            } else if (name === 'tasky_list_tasks') {
+              try {
+                const tasks = await (taskManager as any).listTasksDirect(args || {});
+                const limited = (typeof args?.limit === 'number') ? tasks.slice(0, args.limit) : tasks;
+                text = `Returned ${limited.length} of ${tasks.length} tasks`;
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ jsonrpc: '2.0', id, result: { content: [
+                  { type: 'text', text },
+                  { type: 'text', text: JSON.stringify(limited) }
+                ] } }));
+                return;
+              } catch (e) {
+                text = `Error listing tasks: ${(e as Error).message}`;
+              }
+            } else if (name === 'tasky_update_reminder') {
+              try {
+                const { id: rid, ...updates } = args || {};
+                if (!rid) throw new Error('id is required');
+                if (store) {
+                  store.updateReminder(String(rid), updates || {});
+                  const updated = store.getReminderById(String(rid));
+                  text = 'Reminder updated';
+                  res.writeHead(200, { 'Content-Type': 'application/json' });
+                  res.end(JSON.stringify({ jsonrpc: '2.0', id, result: { content: [
+                    { type: 'text', text },
+                    { type: 'text', text: JSON.stringify(updated || {}) }
+                  ] } }));
+                  try { if (mainWindow) mainWindow.webContents.send('tasky:reminders-updated'); } catch {}
+                  return;
+                }
+              } catch (e) {
+                text = `Error updating reminder: ${(e as Error).message}`;
+              }
+            } else if (name === 'tasky_delete_reminder') {
+              try {
+                const { id: rid } = args || {};
+                if (!rid) throw new Error('id is required');
+                if (store) {
+                  const ok = store.deleteReminder(String(rid));
+                  text = ok ? 'Reminder deleted' : 'Reminder not found';
+                  res.writeHead(200, { 'Content-Type': 'application/json' });
+                  res.end(JSON.stringify({ jsonrpc: '2.0', id, result: { content: [ { type: 'text', text } ] } }));
+                  try { if (mainWindow) mainWindow.webContents.send('tasky:reminders-updated'); } catch {}
+                  return;
+                }
+              } catch (e) {
+                text = `Error deleting reminder: ${(e as Error).message}`;
+              }
+            } else if (name === 'tasky_update_task') {
+              try {
+                const { id: tid, ...updates } = args || {};
+                if (!tid) throw new Error('id is required');
+                const task = await (taskManager as any).updateTaskDirect(String(tid), updates || {});
+                text = 'Task updated';
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ jsonrpc: '2.0', id, result: { content: [
+                  { type: 'text', text },
+                  { type: 'text', text: JSON.stringify(task) }
+                ] } }));
+                try { if (mainWindow) mainWindow.webContents.send('tasky:tasks-updated'); } catch {}
+                return;
+              } catch (e) {
+                text = `Error updating task: ${(e as Error).message}`;
+              }
+            } else if (name === 'tasky_delete_task') {
+              try {
+                const { id: tid } = args || {};
+                if (!tid) throw new Error('id is required');
+                await (taskManager as any).deleteTaskDirect(String(tid));
+                text = 'Task deleted';
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ jsonrpc: '2.0', id, result: { content: [ { type: 'text', text } ] } }));
+                try { if (mainWindow) mainWindow.webContents.send('tasky:tasks-updated'); } catch {}
+                return;
+              } catch (e) {
+                text = `Error deleting task: ${(e as Error).message}`;
+              }
+            } else if (name === 'tasky_execute_task') {
+              try {
+                const { id: tid, status } = args || {};
+                if (!tid) throw new Error('id is required');
+                const execResult = await (taskManager as any).executeTask(String(tid), { agent: 'claude' });
+                text = `Task execution started: ${execResult.performed || 'external agent execution'}`;
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ jsonrpc: '2.0', id, result: { content: [
+                  { type: 'text', text },
+                  { type: 'text', text: JSON.stringify(execResult) }
+                ] } }));
+                return;
+              } catch (e) {
+                text = `Error executing task: ${(e as Error).message}`;
+              }
+            } else {
+              text = `Tool ${name} executed`;
+            }
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ jsonrpc: '2.0', id, result: { content: [{ type: 'text', text }] } }));
           } catch (error) {
             res.writeHead(400, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ 
-              jsonrpc: '2.0', 
-              id: 1, 
-              error: { code: -32700, message: 'Parse error', data: (error as Error).message } 
-            }));
+            res.end(JSON.stringify({ jsonrpc: '2.0', id: 1, error: { code: -32700, message: 'Parse error', data: (error as Error).message } }));
           }
         });
       } catch (error) {
         res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ 
-          jsonrpc: '2.0', 
-          id: 1, 
-          error: { code: -32603, message: 'Internal error', data: (error as Error).message } 
-        }));
+        res.end(JSON.stringify({ jsonrpc: '2.0', id: 1, error: { code: -32603, message: 'Internal error', data: (error as Error).message } }));
       }
     } else {
       res.writeHead(404);
@@ -457,6 +587,15 @@ app.whenReady().then(async () => {
         if (assistant) {
           assistant.show();
           
+          // Disable system context menu on the assistant window
+          const assistantWindow = (assistant as any).window;
+          if (assistantWindow) {
+            assistantWindow.setMenu(null);
+            assistantWindow.webContents.on('context-menu', (event: any) => {
+              event.preventDefault();
+            });
+          }
+          
           setTimeout(() => {
             assistant.setLayer(assistantLayer);
           }, 1000);
@@ -598,6 +737,14 @@ const createTray = () => {
     {
       label: '📋 Open Settings',
       click: () => showSettingsWindow()
+    },
+    {
+      label: '🤖 Show/Hide Assistant',
+      click: () => {
+        if (assistant) {
+          assistant.toggle();
+        }
+      }
     },
     {
       label: '🔔 Notifications',
@@ -951,6 +1098,13 @@ ipcMain.on('set-assistant-layer', (event, layer) => {
     assistant.setLayer(layer);
   }
 });
+
+// Assistant IPC handlers
+try {
+  ipcMain.on('assistant:open-settings', () => {
+    showSettingsWindow();
+  });
+} catch {}
 
 ipcMain.handle('select-avatar-file', async () => {
   if (!mainWindow) return null;

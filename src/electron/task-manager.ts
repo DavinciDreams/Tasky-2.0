@@ -477,6 +477,42 @@ export class ElectronTaskManager {
   }
 
   /**
+   * Direct helpers for internal callers (HTTP bridge, integrations)
+   * Avoids having to go through IPC when we are already in the main process.
+   */
+  public async createTaskDirect(input: CreateTaskInput): Promise<TaskyTask> {
+    const result = await this.engine.createTask(input);
+    if (!result.success || !result.data) {
+      throw new Error(result.error || 'Failed to create task');
+    }
+    return result.data;
+  }
+
+  public async updateTaskDirect(id: string, updates: UpdateTaskInput): Promise<TaskyTask> {
+    const result = await this.engine.updateTask(id, updates);
+    if (!result.success || !result.data) {
+      throw new Error(result.error || 'Failed to update task');
+    }
+    return result.data;
+  }
+
+  public async deleteTaskDirect(id: string): Promise<boolean> {
+    const result = await this.engine.deleteTask(id);
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to delete task');
+    }
+    return true;
+  }
+
+  public async listTasksDirect(filters?: any): Promise<TaskyTask[]> {
+    const result = await this.engine.getTasks(filters);
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to list tasks');
+    }
+    return result.data || [];
+  }
+
+  /**
    * Execute a task - public method that can be called directly or via IPC
    */
   public async executeTask(id: string, options?: { agent?: 'claude' | 'gemini' }): Promise<any> {

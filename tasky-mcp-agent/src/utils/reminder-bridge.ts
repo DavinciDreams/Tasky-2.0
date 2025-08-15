@@ -129,9 +129,16 @@ export class ReminderBridge {
   }
 
   async updateReminder(args: any): Promise<CallToolResult> {
-    const { id, updates } = args;
-    const current: any = this.db.prepare('SELECT * FROM reminders WHERE id = ?').get(id);
-    if (!current) return { content: [{ type: 'text', text: 'Reminder not found' }], isError: true };
+    const { id, updates } = args || {};
+    if (!id) return { content: [{ type: 'text', text: 'id is required' }], isError: true };
+    
+    // Try to find by ID first, then by message if ID not found
+    let current: any = this.db.prepare('SELECT * FROM reminders WHERE id = ?').get(id);
+    if (!current) {
+      // Try to find by message (for user-friendly updates)
+      current = this.db.prepare('SELECT * FROM reminders WHERE message = ?').get(id);
+      if (!current) return { content: [{ type: 'text', text: 'Reminder not found' }], isError: true };
+    }
     const next: any = {
       message: updates?.message ?? current.message,
       time: updates?.time ?? current.time,
@@ -139,17 +146,27 @@ export class ReminderBridge {
       enabled: typeof updates?.enabled === 'boolean' ? (updates.enabled ? 1 : 0) : current.enabled,
       updated_at: new Date().toISOString()
     };
-    this.db.prepare(`UPDATE reminders SET message=@message,time=@time,days=@days,enabled=@enabled,updated_at=@updated_at WHERE id=@id`).run({ id, ...next });
-    const after: any = this.db.prepare('SELECT * FROM reminders WHERE id = ?').get(id);
-    const rem: Reminder = { id, message: after.message, time: after.time, days: JSON.parse(after.days || '[]'), enabled: !!after.enabled };
+    this.db.prepare(`UPDATE reminders SET message=@message,time=@time,days=@days,enabled=@enabled,updated_at=@updated_at WHERE id=@id`).run({ id: current.id, ...next });
+    const after: any = this.db.prepare('SELECT * FROM reminders WHERE id = ?').get(current.id);
+    const rem: Reminder = { id: current.id, message: after.message, time: after.time, days: JSON.parse(after.days || '[]'), enabled: !!after.enabled };
     return { content: [{ type: 'text', text: JSON.stringify(rem) }] };
   }
 
   async deleteReminder(args: any): Promise<CallToolResult> {
     const { id } = args;
-    const info = this.db.prepare('DELETE FROM reminders WHERE id = ?').run(id);
+    if (!id) return { content: [{ type: 'text', text: 'id is required' }], isError: true };
+    
+    // Try to find by ID first, then by message if ID not found
+    let current: any = this.db.prepare('SELECT * FROM reminders WHERE id = ?').get(id);
+    if (!current) {
+      // Try to find by message (for user-friendly deletes)
+      current = this.db.prepare('SELECT * FROM reminders WHERE message = ?').get(id);
+      if (!current) return { content: [{ type: 'text', text: 'Reminder not found' }], isError: true };
+    }
+    
+    const info = this.db.prepare('DELETE FROM reminders WHERE id = ?').run(current.id);
     if (!info.changes) return { content: [{ type: 'text', text: 'Reminder not found' }], isError: true };
-    return { content: [{ type: 'text', text: JSON.stringify({ success: true }) }] };
+    return { content: [{ type: 'text', text: JSON.stringify({ success: true, deleted: current.message }) }] };
   }
 
   async getReminder(args: any): Promise<CallToolResult> {

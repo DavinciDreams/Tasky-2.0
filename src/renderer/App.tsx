@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 // Lazy-load heavy emoji picker to reduce initial bundle size
 const EmojiPicker = React.lazy(() => import('@emoji-mart/react'));
@@ -10,7 +10,7 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Checkbox } from '../components/ui/checkbox';
 import CustomSwitch from '../components/ui/CustomSwitch';
-import { Bell, Settings, Smile, X, Plus, Edit3, Trash2, Clock, Calendar, Minus, Paperclip, CheckSquare, Upload } from 'lucide-react';
+import { Bell, Settings, Smile, X, Plus, Edit2, Edit3, Trash2, Clock, Calendar, Minus, Paperclip, CheckSquare, Upload } from 'lucide-react';
 import type { Reminder, Settings as AppSettings, CustomAvatar, DefaultAvatar } from '../types';
 import type { TaskyTask, TaskyTaskSchema } from '../types/task';
 import { TasksTab } from '../components/tasks/TasksTab';
@@ -126,48 +126,34 @@ const TaskyAvatarImage = () => {
 // Reminders Tab Component
 const RemindersTab: React.FC<RemindersTabProps> = ({ reminders, onAddReminder, onRemoveReminder, onEditReminder, onToggleReminder, timeFormat }) => {
   const [editingReminder, setEditingReminder] = useState<Reminder | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   return (
-    <div className="space-y-8 h-full flex flex-col min-h-0">
-      
-      <Card className="bg-card border-border/30 shadow-2xl rounded-3xl card backdrop-blur-sm">
-        <CardHeader className="pb-6 px-8 pt-6">
-          <CardTitle className="flex items-center gap-3 text-xl font-bold text-card-foreground">
-            <div className="flex items-center justify-center w-10 h-10 rounded-2xl bg-gradient-to-br from-green-500/20 to-green-400/10">
-              <Plus size={20} className="text-green-500" />
-            </div>
-            Add New Reminder
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="text-card-foreground p-8">
-          <ReminderForm 
-            onAddReminder={onAddReminder}
-            onEditReminder={onEditReminder}
-            editingReminder={editingReminder}
-            onCancelEdit={() => setEditingReminder(null)}
-            timeFormat={timeFormat}
-          />
-        </CardContent>
-      </Card>
+    <div className="min-h-0 h-full flex flex-col">
+      <Card className="flex-1 bg-card border-border shadow-2xl rounded-3xl overflow-hidden">
+        <CardContent className="p-0 h-full min-h-0 flex flex-col">
+          <div ref={scrollContainerRef} className="flex-1 overflow-y-auto min-h-0 no-scrollbar">
+            <div className="p-6">
+              <div className="reminders-header text-center mb-6">
+                <h1 className="text-2xl font-bold text-card-foreground">
+                  🔔 Reminders
+                </h1>
+                <p className="text-muted-foreground mt-1 text-center">
+                  Set up daily and one-time reminders with notifications
+                </p>
+              </div>
+              
+              <div className="mb-6">
+                <ReminderForm 
+                  onAddReminder={onAddReminder}
+                  onEditReminder={onEditReminder}
+                  editingReminder={editingReminder}
+                  onCancelEdit={() => setEditingReminder(null)}
+                  timeFormat={timeFormat}
+                />
+              </div>
 
-      <div className="pb-6 flex-1 min-h-0">
-        <Card className="bg-card border-border/30 shadow-2xl card rounded-3xl backdrop-blur-sm flex flex-col min-h-0">
-          <CardHeader className="pb-4 border-b border-border/20 px-8 pt-6">
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-3 text-xl font-bold text-card-foreground">
-                <div className="flex items-center justify-center w-10 h-10 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/10">
-                  <Calendar size={20} className="text-primary" />
-                </div>
-                Your Reminders
-              </CardTitle>
-              {reminders.length > 0 && (
-                <span className="text-xs px-3 py-1.5 bg-secondary/20 text-secondary-foreground rounded-xl font-medium">
-                  {reminders.length} reminder{reminders.length !== 1 ? 's' : ''}
-                </span>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent className="p-8 flex-1 flex flex-col min-h-0">
+              <div className="min-h-0">
               {reminders.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-center">
                 <div className="relative mb-6">
@@ -184,30 +170,39 @@ const RemindersTab: React.FC<RemindersTabProps> = ({ reminders, onAddReminder, o
                 </p>
               </div>
               ) : (
-              <div className="p-0 flex-1 flex flex-col min-h-0">
-                <div className="grid gap-4 flex-1 overflow-y-auto scrollbar-thin">
-                  {reminders.map((reminder, index) => (
-                    <motion.div
-                      key={reminder.id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.05 }}
-                    >
-                      <ReminderItem
-                        reminder={reminder}
-                        onRemove={() => onRemoveReminder(reminder.id)}
-                        onEdit={() => setEditingReminder(reminder)}
-                        onToggle={(enabled) => onToggleReminder(reminder.id, enabled)}
-                        timeFormat={timeFormat}
-                      />
-                    </motion.div>
-                  ))}
-                </div>
+              <div className="grid gap-4">
+                {reminders.map((reminder, index) => (
+                  <motion.div
+                    key={reminder.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                  >
+                    <ReminderItem
+                      reminder={reminder}
+                      onRemove={() => onRemoveReminder(reminder.id)}
+                      onEdit={() => {
+                        setEditingReminder(reminder);
+                        // Scroll to top when editing starts
+                        setTimeout(() => {
+                          scrollContainerRef.current?.scrollTo({
+                            top: 0,
+                            behavior: 'smooth'
+                          });
+                        }, 100);
+                      }}
+                      onToggle={(enabled) => onToggleReminder(reminder.id, enabled)}
+                      timeFormat={timeFormat}
+                    />
+                  </motion.div>
+                ))}
               </div>
             )}
-          </CardContent>
-        </Card>
-      </div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };
@@ -220,8 +215,8 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
   const testAIProvider = async () => {
     setLlmTesting(true);
     setLlmTestStatus(null);
+    const provider = String(settings.llmProvider || 'openai').toLowerCase();
     try {
-      const provider = String(settings.llmProvider || 'openai').toLowerCase();
       if (provider === 'openai') {
         const key = (settings.llmApiKey || '').trim();
         if (!key) {
@@ -230,6 +225,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
         // Prefer v2 Responses API minimal test
         const modelId = String(settings.llmModel || 'o4-mini');
         let responsesOk = false;
+        let v2ErrorMessage: string | null = null;
         try {
           const res2 = await fetch('https://api.openai.com/v1/responses', {
             method: 'POST',
@@ -237,15 +233,15 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
               'Authorization': `Bearer ${key}`,
               'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ model: modelId, input: 'ping', max_output_tokens: 5 })
+            body: JSON.stringify({ model: modelId, input: 'ping', max_output_tokens: 16 })
           });
           if (res2.ok) {
             responsesOk = true;
-            setLlmTestStatus({ ok: true, message: `OpenAI v2 Responses OK (${modelId})` });
+            setLlmTestStatus({ ok: true, message: 'OpenAI' });
           } else {
             const j = await res2.json().catch(() => ({} as any));
             const err = (j && j.error && j.error.message) ? j.error.message : `${res2.status} ${res2.statusText}`;
-            setLlmTestStatus({ ok: false, message: `OpenAI v2 error: ${err}` });
+            v2ErrorMessage = `OpenAI v2 error: ${err}`;
           }
         } catch (e: any) {
           // Network or CORS – fall back to models endpoint
@@ -261,11 +257,11 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
           if (res.ok) {
             const j = await res.json().catch(() => ({} as any));
             const count = Array.isArray(j?.data) ? j.data.length : 0;
-            setLlmTestStatus((prev) => prev?.ok ? prev : { ok: true, message: `OpenAI key valid (models: ${count})` });
+            setLlmTestStatus((prev) => prev?.ok ? prev : { ok: true, message: 'OpenAI' });
           } else if (!responsesOk) {
             const j = await res.json().catch(() => ({} as any));
             const err = (j && j.error && j.error.message) ? j.error.message : `${res.status} ${res.statusText}`;
-            setLlmTestStatus({ ok: false, message: `OpenAI error: ${err}` });
+            setLlmTestStatus({ ok: false, message: 'OpenAI' });
           }
         }
       } else {
@@ -278,13 +274,13 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
           let count = 0;
           if (Array.isArray(models)) count = models.length;
           else if (models && Array.isArray(models.data)) count = models.data.length;
-          setLlmTestStatus({ ok: true, message: `Server reachable (${count} models)` });
+          setLlmTestStatus({ ok: true, message: 'LM Studio' });
         } else {
-          setLlmTestStatus({ ok: false, message: `Server error: ${res.status} ${res.statusText}` });
+          setLlmTestStatus({ ok: false, message: 'LM Studio' });
         }
       }
     } catch (e: any) {
-      setLlmTestStatus({ ok: false, message: e?.message || 'Test failed' });
+      setLlmTestStatus({ ok: false, message: provider === 'openai' ? 'OpenAI' : 'LM Studio' });
     } finally {
       setLlmTesting(false);
     }
@@ -293,7 +289,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
     <div className="space-y-8 h-full">
       <div className="pb-2">
         <Card className="bg-card border-border/30 shadow-2xl card rounded-3xl backdrop-blur-sm max-w-5xl mx-auto">
-          <CardContent className="space-y-6 p-8 pt-0">
+          <CardContent className="space-y-6 p-8">
           <SettingSection title="Notifications & Alerts" icon="🔔">
             <div className="grid gap-3 md:grid-cols-2">
               <SettingItem
@@ -445,6 +441,37 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
                 }}
               />
 
+              {/* Model selector: use select for OpenAI; free text for LM Studio/Custom */}
+              {['openai'].includes(String(settings.llmProvider || 'openai').toLowerCase()) ? (
+                <div className="md:col-span-2">
+                  <SettingItem
+                    icon="🧠"
+                    title="Model"
+                    description="Choose a suggested model for the selected provider"
+                    type="select"
+                    value={settings.llmModel || 'o4-mini'}
+                    options={(() => {
+                      // OpenAI v2 models per AI SDK
+                      return [
+                        { value: 'o4', label: 'o4' },
+                        { value: 'o4-mini', label: 'o4-mini' },
+                      ];
+                    })()}
+                    onChange={(val) => onSettingChange('llmModel', val)}
+                  />
+                </div>
+              ) : (
+                <div className="md:col-span-2 flex flex-col gap-2 py-2 px-4 rounded-xl hover:bg-muted/30 transition-colors duration-200">
+                  <Label className="text-sm">Model</Label>
+                  <Input
+                    type="text"
+                    placeholder="Enter model id (e.g., llama-3.2-1b)"
+                    value={settings.llmModel || 'llama-3.2-1b'}
+                    onChange={(e) => onSettingChange('llmModel', e.target.value)}
+                  />
+                </div>
+              )}
+
               <div className="flex flex-col gap-2 py-2 px-4 rounded-xl hover:bg-muted/30 transition-colors duration-200">
                 <Label className="text-sm">API Key</Label>
                 <Input
@@ -455,35 +482,6 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
                 />
                 <span className="text-[11px] text-muted-foreground">Stored locally. For LM Studio default server, key is optional.</span>
               </div>
-
-              {/* Model selector: use select for OpenAI; free text for LM Studio/Custom */}
-              {['openai'].includes(String(settings.llmProvider || 'openai').toLowerCase()) ? (
-                <SettingItem
-                  icon="🧠"
-                  title="Model"
-                  description="Choose a suggested model for the selected provider"
-                  type="select"
-                  value={settings.llmModel || ''}
-                  options={(() => {
-                    // OpenAI v2 models per AI SDK
-                    return [
-                      { value: 'o4', label: 'o4' },
-                      { value: 'o4-mini', label: 'o4-mini' },
-                    ];
-                  })()}
-                  onChange={(val) => onSettingChange('llmModel', val)}
-                />
-              ) : (
-                <div className="flex flex-col gap-2 py-2 px-4 rounded-xl hover:bg-muted/30 transition-colors duration-200">
-                  <Label className="text-sm">Model</Label>
-                  <Input
-                    type="text"
-                    placeholder="Enter model id (e.g., llama-3.2-1b)"
-                    value={settings.llmModel || ''}
-                    onChange={(e) => onSettingChange('llmModel', e.target.value)}
-                  />
-                </div>
-              )}
 
               {String(settings.llmProvider || 'openai').toLowerCase() === 'lm-studio' && (
                 <div className="flex flex-col gap-2 py-2 px-4 rounded-xl hover:bg-muted/30 transition-colors duration-200">
@@ -499,13 +497,25 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
               )}
 
               <div className="md:col-span-2 flex items-center gap-3 py-2 px-4 rounded-xl hover:bg-muted/30 transition-colors duration-200">
-                <Button onClick={testAIProvider} disabled={llmTesting} className="rounded-xl">
-                  {llmTesting ? 'Testing…' : 'Test Provider'}
+                <Button onClick={testAIProvider} disabled={llmTesting} className="rounded-xl bg-white text-gray-900 hover:bg-gray-100">
+                  {llmTesting ? 'Testing…' : 'Test Connection'}
                 </Button>
                 {llmTestStatus && (
-                  <span className={`text-sm ${llmTestStatus.ok ? 'text-green-400' : 'text-red-400'}`}>
-                    {llmTestStatus.message}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-sm font-semibold ${llmTestStatus.ok ? 'text-green-500' : 'text-red-500'}`}>
+                      {llmTestStatus.ok ? '✓ Pass' : '✗ Failed'}
+                    </span>
+                    {!llmTestStatus.ok && llmTestStatus.message.toLowerCase().includes('openai') && (
+                      <a 
+                        href="https://platform.openai.com/api-keys" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-xs text-blue-400 hover:text-blue-300 underline"
+                      >
+                        Get API Key
+                      </a>
+                    )}
+                  </div>
                 )}
               </div>
             </div>
@@ -513,7 +523,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
           
           <div className="pt-6 border-t border-border/30">
             <Button 
-              className="w-full bg-card hover:bg-secondary/90 text-card-foreground shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] rounded-2xl py-3 font-semibold"
+              className="w-full bg-white hover:bg-gray-100 text-gray-900 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] rounded-2xl py-3 font-semibold"
               onClick={onTestNotification}
             >
               <Bell size={18} className="mr-3" />
@@ -644,15 +654,14 @@ const AvatarTab: React.FC<AvatarTabProps> = ({ selectedAvatar, onAvatarChange })
 
   return (
     <div className="space-y-8 h-full">
-      <div className="pb-6">
-        <Card className="bg-card border-border/30 shadow-2xl card rounded-3xl backdrop-blur-sm">
-        <CardContent className="p-8 pt-0">
+      <div className="h-full flex flex-col p-1">
+        <Card className="flex-1 bg-card border-border/30 shadow-2xl card rounded-3xl backdrop-blur-sm">
+        <CardContent className="p-6">
           <div className="space-y-8">
-            {/* Default Avatars */}
+            {/* Default Avatar */}
             <div>
-              <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-                Default Avatars
+              <h3 className="text-lg font-semibold text-foreground mb-4">
+                Default Avatar
               </h3>
               <div className="grid grid-cols-2 gap-4">
                 {defaultAvatars.map((avatar, index) => (
@@ -706,17 +715,16 @@ const AvatarTab: React.FC<AvatarTabProps> = ({ selectedAvatar, onAvatarChange })
             {/* Custom Avatars */}
             <div>
               <div className="mb-4">
-                <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-purple-500"></span>
+                <h3 className="text-lg font-semibold text-foreground">
                   Custom Avatars
                 </h3>
               </div>
               
-              {customAvatars.length === 0 ? (
+                {customAvatars.length === 0 ? (
                 <div className="py-4">
                   <Button
                     onClick={handleCustomAvatarUpload}
-                    className="bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/20 hover:border-purple-500/40 shadow-md hover:shadow-lg transition-all duration-300 rounded-xl px-4 py-2 text-sm font-medium"
+                    className="bg-white hover:bg-gray-100 text-gray-900 shadow-md hover:shadow-lg transition-all duration-300 rounded-2xl px-4 py-2 text-sm font-semibold border border-border/30"
                   >
                     Upload Avatar
                   </Button>
@@ -726,7 +734,7 @@ const AvatarTab: React.FC<AvatarTabProps> = ({ selectedAvatar, onAvatarChange })
                   <div className="flex justify-end mb-4">
                     <Button
                       onClick={handleCustomAvatarUpload}
-                      className="bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/20 hover:border-purple-500/40 shadow-md hover:shadow-lg transition-all duration-300 rounded-xl px-4 py-2 text-sm font-medium"
+                      className="bg-white hover:bg-gray-100 text-gray-900 shadow-md hover:shadow-lg transition-all duration-300 rounded-2xl px-4 py-2 text-sm font-semibold border border-border/30"
                     >
                       <Plus size={14} className="mr-2" />
                       Add More
@@ -1226,7 +1234,7 @@ const ReminderForm: React.FC<ReminderFormProps> = ({ onAddReminder, onEditRemind
 
       <Button 
         type="submit" 
-        className="w-full bg-card hover:bg-secondary/90 text-card-foreground shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] rounded-2xl py-3 font-semibold"
+        className="w-full bg-white hover:bg-gray-100 text-gray-900 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] rounded-2xl py-3 font-semibold"
       >
         <Plus size={18} className="mr-3" />
         {editingReminder ? "Update Reminder" : "Add Reminder"}
@@ -1313,19 +1321,24 @@ const ReminderItem: React.FC<ReminderItemProps> = ({ reminder, onRemove, onEdit,
       {/* Action buttons */}
       <div className="flex items-center gap-2 pt-2">
         <Button 
-          size="sm"
+          size="icon"
           onClick={onEdit}
           variant="outline"
-          className="text-xs hover:bg-blue-50 hover:border-blue-300 hover:text-blue-600"
+          className="h-8 w-8 rounded-xl hover:bg-muted"
+          title="Edit Reminder"
+          aria-label="Edit reminder"
         >
-          Edit
+          <Edit2 className="h-4 w-4" />
         </Button>
         <Button 
-          size="sm"
+          size="icon"
           onClick={onRemove}
-          className="text-xs bg-red-500 hover:bg-red-600 text-white border-none shadow-sm hover:shadow-md transition-all duration-200"
+          variant="outline"
+          className="h-8 w-8 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted"
+          title="Delete Reminder"
+          aria-label="Delete reminder"
         >
-          Delete
+          <Trash2 className="h-4 w-4" />
         </Button>
       </div>
     </div>
@@ -1655,7 +1668,7 @@ const App: React.FC = () => {
                     }}
                     className={`group flex items-center px-4 py-1.5 text-sm font-semibold rounded-xl transition-all duration-200 top-nav-btn ${
                       activeTab === tab.id
-                        ? 'bg-primary text-primary-foreground shadow-md active'
+                        ? 'bg-white text-gray-900 shadow-md active'
                         : 'text-muted-foreground hover:text-foreground hover:bg-secondary/30 hover:scale-102'
                     }`}
                   >
@@ -1665,7 +1678,7 @@ const App: React.FC = () => {
                     <span className="font-medium">{tab.id === 'applications' && activeAppView !== 'home' ? '← Back' : tab.label}</span>
                     {activeTab === tab.id && (
                       <motion.div
-                        className="ml-2 w-1 h-1 rounded-full bg-primary-foreground"
+                        className="ml-2 w-1 h-1 rounded-full bg-gray-900"
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}
                         transition={{ duration: 0.2 }}

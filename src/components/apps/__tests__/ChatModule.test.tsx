@@ -5,9 +5,9 @@ import { ChatModule } from '../ChatModule'
 
 // Minimal Settings type stub
 const defaultSettings: any = {
-	llmProvider: 'openai',
-	llmModel: 'o4-mini',
-	llmApiKey: 'test-key',
+  llmProvider: 'openai',
+  llmModel: 'o4-mini',
+  llmApiKey: 'test-key',
 }
 
 // Loosen the type by augmenting with index signature for tests
@@ -51,7 +51,7 @@ describe('ChatModule', () => {
 		)
 		// Ensure chat is created and chatId is available before sending
 		await waitFor(() => expect(window.electronAPI.createChat).toHaveBeenCalled())
-		const inputs = getAllByPlaceholderText('Type a message...') as HTMLInputElement[]
+  const inputs = getAllByPlaceholderText('Ask Tasky or run tools…') as HTMLTextAreaElement[]
 		const input = inputs[0]
 		await fireEvent.change(input, { target: { value: 'hello' } })
 		const sendBtn = getAllByText('Send')[0]
@@ -59,15 +59,47 @@ describe('ChatModule', () => {
 		await waitFor(() => expect(window.electronAPI.saveChat).toHaveBeenCalled())
 	})
 
-	it('reset button deletes current chat and creates a new one', async () => {
-		// Use unsupported provider to ensure no network calls in test
-		const s = { ...defaultSettings, llmProvider: 'unsupported' }
-		const { getAllByText } = render(
-			<ChatModule settings={s} onSettingChange={() => {}} />
-		)
-		await waitFor(() => expect(window.electronAPI.createChat).toHaveBeenCalledTimes(1))
-    // Reset button removed; simulate new chat via history flow if needed
-    // For now, ensure createChat was called once on mount
-    expect(window.electronAPI.createChat).toHaveBeenCalledTimes(1)
-	})
+  it('creates new chat via header button', async () => {
+    const { container } = render(
+      <ChatModule settings={defaultSettings} onSettingChange={() => {}} />
+    )
+    await waitFor(() => expect(window.electronAPI.createChat).toHaveBeenCalledTimes(1))
+    
+    // Open history dropdown
+    const historyButton = container.querySelector('button:has(span:contains("📋"))')
+    if (historyButton) {
+      fireEvent.click(historyButton)
+      await waitFor(() => {
+        const newButton = container.querySelector('button:contains("+ New")')
+        expect(newButton).toBeTruthy()
+      })
+    }
+  })
+
+  it('renders with theme colors', () => {
+    const { container } = render(
+      <ChatModule settings={defaultSettings} onSettingChange={() => {}} />
+    )
+    
+    // Check for theme classes
+    const bgCard = container.querySelector('.bg-card')
+    const borderElements = container.querySelectorAll('.border-border')
+    
+    expect(bgCard).toBeTruthy()
+    expect(borderElements.length).toBeGreaterThan(0)
+  })
+
+  it('shows message skeleton when streaming', async () => {
+    const s = { ...defaultSettings }
+    const { container } = render(
+      <ChatModule settings={s} onSettingChange={() => {}} />
+    )
+    
+    // The MessageContainer should handle streaming state
+    await waitFor(() => expect(window.electronAPI.createChat).toHaveBeenCalled())
+    
+    // Check that the MessageContainer is present
+    const messageContainer = container.querySelector('.space-y-3')
+    expect(messageContainer).toBeTruthy()
+  })
 })

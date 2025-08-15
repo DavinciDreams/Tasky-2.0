@@ -216,7 +216,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onUpdateTask, onDeleteTask, t
             <Button
               size="icon"
               variant="outline"
-              className="rounded-xl text-red-600 hover:text-red-800 hover:bg-red-50"
+              className="rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted"
               title="Delete Task"
               aria-label="Delete task"
               onClick={() => onDeleteTask(task.schema.id)}

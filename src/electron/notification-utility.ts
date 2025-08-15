@@ -48,8 +48,8 @@ export class NotificationUtility {
    */
   showTaskCreatedNotification(title: string, description?: string): void {
     const options: NotificationOptions = {
-      title: '📋 New Task Created',
-      body: description ? `${title}\n\n${description}` : title,
+      title: `📋 ${title}`,
+      body: description ? `Task created\n\n${description}` : 'Task created',
       type: 'task-created',
       clickable: true
     };

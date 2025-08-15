@@ -56,10 +56,10 @@ export const ApplicationsTab: React.FC<ApplicationsTabProps> = ({
       {/* Applications Home or Module View */}
       {activeApp === 'home' ? (
         <div className="flex-1 p-4">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-stretch">
             <button
               onClick={() => setActiveApp('tasks')}
-              className="group relative overflow-hidden rounded-2xl bg-card border border-border/30 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-0.5 hover:scale-[1.01] text-left"
+              className="group relative overflow-hidden rounded-2xl bg-card border border-border/30 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-0.5 hover:scale-[1.01] text-left h-36"
               aria-label="Open Tasks"
             >
               <div className="p-5">
@@ -75,7 +75,7 @@ export const ApplicationsTab: React.FC<ApplicationsTabProps> = ({
 
             <button
               onClick={() => setActiveApp('reminders')}
-              className="group relative overflow-hidden rounded-2xl bg-card border border-border/30 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-0.5 hover:scale-[1.01] text-left"
+              className="group relative overflow-hidden rounded-2xl bg-card border border-border/30 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-0.5 hover:scale-[1.01] text-left h-36"
               aria-label="Open Reminders"
             >
               <div className="p-5">
@@ -91,7 +91,7 @@ export const ApplicationsTab: React.FC<ApplicationsTabProps> = ({
 
             <button
               onClick={() => setActiveApp('chat')}
-              className="group relative overflow-hidden rounded-2xl bg-card border border-border/30 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-0.5 hover:scale-[1.01] text-left"
+              className="group relative overflow-hidden rounded-2xl bg-card border border-border/30 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-0.5 hover:scale-[1.01] text-left h-36"
               aria-label="Open Chat"
             >
               <div className="p-5">
@@ -108,7 +108,7 @@ export const ApplicationsTab: React.FC<ApplicationsTabProps> = ({
         </div>
       ) : (
         <div className="flex-1 min-h-0 flex flex-col p-1">
-          {activeApp === 'reminders' && <div className="flex-1 min-h-0">{remindersContent}</div>}
+          {activeApp === 'reminders' && <div className="flex-1 min-h-0 overflow-hidden">{remindersContent}</div>}
           {activeApp === 'tasks' && (
             <TasksTab
               tasks={tasks}

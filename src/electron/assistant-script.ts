@@ -5,26 +5,27 @@
  * exposed as `window.assistantAPI`. Avoids Node APIs for security.
  */
 
-declare global {
-  interface Window {
-    assistantAPI: {
-      send: (channel: string, ...args: any[]) => void;
-      invoke: (channel: string, ...args: any[]) => Promise<any>;
-      on: (channel: string, listener: (event: any, ...args: any[]) => void) => void;
-    };
-  }
+// Global interface declaration
+interface AssistantAPI {
+  send: (channel: string, ...args: any[]) => void;
+  invoke: (channel: string, ...args: any[]) => Promise<any>;
+  on: (channel: string, listener: (event: any, ...args: any[]) => void) => void;
 }
 
 const character = document.getElementById('tasky-character') as HTMLElement | null;
 const bubble = document.getElementById('notification-bubble') as HTMLElement | null;
 const containerEl = document.getElementById('tasky-container') as HTMLElement | null;
+
 function getAvatarRectNow(): DOMRect | null {
-  const img = document.querySelector('#tasky-character img') as HTMLElement | null;
-  const el = img || (document.getElementById('tasky-character') as HTMLElement | null);
-  return el ? el.getBoundingClientRect() : null;
+  const character = document.getElementById('tasky-character') as HTMLElement | null;
+  if (!character) return null;
+  
+  // Get the actual character element (whether it's text or contains an image)
+  return character.getBoundingClientRect();
 }
+
 // Access IPC via preload-injected bridge for security
-const ipcRenderer = window.assistantAPI;
+const ipcRenderer = (window as any).assistantAPI as AssistantAPI;
 
 let isDelivering = false;
 let bubbleSide: 'left' | 'right' = 'left';
@@ -38,307 +39,246 @@ let lastIgnoreState: boolean | null = null;
 // Simple IPC handlers
 function positionBubble() {
   if (!bubble) return;
-  const leftGap = 56; // preferred spacing from avatar when bubble is on the left
-  const rightGap = 56; // preferred spacing from avatar when bubble is on the right
-  const minGap = 24; // minimum spacing we'll ever allow to preserve width
-  const fixedWidth = 260; // target fixed bubble width for consistent sizing
-  bubble.style.maxWidth = `${fixedWidth}px`;
+  
   const avatarRect = getAvatarRectNow();
+  if (!avatarRect) return;
+  
+  const gap = 50; // MUCH larger gap to prevent any overlap
+  const bubbleWidth = 250; // slightly smaller bubble width
   const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
-  const padding = 8;
-  // Start from fixed width to keep visual consistency; shrink only if absolutely required to fit viewport
-  const minWidth = 180;
-  let width = fixedWidth;
-  let left = bubbleSide === 'right' ? 380 : 180;
-  let top = 0;
-  if (avatarRect) {
-    // Prefer keeping width fixed; adjust gap first, then shrink width only if still not enough space
-    const preferredGap = bubbleSide === 'left' ? leftGap : rightGap;
-    const availableWithPreferred =
-      bubbleSide === 'left'
-        ? Math.max(0, avatarRect.left - preferredGap - padding)
-        : Math.max(0, viewportWidth - (avatarRect.right + preferredGap) - padding);
-
-    let gapUsed = preferredGap;
-    if (availableWithPreferred < fixedWidth) {
-      const availableWithMinGap =
-        bubbleSide === 'left'
-          ? Math.max(0, avatarRect.left - minGap - padding)
-          : Math.max(0, viewportWidth - (avatarRect.right + minGap) - padding);
-      if (availableWithMinGap >= fixedWidth) {
-        // Keep width fixed; reduce gap just enough to fit
-        gapUsed = Math.max(
-          minGap,
-          bubbleSide === 'left'
-            ? avatarRect.left - fixedWidth - padding
-            : viewportWidth - fixedWidth - padding - avatarRect.right
-        );
-      } else {
-        // Still not enough room; shrink width as a last resort
-        gapUsed = minGap;
-        width = Math.max(minWidth, Math.floor(availableWithMinGap));
+  const viewportPadding = 15; // more padding from screen edges
+  
+  // Set bubble width
+  bubble.style.width = `${bubbleWidth}px`;
+  bubble.style.maxWidth = `${bubbleWidth}px`;
+  bubble.style.minWidth = `180px`; // minimum width if needed
+  
+  let leftPosition: number;
+  
+  if (bubbleSide === 'left') {
+    // Position bubble to the left of avatar with large gap
+    leftPosition = avatarRect.left - gap - bubbleWidth;
+    
+    // If bubble would go off-screen, place it with minimum padding
+    if (leftPosition < viewportPadding) {
+      leftPosition = viewportPadding;
+      // Reduce bubble width if necessary to maintain gap from avatar
+      const availableWidth = avatarRect.left - gap - viewportPadding;
+      if (availableWidth < bubbleWidth && availableWidth > 180) {
+        bubble.style.width = `${availableWidth}px`;
+        bubble.style.maxWidth = `${availableWidth}px`;
       }
     }
-
-    // Vertically center relative to avatar, slight upward nudge; use width to reflow and then measure
-    bubble.style.width = `${width}px`;
-    const bubbleHeight = Math.max(40, Math.ceil(bubble.getBoundingClientRect().height) || 40);
-    top = Math.round(avatarRect.top + (avatarRect.height - bubbleHeight) / 2) - 12;
-
-    // Compute left strictly on the selected side without flipping; keep computed gap
-    if (bubbleSide === 'left') {
-      left = Math.max(padding, Math.round(avatarRect.left - width - gapUsed));
-    } else {
-      left = Math.min(viewportWidth - width - padding, Math.round(avatarRect.right + gapUsed));
-    }
   } else {
-    // No avatar rect available; still ensure on-screen
-    left = Math.max(padding, Math.min(left, viewportWidth - width - padding));
+    // Position bubble to the right of avatar with large gap
+    leftPosition = avatarRect.right + gap;
+    
+    // If bubble would go off-screen, adjust position and width
+    if (leftPosition + bubbleWidth > viewportWidth - viewportPadding) {
+      const availableWidth = viewportWidth - viewportPadding - (avatarRect.right + gap);
+      if (availableWidth > 180) {
+        bubble.style.width = `${Math.min(bubbleWidth, availableWidth)}px`;
+        bubble.style.maxWidth = `${Math.min(bubbleWidth, availableWidth)}px`;
+      } else {
+        // Not enough space on right, force to left with padding
+        leftPosition = avatarRect.left - gap - bubbleWidth;
+        if (leftPosition < viewportPadding) {
+          leftPosition = viewportPadding;
+        }
+      }
+    }
   }
+  
+  // Set position
+  bubble.style.left = `${leftPosition}px`;
+  bubble.style.right = 'auto';
+  bubble.style.top = `${avatarRect.top + avatarRect.height / 2}px`;
+  bubble.style.transform = 'translateY(-50%)';
+  
 
-  bubble.style.width = `${width}px`;
-  bubble.style.left = `${Math.round(left)}px`;
-  if (top) bubble.style.top = `${top}px`;
-  (bubble.style as any).right = 'auto';
 }
+
+function showBubble(text: string) {
+  if (!bubble) return;
+  
+  bubble.textContent = text;
+  bubble.style.background = notificationColor;
+  bubble.style.color = notificationTextColor;
+  bubble.style.fontFamily = notificationFont === 'system' ? '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' : notificationFont;
+  bubble.style.display = 'block';
+  positionBubble();
+  
+  // Trigger animation
+  setTimeout(() => {
+    bubble.style.opacity = '1';
+    bubble.style.transform = 'translateY(-50%) scale(1)';
+  }, 10);
+  
+  bubbleVisible = true;
+}
+
+function hideBubble() {
+  if (!bubble || !bubbleVisible) return;
+  
+  bubble.style.opacity = '0';
+  bubble.style.transform = 'translateY(-50%) scale(0.9)';
+  
+  setTimeout(() => {
+    bubble.style.display = 'none';
+    bubbleVisible = false;
+  }, 300);
+}
+
 // Ensure we request initial avatar in case the timing of set-initial-avatar is late
 window.addEventListener('DOMContentLoaded', () => {
   try {
     ipcRenderer
       .invoke('get-tasky-avatar-data-url')
-      .then((dataUrl) => {
+      .then((dataUrl: string) => {
         // If character is still empty and no child image exists, set Tasky immediately and fade in
-        if (character && character.children.length === 0 && character.textContent === '') {
-          if (dataUrl) {
-            const img = document.createElement('img');
-            img.src = dataUrl;
-            img.style.width = '80px';
-            img.style.height = '80px';
-            img.style.objectFit = 'cover';
-            img.style.display = 'block';
-            (img as any).draggable = false;
-            character.appendChild(img);
-            requestAnimationFrame(() => {
-              character.style.opacity = '1';
-            });
-          }
+        if (character && !character.querySelector('img') && dataUrl) {
+          const img = document.createElement('img');
+          img.src = dataUrl;
+          img.alt = 'Tasky';
+          img.style.width = '80px';
+          img.style.height = '80px';
+          img.draggable = false;
+          character.appendChild(img);
+          
+          // Fade in
+          setTimeout(() => {
+            character.style.opacity = '1';
+          }, 100);
         }
       })
-      .catch(() => {
-        // noop
-      });
-  } catch (_) {}
-});
-
-ipcRenderer.on('set-initial-avatar', (_event, data) => {
-  if (character && data && data.avatars && data.selectedAvatar) {
-    if (data.selectedAvatar === 'Tasky') {
-      // Use the proper Tasky image instead of emoji
-      character.innerHTML = '';
-      // Request tasky.png data URL from main process
-      ipcRenderer
-        .invoke('get-tasky-avatar-data-url')
-        .then((dataUrl) => {
-          if (dataUrl) {
-            const img = document.createElement('img');
-            img.src = dataUrl;
-            img.style.width = '80px';
-            img.style.height = '80px';
-            img.style.objectFit = 'cover';
-            img.style.display = 'block';
-            (img as any).draggable = false;
-            character.appendChild(img);
-            // Fade in after image is ready
-            requestAnimationFrame(() => {
-              character.style.opacity = '1';
-            });
-          } else {
-            character.textContent = '🤖';
-            character.style.opacity = '1';
-          }
-        })
-        .catch(() => {
-          character.textContent = '🤖';
+      .catch((e: any) => {
+        console.warn('Failed to get avatar data URL:', e);
+        // Fallback: show default emoji
+        if (character && !character.querySelector('img') && !character.textContent) {
+          character.textContent = '📋';
           character.style.opacity = '1';
-        });
-    } else {
-      const avatarChar = data.avatars[data.selectedAvatar] || '🤖';
-      character.textContent = avatarChar;
+        }
+      });
+  } catch (e: any) {
+    console.warn('Failed to invoke get-tasky-avatar-data-url:', e);
+    // Fallback: show default emoji
+    if (character && !character.querySelector('img') && !character.textContent) {
+      character.textContent = '📋';
       character.style.opacity = '1';
     }
   }
 });
 
-ipcRenderer.on('tasky-speak', (_event, message: string) => {
-  if (bubble) {
-    // Enhanced bubble design with modern styling
-    bubble.style.position = 'absolute';
-    bubble.style.background = `linear-gradient(135deg, ${notificationColor}ee, ${notificationColor}dd)`;
-    bubble.style.color = notificationTextColor;
-    bubble.style.padding = '14px 18px';
-    bubble.style.boxSizing = 'border-box';
-    bubble.style.borderRadius = '24px';
-    bubble.style.transform = 'none';
-    bubble.style.zIndex = '1000';
-    bubble.style.display = 'block';
-    bubble.style.fontSize = '14px';
-    bubble.style.lineHeight = '1.5';
-    bubble.style.fontWeight = '500';
-    (bubble.style as any).wordWrap = 'break-word';
-    (bubble.style as any).wordBreak = 'break-word';
-    (bubble.style as any).overflowWrap = 'break-word';
-    bubble.style.whiteSpace = 'normal';
-    bubble.style.width = 'auto';
-    bubble.style.minWidth = '180px';
-    
-    // Add beautiful shadow for depth
-    bubble.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.15), 0 2px 8px rgba(0, 0, 0, 0.1)';
-    
-    // Add subtle border for definition
-    bubble.style.border = '1px solid rgba(255, 255, 255, 0.1)';
-    
-    // Add backdrop blur for glass effect (if supported)
-    (bubble.style as any).backdropFilter = 'blur(10px)';
-    (bubble.style as any).webkitBackdropFilter = 'blur(10px)';
-    
-    // Smooth animation
-    bubble.style.transition = 'opacity 0.3s ease-in-out, transform 0.3s ease-in-out';
-    bubble.style.opacity = '0';
-    bubble.style.transform = 'scale(0.95) translateY(5px)';
-
-    // Apply custom font
-    if (notificationFont === 'system') {
-      bubble.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif';
-    } else {
-      bubble.style.fontFamily = notificationFont;
-    }
-
-    // Set content first
-    bubble.textContent = message;
-    
-    // Position after content applied to avoid overlap using actual width/height
-    requestAnimationFrame(() => {
-      positionBubble();
-      // Animate in after positioning
-      requestAnimationFrame(() => {
-        bubble.style.opacity = '1';
-        bubble.style.transform = 'scale(1) translateY(0)';
-      });
-    });
-
-    bubbleVisible = true;
-    try {
-      ipcRenderer.send('assistant:bubble-visible', true);
-    } catch {}
-    
-    // Hide with animation
+// IPC message handlers
+ipcRenderer.on('tasky-speak', (event: any, text: string) => {
+  if (isDelivering) return; // Prevent overlapping messages
+  
+  isDelivering = true;
+  showBubble(text);
+  
+  // Auto-hide after 5 seconds
+  setTimeout(() => {
+    hideBubble();
     setTimeout(() => {
-      bubble.style.opacity = '0';
-      bubble.style.transform = 'scale(0.95) translateY(5px)';
-      setTimeout(() => {
-        bubble.style.display = 'none';
-        bubbleVisible = false;
-        try {
-          ipcRenderer.send('assistant:bubble-visible', false);
-        } catch {}
-      }, 300); // Wait for animation to complete
-    }, 5000);
-  }
+      isDelivering = false;
+    }, 300);
+  }, 5000);
 });
 
-ipcRenderer.on('tasky-change-avatar', (_event, avatarName: string) => {
-  if (character) {
-    if (avatarName === 'Tasky') {
-      character.innerHTML = '';
-      ipcRenderer
-        .invoke('get-tasky-avatar-data-url')
-        .then((dataUrl) => {
-          if (dataUrl) {
-            const img = document.createElement('img');
-            img.src = dataUrl;
-            img.style.width = '80px';
-            img.style.height = '80px';
-            img.style.objectFit = 'cover';
-            img.style.display = 'block';
-            (img as any).draggable = false;
-            character.appendChild(img);
-            requestAnimationFrame(() => {
-              character.style.opacity = '1';
-            });
-          } else {
-            character.textContent = '🤖';
-            character.style.opacity = '1';
-          }
-        })
-        .catch(() => {
-          character.textContent = '🤖';
-          character.style.opacity = '1';
-        });
-    } else if (avatarName === 'Custom' || avatarName.startsWith('custom_')) {
-      character.textContent = '';
-    } else {
-      character.textContent = '🤖';
-      character.style.opacity = '1';
-    }
+ipcRenderer.on('tasky-change-avatar', (event: any, avatarName: string) => {
+  if (!character) return;
+  
+  // Clear existing content
+  character.innerHTML = '';
+  character.textContent = '';
+  
+  if (avatarName === 'Custom') {
+    // Will be handled by set-custom-avatar
+    return;
   }
-});
-
-ipcRenderer.on('tasky-set-custom-avatar', (_event, filePath: string) => {
-  if (character && filePath) {
-    character.innerHTML = '';
-    character.textContent = '';
-    ipcRenderer
-      .invoke('get-avatar-data-url', filePath)
-      .then((dataUrl) => {
+  
+  if (avatarName === 'Tasky') {
+    // Load the proper Tasky image
+    ipcRenderer.invoke('get-tasky-avatar-data-url')
+      .then((dataUrl: string) => {
         if (dataUrl) {
           const img = document.createElement('img');
           img.src = dataUrl;
+          img.alt = 'Tasky';
           img.style.width = '80px';
           img.style.height = '80px';
-          img.style.objectFit = 'cover';
-          img.style.display = 'block';
-          (img as any).draggable = false;
+          img.draggable = false;
           character.appendChild(img);
-          requestAnimationFrame(() => {
-            character.style.opacity = '1';
-          });
+          character.style.opacity = '1';
+        } else {
+          // Fallback only if image loading fails
+          character.textContent = '📋';
+          character.style.opacity = '1';
         }
       })
-      .catch(() => {});
+      .catch((e: any) => {
+        console.warn('Failed to load Tasky avatar:', e);
+        character.textContent = '📋';
+        character.style.opacity = '1';
+      });
+  } else {
+    // Handle other built-in avatars as emojis (these are intentional)
+    const avatarMap: Record<string, string> = {
+      'Robot': '🤖',
+      'Cat': '🐱',
+      'Dog': '🐶',
+      'Bear': '🐻',
+      'Panda': '🐼'
+    };
+    
+    const emoji = avatarMap[avatarName] || '📋';
+    character.textContent = emoji;
+    character.style.opacity = '1';
   }
 });
 
-ipcRenderer.on('set-dragging-mode', (_event, enabled: boolean) => {
-  const container = document.getElementById('tasky-container') as HTMLElement | null;
-  if (container && character) {
-    draggingEnabled = !!enabled;
-    if (enabled) {
-      container.style.setProperty('-webkit-app-region', 'drag');
-      container.style.cursor = 'move';
-      character.style.setProperty('-webkit-app-region', 'drag');
-      (character.style as any).cursor = 'move';
-      character.style.opacity = '1';
-      try {
-        ipcRenderer.send('assistant:set-ignore-mouse-events', true);
-      } catch {}
-      (container.style as any).pointerEvents = 'auto';
-      (character.style as any).pointerEvents = 'auto';
-    } else {
-      container.style.setProperty('-webkit-app-region', 'no-drag');
-      (container.style as any).cursor = 'default';
-      character.style.setProperty('-webkit-app-region', 'no-drag');
-      (character.style as any).cursor = 'default';
-      (container.style as any).pointerEvents = 'none';
-      (character.style as any).pointerEvents = 'none';
-      character.style.opacity = '1';
-      try {
-        ipcRenderer.send('assistant:set-ignore-mouse-events', true);
-      } catch {}
-    }
+ipcRenderer.on('tasky-set-custom-avatar', (event: any, dataUrl: string) => {
+  if (!character) return;
+  
+  // Clear existing content
+  character.innerHTML = '';
+  character.textContent = '';
+  
+  const img = document.createElement('img');
+  img.src = dataUrl;
+  img.alt = 'Custom Avatar';
+  img.style.width = '80px';
+  img.style.height = '80px';
+  img.draggable = false;
+  character.appendChild(img);
+  character.style.opacity = '1';
+});
+
+ipcRenderer.on('set-bubble-side', (event: any, side: 'left' | 'right') => {
+  bubbleSide = side;
+  if (bubbleVisible) {
+    positionBubble();
   }
-  if (enabled && container && character) {
-    (container.style as any).pointerEvents = 'auto';
-    (character.style as any).pointerEvents = 'auto';
+});
+
+ipcRenderer.on('set-notification-color', (event: any, color: string) => {
+  notificationColor = color;
+  if (bubbleVisible && bubble) {
+    bubble.style.background = color;
+  }
+});
+
+ipcRenderer.on('set-notification-font', (event: any, font: string) => {
+  notificationFont = font;
+  if (bubbleVisible && bubble) {
+    bubble.style.fontFamily = font === 'system' ? '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' : font;
+  }
+});
+
+ipcRenderer.on('set-notification-text-color', (event: any, color: string) => {
+  notificationTextColor = color;
+  if (bubbleVisible && bubble) {
+    bubble.style.color = color;
   }
 });
 
@@ -346,11 +286,14 @@ ipcRenderer.on('set-dragging-mode', (_event, enabled: boolean) => {
 window.addEventListener('DOMContentLoaded', () => {
   const container = document.getElementById('tasky-container') as HTMLElement | null;
   const getAvatarRect = () => {
-    const img = document.querySelector('#tasky-character img') as HTMLElement | null;
-    return img ? img.getBoundingClientRect() : (document.getElementById('tasky-character') as HTMLElement | null)?.getBoundingClientRect();
+    return getAvatarRectNow();
   };
-  const getBubbleRect = () => (bubble && bubble.style.display === 'block' ? bubble.getBoundingClientRect() : null);
-
+  
+  const getBubbleRect = () => {
+    const bubble = document.getElementById('notification-bubble');
+    return bubble && bubble.style.display !== 'none' ? bubble.getBoundingClientRect() : null;
+  };
+  
   const hitTest = (x: number, y: number) => {
     const a = getAvatarRect();
     const b = getBubbleRect();
@@ -375,9 +318,58 @@ window.addEventListener('DOMContentLoaded', () => {
     ipcRenderer.send('assistant:set-ignore-mouse-events', false);
   } catch {}
 
+  // NUCLEAR OPTION: Completely disable ALL mouse right-click events
+  const disableRightClick = (e: MouseEvent) => {
+    if (e.button === 2) { // Right mouse button
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      return false;
+    }
+  };
+
+  // Disable context menu events at all levels
+  document.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+    return false;
+  }, true); // Use capture phase
+
+  window.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+    return false;
+  }, true);
+
+  // Block right mouse button events entirely
+  document.addEventListener('mousedown', disableRightClick, true);
+  document.addEventListener('mouseup', disableRightClick, true);
+  document.addEventListener('click', disableRightClick, true);
+  window.addEventListener('mousedown', disableRightClick, true);
+  window.addEventListener('mouseup', disableRightClick, true);
+  window.addEventListener('click', disableRightClick, true);
+
+  // Block on all elements
+  document.body.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+    return false;
+  }, true);
+
+  document.documentElement.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+    return false;
+  }, true);
+
   const avatar = document.getElementById('tasky-character') as HTMLElement | null;
   if (avatar) {
     (avatar.style as any).pointerEvents = 'auto';
+    
     avatar.addEventListener('mousedown', () => {
       lastIgnoreState = false;
       try {
@@ -407,7 +399,7 @@ window.addEventListener('DOMContentLoaded', () => {
   });
 });
 
-ipcRenderer.on('toggle-animation', (_event, enabled: boolean) => {
+ipcRenderer.on('toggle-animation', (_event: any, enabled: boolean) => {
   if (character) {
     if (enabled) {
       (character.style as any).animation = 'bounce 2s infinite';
@@ -418,25 +410,11 @@ ipcRenderer.on('toggle-animation', (_event, enabled: boolean) => {
   }
 });
 
-ipcRenderer.on('tasky-set-bubble-side', (_event, side: 'left' | 'right') => {
-  bubbleSide = side;
-  // Reposition immediately if visible
-  if (bubble && bubble.style.display === 'block') {
-    const evt = new Event('tasky-reposition');
-    window.dispatchEvent(evt);
+// Handle window resize
+window.addEventListener('resize', () => {
+  if (bubbleVisible) {
+    positionBubble();
   }
 });
 
-ipcRenderer.on('tasky-set-notification-color', (_event, color: string) => {
-  notificationColor = color;
-});
-
-ipcRenderer.on('tasky-set-notification-font', (_event, font: string) => {
-  notificationFont = font;
-});
-
-ipcRenderer.on('tasky-set-notification-text-color', (_event, color: string) => {
-  notificationTextColor = color;
-});
-
-export {};
+// Assistant script loaded
