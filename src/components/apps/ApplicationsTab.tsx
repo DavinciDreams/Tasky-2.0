@@ -58,8 +58,6 @@ export const ApplicationsTab: React.FC<ApplicationsTabProps> = ({
       {/* Applications Home or Module View */}
       {activeApp === 'home' ? (
         <div className="flex-1 p-4">
-image.png
-          
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-stretch">
             <button
               onClick={() => setActiveApp('tasks')}

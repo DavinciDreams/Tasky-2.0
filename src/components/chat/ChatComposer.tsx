@@ -59,18 +59,15 @@ export const ChatComposer: React.FC<ChatComposerProps> = ({
         className={`
           relative flex items-end gap-2 p-2 
           backdrop-blur-sm rounded-3xl 
-          border shadow-lg 
-          transition-all duration-500
+          border shadow-sm 
+          transition-all duration-300
           ${isFocused 
-            ? 'composer-focused border-green-500/50 shadow-xl' 
+            ? 'border-border/80' 
             : 'border-border/50 hover:border-border/70'
           }
-          ${input.length > 0 && !busy ? 'composer-typing' : ''}
         `}
         style={{
-          background: isFocused 
-            ? 'linear-gradient(135deg, rgba(75, 85, 99, 0.8) 0%, rgba(55, 65, 81, 0.9) 100%)'
-            : 'linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--card) / 0.95) 100%)',
+          background: 'linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--card) / 0.95) 100%)',
         }}
         onSubmit={(e) => {
           e.preventDefault();

@@ -23,6 +23,7 @@ import {
 import type { Settings as AppSettings } from '../../types';
 import type { ChatMessage, Toast } from '../chat/types';
 import { mcpCall } from '../../ai/mcp-tools';
+import { diagnoseChatSettings, getRecommendedSettings } from '../../lib/chat-diagnostic';
 
 interface ChatModuleProps {
   settings: AppSettings;
@@ -149,6 +150,40 @@ Always show a brief "Plan:" before calling tools. Use tools only when intent is 
     }
   };
 
+  // Settings validation and auto-fix
+  const validateSettings = () => {
+    console.log('[Chat] Validating settings:', {
+      provider: settings.llmProvider,
+      apiKey: settings.llmApiKey ? '***set***' : 'missing',
+      model: settings.llmModel,
+      baseUrl: settings.llmBaseUrl
+    });
+    
+    const issues = diagnoseChatSettings(settings);
+    const criticalIssues = issues.filter(i => i.severity === 'error');
+    
+    console.log('[Chat] Found issues:', { total: issues.length, critical: criticalIssues.length });
+    
+    if (criticalIssues.length > 0) {
+      console.warn('[Chat] Critical settings issues found:', criticalIssues);
+      
+      // Show helpful error message
+      const errorMsg = criticalIssues.map(i => i.issue).join(', ');
+      pushToast(`Chat setup needed: ${errorMsg}`, 'error');
+      
+      // Auto-fix if possible
+      if (!settings.llmProvider) {
+        console.log('[Chat] Auto-fixing: Setting default provider to OpenAI');
+        onSettingChange?.('llmProvider', 'openai');
+      }
+      
+      return false;
+    }
+    
+    console.log('[Chat] Settings validation passed');
+    return true;
+  };
+
   useEffect(() => {
     ensureMcp();
   }, []);
@@ -234,8 +269,20 @@ Always show a brief "Plan:" before calling tools. Use tools only when intent is 
 
   // Send message
   const onSend = async () => {
+    console.log('[Chat] onSend called with input:', input);
     const trimmed = input.trim();
-    if (!trimmed || busy) return;
+    if (!trimmed || busy) {
+      console.log('[Chat] Blocked: empty input or busy:', { trimmed, busy });
+      return;
+    }
+    
+    // Validate settings before sending
+    console.log('[Chat] Validating settings...');
+    if (!validateSettings()) {
+      console.log('[Chat] Validation failed, not sending message');
+      return;
+    }
+    console.log('[Chat] Validation passed, proceeding with send');
     
     setError(null);
     const next = [...messagesRef.current, { role: 'user', content: trimmed } as ChatMessage];
@@ -371,6 +418,9 @@ Always show a brief "Plan:" before calling tools. Use tools only when intent is 
         options.tools = {
           mcpCall
         };
+      } else {
+        // If MCP is not ready, still allow basic chat without tools
+        console.log('[Chat] MCP not ready, running without tools');
       }
       
       const result = await streamText(options);
@@ -456,7 +506,24 @@ Always show a brief "Plan:" before calling tools. Use tools only when intent is 
       
     } catch (e: any) {
       console.error('[Chat] Error during stream:', e);
-      const msg = e?.message || 'Chat request failed';
+      
+      let msg = 'Chat request failed';
+      
+      // Handle specific error types
+      if (e?.message?.includes('Invalid schema')) {
+        msg = 'Tool configuration error. Please check MCP server status.';
+      } else if (e?.message?.includes('401')) {
+        msg = 'Invalid API key. Please check your OpenAI API key in settings.';
+      } else if (e?.message?.includes('400')) {
+        msg = 'Bad request. Please check your provider settings.';
+      } else if (e?.message?.includes('429')) {
+        msg = 'Rate limit exceeded. Please try again later.';
+      } else if (e?.message?.includes('fetch')) {
+        msg = 'Network error. Please check your internet connection.';
+      } else if (e?.message) {
+        msg = e.message;
+      }
+      
       setError(msg);
       pushToast(msg, 'error');
       
@@ -497,14 +564,16 @@ Always show a brief "Plan:" before calling tools. Use tools only when intent is 
           </div>
         )}
 
+
+
         {/* Message container with animated background */}
         <div className={`flex-1 w-full rounded-2xl border border-border/30 p-2 flex flex-col min-h-[calc(100vh-280px)] max-h-[calc(100vh-280px)] relative overflow-hidden ${
-          showSettings ? 'hidden' : 'bg-gray-800/95'
+          showSettings ? 'hidden' : 'bg-slate-900/95'
         }`}>
           {/* Animated background layers */}
           <div className="absolute inset-0 pointer-events-none">
             {/* Base gradient */}
-            <div className="absolute inset-0 bg-gradient-to-br from-gray-800/50 via-gray-900/60 to-gray-800/40" />
+            <div className="absolute inset-0 bg-gradient-to-br from-slate-800/50 via-slate-900/60 to-stone-800/40" />
             
             {/* Thinking animation when AI is responding */}
             {busy && (
@@ -518,13 +587,7 @@ Always show a brief "Plan:" before calling tools. Use tools only when intent is 
               </div>
             )}
             
-            {/* Typing animation when user is typing */}
-            {input.length > 0 && !busy && (
-              <div className="absolute inset-0">
-                <div className="absolute bottom-0 left-0 w-full h-1/3 bg-gradient-to-t from-green-500/5 via-emerald-500/3 to-transparent" />
-                <div className="absolute bottom-4 left-4 w-16 h-16 bg-gradient-radial from-green-400/20 to-transparent rounded-full animate-pulse" />
-              </div>
-            )}
+            {/* Typing animation when user is typing - removed glow effects */}
             
             {/* Subtle particle effect */}
             <div className="absolute inset-0 opacity-30">

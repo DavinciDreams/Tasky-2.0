@@ -3,7 +3,33 @@
  * Using a plain interface to avoid TypeScript compatibility issues
  */
 export const mcpCall = {
-  description: 'Call MCP tools for task and reminder management',
+  description: 'Call MCP tools for task and reminder management. Use this to create, list, update, delete tasks and reminders.',
+  parameters: {
+    type: 'object',
+    properties: {
+      name: {
+        type: 'string',
+        description: 'The MCP tool name to call (e.g., tasky_create_task, tasky_list_tasks, tasky_create_reminder, etc.)',
+        enum: [
+          'tasky_create_task',
+          'tasky_list_tasks', 
+          'tasky_update_task',
+          'tasky_delete_task',
+          'tasky_execute_task',
+          'tasky_create_reminder',
+          'tasky_list_reminders',
+          'tasky_update_reminder', 
+          'tasky_delete_reminder'
+        ]
+      },
+      args: {
+        type: 'object',
+        description: 'Arguments to pass to the MCP tool',
+        additionalProperties: true
+      }
+    },
+    required: ['name', 'args']
+  },
   execute: async (params: { name: string; args: Record<string, any> }, options?: { toolCallId?: string; abortSignal?: AbortSignal }) => {
     return executeMcpTool(params.name, params.args, options?.toolCallId, options?.abortSignal);
   },
