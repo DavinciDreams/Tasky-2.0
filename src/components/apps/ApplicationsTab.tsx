@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Bell, CheckSquare, MessageSquare } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Bell, CheckSquare } from 'lucide-react';
 import { TasksTab } from '../tasks/TasksTab';
 import { ChatModule } from './ChatModule';
 import type { TaskyTask, TaskyTaskSchema } from '../../types/task';
@@ -51,11 +51,15 @@ export const ApplicationsTab: React.FC<ApplicationsTabProps> = ({
     else setInternalActive(next);
   };
 
+
+
   return (
     <div className="h-full flex flex-col">
       {/* Applications Home or Module View */}
       {activeApp === 'home' ? (
         <div className="flex-1 p-4">
+image.png
+          
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-stretch">
             <button
               onClick={() => setActiveApp('tasks')}
@@ -96,9 +100,6 @@ export const ApplicationsTab: React.FC<ApplicationsTabProps> = ({
             >
               <div className="p-5">
                 <div className="flex items-center gap-3 mb-2">
-                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                    <MessageSquare className="text-primary" size={18} />
-                  </div>
                   <div className="text-lg font-semibold">Chat</div>
                 </div>
                 <div className="text-sm text-muted-foreground">Conversational AI with MCP tools.</div>
@@ -107,7 +108,8 @@ export const ApplicationsTab: React.FC<ApplicationsTabProps> = ({
           </div>
         </div>
       ) : (
-        <div className="flex-1 min-h-0 flex flex-col p-1">
+        <div className="flex-1 min-h-0 flex flex-col p-1 relative">
+          
           {activeApp === 'reminders' && <div className="flex-1 min-h-0 overflow-hidden">{remindersContent}</div>}
           {activeApp === 'tasks' && (
             <TasksTab

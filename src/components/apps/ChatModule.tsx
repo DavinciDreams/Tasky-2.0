@@ -497,10 +497,43 @@ Always show a brief "Plan:" before calling tools. Use tools only when intent is 
           </div>
         )}
 
-        {/* Message container */}
-        <div className={`flex-1 w-full rounded-2xl border border-border/30 p-2 flex flex-col min-h-[calc(100vh-280px)] max-h-[calc(100vh-280px)] ${
-          showSettings ? 'hidden' : 'bg-background/60'
+        {/* Message container with animated background */}
+        <div className={`flex-1 w-full rounded-2xl border border-border/30 p-2 flex flex-col min-h-[calc(100vh-280px)] max-h-[calc(100vh-280px)] relative overflow-hidden ${
+          showSettings ? 'hidden' : 'bg-gray-800/95'
         }`}>
+          {/* Animated background layers */}
+          <div className="absolute inset-0 pointer-events-none">
+            {/* Base gradient */}
+            <div className="absolute inset-0 bg-gradient-to-br from-gray-800/50 via-gray-900/60 to-gray-800/40" />
+            
+            {/* Thinking animation when AI is responding */}
+            {busy && (
+              <div className="absolute inset-0">
+                <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-blue-500/5 via-purple-500/8 to-blue-500/5 animate-pulse" />
+                <div className="absolute top-0 left-0 w-full h-full">
+                  <div className="w-32 h-32 bg-gradient-radial from-blue-400/10 to-transparent rounded-full animate-ping absolute top-1/4 left-1/4" />
+                  <div className="w-24 h-24 bg-gradient-radial from-purple-400/15 to-transparent rounded-full animate-ping absolute top-1/2 right-1/3 animation-delay-1000" />
+                  <div className="w-20 h-20 bg-gradient-radial from-indigo-400/12 to-transparent rounded-full animate-ping absolute bottom-1/3 left-1/2 animation-delay-2000" />
+                </div>
+              </div>
+            )}
+            
+            {/* Typing animation when user is typing */}
+            {input.length > 0 && !busy && (
+              <div className="absolute inset-0">
+                <div className="absolute bottom-0 left-0 w-full h-1/3 bg-gradient-to-t from-green-500/5 via-emerald-500/3 to-transparent" />
+                <div className="absolute bottom-4 left-4 w-16 h-16 bg-gradient-radial from-green-400/20 to-transparent rounded-full animate-pulse" />
+              </div>
+            )}
+            
+            {/* Subtle particle effect */}
+            <div className="absolute inset-0 opacity-30">
+              <div className="absolute w-1 h-1 bg-white/20 rounded-full animate-float-1" style={{top: '20%', left: '10%'}} />
+              <div className="absolute w-1 h-1 bg-white/15 rounded-full animate-float-2" style={{top: '60%', left: '80%'}} />
+              <div className="absolute w-1 h-1 bg-white/25 rounded-full animate-float-3" style={{top: '40%', left: '60%'}} />
+              <div className="absolute w-1 h-1 bg-white/10 rounded-full animate-float-1" style={{top: '80%', left: '30%'}} />
+            </div>
+          </div>
           <div
             ref={scrollRef}
             className="flex-1 min-h-0 overflow-y-auto no-scrollbar p-2 w-full relative"

@@ -34,6 +34,7 @@ This document describes how Tasky’s in‑app AI chat works, how it integrates 
 Model resolution:
 
 - OpenAI: user input is normalized; `gpt-4o*` and `gpt-5*` variants map to `o4`/`o4-mini`
+- Available OpenAI models: `o4`, `o4-mini`, `gpt-4o-mini`, `gpt-5-mini`
 - LM Studio / Custom: free‑text model id is passed through
 
 ## Prompt construction

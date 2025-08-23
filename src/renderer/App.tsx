@@ -455,6 +455,8 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
                       return [
                         { value: 'o4', label: 'o4' },
                         { value: 'o4-mini', label: 'o4-mini' },
+                        { value: 'gpt-4o-mini', label: 'gpt-4o-mini' },
+                        { value: 'gpt-5-mini', label: 'gpt-5-mini' },
                       ];
                     })()}
                     onChange={(val) => onSettingChange('llmModel', val)}
@@ -1383,16 +1385,74 @@ const App: React.FC = () => {
       }
     };
     
+    // Global event handlers to route events to desktop assistant
+    const handleTaskCreated = (event: CustomEvent) => {
+      const task = event.detail;
+      window.electronAPI.showAssistant(`✅ Task created: ${task?.title || 'New task'}`);
+    };
+    
+    const handleTaskCompleted = (event: CustomEvent) => {
+      const task = event.detail;
+      window.electronAPI.showAssistant(`🎉 Task completed: ${task?.title || 'Task done'}! Great job!`);
+    };
+    
+    const handleTaskUpdated = (event: CustomEvent) => {
+      const task = event.detail;
+      window.electronAPI.showAssistant(`📝 Task updated: ${task?.title || 'Task modified'}`);
+    };
+    
+    const handleTaskDeleted = (event: CustomEvent) => {
+      const task = event.detail;
+      window.electronAPI.showAssistant(`🗑️ Task deleted: ${task?.title || 'Task removed'}`);
+    };
+    
+    const handleTaskOverdue = (event: CustomEvent) => {
+      const task = event.detail;
+      window.electronAPI.showAssistant(`⚠️ Task overdue: ${task?.title || 'Overdue task'}! Please check it.`);
+    };
+    
+    const handleMcpTool = (event: CustomEvent) => {
+      const { phase, name } = event.detail;
+      if (phase === 'start') {
+        const toolMessages = {
+          'tasky_create_task': '🎯 Creating task...',
+          'tasky_update_task': '📝 Updating task...',
+          'tasky_delete_task': '🗑️ Deleting task...',
+          'tasky_execute_task': '⚡ Executing task...',
+          'tasky_create_reminder': '⏰ Creating reminder...',
+          'tasky_list_tasks': '📋 Listing tasks...',
+          'tasky_list_reminders': '📋 Listing reminders...'
+        };
+        const message = toolMessages[name as keyof typeof toolMessages] || '🔧 Working...';
+        window.electronAPI.showAssistant(message);
+      }
+    };
+    
     window.addEventListener('keydown', handleKeyDown);
     // Listen for task reload events from child components (e.g., import)
     const onReload = () => loadTasks();
     window.addEventListener('tasky:reload-tasks', onReload as any);
+    
+    // Route task and tool events to desktop assistant
+    window.addEventListener('task:created', handleTaskCreated as any);
+    window.addEventListener('task:completed', handleTaskCompleted as any);
+    window.addEventListener('task:updated', handleTaskUpdated as any);
+    window.addEventListener('task:deleted', handleTaskDeleted as any);
+    window.addEventListener('task:overdue', handleTaskOverdue as any);
+    window.addEventListener('tasky:tool', handleMcpTool as any);
     
     // Removed JSON file change listener; DB polling handles external updates
     
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('tasky:reload-tasks', onReload as any);
+      // Clean up event listeners
+      window.removeEventListener('task:created', handleTaskCreated as any);
+      window.removeEventListener('task:completed', handleTaskCompleted as any);
+      window.removeEventListener('task:updated', handleTaskUpdated as any);
+      window.removeEventListener('task:deleted', handleTaskDeleted as any);
+      window.removeEventListener('task:overdue', handleTaskOverdue as any);
+      window.removeEventListener('tasky:tool', handleMcpTool as any);
       // No-op: JSON file watcher removed in DB-only mode
     };
   }, []);
@@ -1550,6 +1610,8 @@ const App: React.FC = () => {
       if (created) {
         // Reload to ensure consistency from main process
         await loadTasks();
+        // Emit event for desktop assistant
+        window.dispatchEvent(new CustomEvent('task:created', { detail: created }));
       }
     } catch (error) {
       console.error('Failed to create task:', error);
@@ -1561,6 +1623,12 @@ const App: React.FC = () => {
       const updated = await window.electronAPI.updateTask(id, updates);
       if (updated) {
         setTasks(prev => prev.map(t => (t.schema.id === id ? updated : t)));
+        // Emit appropriate events for desktop assistant
+        if (updates.status === 'COMPLETED') {
+          window.dispatchEvent(new CustomEvent('task:completed', { detail: updated }));
+        } else {
+          window.dispatchEvent(new CustomEvent('task:updated', { detail: updated }));
+        }
       }
     } catch (error) {
       console.error('Failed to update task:', error);
@@ -1569,8 +1637,14 @@ const App: React.FC = () => {
 
   const handleDeleteTask = async (id: string) => {
     try {
+      // Get task details before deletion for the event
+      const taskToDelete = tasks.find(t => t.schema.id === id);
       await window.electronAPI.deleteTask(id);
       setTasks(prev => prev.filter(t => t.schema.id !== id));
+      // Emit event for desktop assistant
+      if (taskToDelete) {
+        window.dispatchEvent(new CustomEvent('task:deleted', { detail: taskToDelete }));
+      }
     } catch (error) {
       console.error('Failed to delete task:', error);
     }

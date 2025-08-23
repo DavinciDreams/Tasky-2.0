@@ -75,22 +75,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
     loadChatHistory();
   }, []);
 
-  // Close dropdown on outside click
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (showHistory) {
-        const target = event.target as Element;
-        const inAnchor = historyAnchorRef.current?.contains(target) ?? false;
-        const inMenu = historyMenuRef.current?.contains(target) ?? false;
-        if (!inAnchor && !inMenu) {
-          setShowHistory(false);
-        }
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showHistory]);
+  // Modal handles its own click-outside behavior, so no need for manual handling
 
   const handleDeleteChat = async (deleteId: string) => {
     try {
@@ -133,14 +118,13 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
 
   return (
     <div className="flex-shrink-0 flex items-center justify-between mb-2 px-1">
-      <div className="text-base font-semibold flex items-center gap-2 text-foreground"></div>
-      <div className="flex items-center gap-1.5 overflow-visible justify-end flex-nowrap" style={{ WebkitAppRegion: 'no-drag' }}>
-        {/* Chat History Dropdown */}
+      <div className="flex items-center justify-between w-full gap-2" style={{ WebkitAppRegion: 'no-drag' }}>
+        {/* Left side - History */}
         <div className="relative inline-block" ref={historyAnchorRef}>
           <Button
             size="sm"
             variant="outline"
-            className="rounded-xl text-xs h-8 px-3 flex items-center gap-2 border-border bg-card hover:bg-muted text-foreground min-w-[90px]"
+            className="rounded-xl text-xs h-8 px-2 flex items-center gap-1 border-border bg-card hover:bg-muted text-foreground flex-shrink-0"
             disabled={busy}
             onClick={() => {
               const nextOpen = !showHistory;
@@ -151,7 +135,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
             }}
           >
             <span>📋</span>
-            History
+            <span className="hidden sm:inline">History</span>
             <span className={`transition-transform ${showHistory ? 'rotate-180' : ''}`}>▼</span>
           </Button>
 
@@ -284,46 +268,51 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           </Modal>
         </div>
 
-        {/* Provider selector */}
-        <select
-          value={String(settings.llmProvider || 'openai')}
-          onChange={(e) => onSettingChange && onSettingChange('llmProvider', e.target.value)}
-          className="bg-card text-foreground border border-border rounded-xl text-xs h-8 min-w-[80px] pl-3 pr-10 hover:border-border focus:border-primary/50 focus:outline-none transition-colors cursor-pointer"
-        >
-          <option value="openai">OpenAI</option>
-          <option value="lm-studio">LM Studio</option>
-          <option value="custom">Custom</option>
-        </select>
-
-        {/* Model selector */}
-        {String(settings.llmProvider || 'openai') === 'openai' ? (
+        {/* Right side - Provider, Model, Settings */}
+        <div className="flex items-center gap-2">
+          {/* Provider selector */}
           <select
-            value={String(settings.llmModel || 'o4-mini')}
-            onChange={(e) => onSettingChange && onSettingChange('llmModel', e.target.value)}
-            className="bg-card text-foreground border border-border rounded-xl text-xs h-8 min-w-[80px] pl-3 pr-10 hover:border-border focus:border-primary/50 focus:outline-none transition-colors cursor-pointer"
+            value={String(settings.llmProvider || 'openai')}
+            onChange={(e) => onSettingChange && onSettingChange('llmProvider', e.target.value)}
+            className="bg-card text-foreground border border-border rounded-xl text-xs h-8 w-[75px] pl-2 pr-6 hover:border-border focus:border-primary/50 focus:outline-none transition-colors cursor-pointer flex-shrink-0"
           >
-            <option value="o4-mini">o4-mini</option>
-            <option value="o4">o4</option>
+            <option value="openai">OpenAI</option>
+            <option value="lm-studio">LM Studio</option>
+            <option value="custom">Custom</option>
           </select>
-        ) : (
-          <input
-            value={String(settings.llmModel || 'llama-3.2-1b')}
-            onChange={(e) => onSettingChange && onSettingChange('llmModel', e.target.value)}
-            className="bg-card text-foreground border border-border rounded-xl px-3 text-xs h-8 min-w-[160px] hover:border-border focus:border-primary/50 focus:outline-none transition-colors"
-            placeholder="Model name"
-          />
-        )}
 
-        {/* Settings button */}
-        <Button
-          size="icon"
-          variant="outline"
-          aria-label="Chat settings"
-          className="rounded-xl bg-card hover:bg-muted border-border text-foreground h-8 w-8"
-          onClick={onSettingsClick}
-        >
-          <Cog className="h-4 w-4" />
-        </Button>
+          {/* Model selector */}
+          {String(settings.llmProvider || 'openai') === 'openai' ? (
+            <select
+              value={String(settings.llmModel || 'o4-mini')}
+              onChange={(e) => onSettingChange && onSettingChange('llmModel', e.target.value)}
+              className="bg-card text-foreground border border-border rounded-xl text-xs h-8 w-[95px] pl-2 pr-6 hover:border-border focus:border-primary/50 focus:outline-none transition-colors cursor-pointer flex-shrink-0"
+            >
+              <option value="o4-mini">o4-mini</option>
+              <option value="o4">o4</option>
+              <option value="gpt-4o-mini">4o-mini</option>
+              <option value="gpt-5-mini">5-mini</option>
+            </select>
+          ) : (
+            <input
+              value={String(settings.llmModel || 'llama-3.2-1b')}
+              onChange={(e) => onSettingChange && onSettingChange('llmModel', e.target.value)}
+              className="bg-card text-foreground border border-border rounded-xl px-2 text-xs h-8 w-[105px] hover:border-border focus:border-primary/50 focus:outline-none transition-colors flex-shrink-0"
+              placeholder="Model name"
+            />
+          )}
+
+          {/* Settings button */}
+          <Button
+            size="icon"
+            variant="outline"
+            aria-label="Chat settings"
+            className="rounded-xl bg-card hover:bg-muted border-border text-foreground h-8 w-8 flex-shrink-0"
+            onClick={onSettingsClick}
+          >
+            <Cog className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
     </div>
   );

@@ -28,19 +28,24 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, index }) 
   return (
     <motion.div
       key={index}
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.15 }}
-      className={`max-w-full ${isUser ? 'ml-auto' : ''} flex`}
+      initial={{ opacity: 0, y: 20, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ 
+        duration: 0.4, 
+        ease: [0.25, 0.46, 0.45, 0.94],
+        type: "spring",
+        stiffness: 100
+      }}
+      className={`max-w-full ${isUser ? 'ml-auto' : ''} flex animate-message-slide-in`}
     >
       <div
         className={`
           ${isUser 
-            ? 'bg-primary/10 border-primary/30 text-foreground' 
-            : 'bg-card border-border/30 text-foreground'
+            ? 'message-bubble-user' 
+            : 'message-bubble-assistant'
           }
-          border rounded-2xl px-4 py-3 shadow-sm w-full whitespace-pre-wrap break-words
-          transition-all hover:shadow-md
+          rounded-2xl px-4 py-3 w-full whitespace-pre-wrap break-words
+          backdrop-filter backdrop-blur-lg
         `}
       >
         {message.content}

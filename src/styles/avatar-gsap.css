@@ -1,0 +1,185 @@
+/* Avatar GSAP Styles */
+
+.tasky-avatar-container {
+  display: inline-block;
+  user-select: none;
+  -webkit-user-drag: none;
+  filter: drop-shadow(0 4px 12px rgba(102, 126, 234, 0.3));
+  transition: filter 0.3s ease;
+}
+
+.tasky-avatar-container:hover {
+  filter: drop-shadow(0 6px 20px rgba(102, 126, 234, 0.5));
+}
+
+/* Emotion-specific filters */
+.tasky-avatar-container[data-emotion="happy"] {
+  filter: drop-shadow(0 4px 12px rgba(251, 191, 36, 0.4)) brightness(1.1);
+}
+
+.tasky-avatar-container[data-emotion="error"] {
+  filter: drop-shadow(0 4px 12px rgba(239, 68, 68, 0.4));
+}
+
+.tasky-avatar-container[data-emotion="thinking"] {
+  filter: drop-shadow(0 4px 12px rgba(245, 158, 11, 0.4));
+}
+
+.tasky-avatar-container[data-emotion="listening"] {
+  filter: drop-shadow(0 4px 12px rgba(59, 130, 246, 0.4));
+}
+
+.tasky-avatar-container[data-emotion="focused"] {
+  filter: drop-shadow(0 4px 12px rgba(16, 185, 129, 0.4));
+}
+
+.tasky-avatar-container[data-emotion="excited"] {
+  filter: drop-shadow(0 4px 12px rgba(236, 72, 153, 0.4));
+}
+
+.tasky-avatar-container[data-emotion="confused"] {
+  filter: drop-shadow(0 4px 12px rgba(107, 114, 128, 0.4));
+}
+
+.tasky-avatar-container[data-emotion="sleeping"] {
+  filter: drop-shadow(0 4px 12px rgba(139, 92, 246, 0.2)) brightness(0.8);
+}
+
+.tasky-avatar-container[data-emotion="speaking"] {
+  filter: drop-shadow(0 4px 12px rgba(34, 197, 94, 0.4));
+}
+
+/* Glow effect */
+.avatar-glow {
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(102, 126, 234, 0.4) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* Particle animations */
+@keyframes float-up {
+  to {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+}
+
+.thinking-dot {
+  animation: pulse 1s infinite;
+  z-index: 10;
+}
+
+@keyframes pulse {
+  0%, 100% { 
+    opacity: 0.3; 
+    transform: scale(0.8);
+  }
+  50% { 
+    opacity: 1; 
+    transform: scale(1);
+  }
+}
+
+.happy-particle {
+  z-index: 10;
+  pointer-events: none;
+}
+
+.sleep-z {
+  z-index: 10;
+  pointer-events: none;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Performance optimization */
+.tasky-avatar-container img {
+  will-change: transform;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+}
+
+/* Hover effects */
+.tasky-avatar-container:hover img {
+  transform: scale(1.05) translateZ(0);
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.tasky-avatar-container:active img {
+  transform: scale(0.95) translateZ(0);
+  transition: transform 0.1s ease-out;
+}
+
+/* Responsive sizing */
+@media (max-width: 768px) {
+  .tasky-avatar-container {
+    filter: drop-shadow(0 2px 8px rgba(102, 126, 234, 0.2));
+  }
+  
+  .tasky-avatar-container:hover {
+    filter: drop-shadow(0 3px 12px rgba(102, 126, 234, 0.3));
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .tasky-avatar-container {
+    filter: drop-shadow(0 4px 12px rgba(102, 126, 234, 0.5));
+  }
+  
+  .tasky-avatar-container:hover {
+    filter: drop-shadow(0 6px 20px rgba(102, 126, 234, 0.7));
+  }
+  
+  .sleep-z {
+    color: #9ca3af;
+  }
+  
+  .thinking-dot {
+    background: #8b5cf6 !important;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .tasky-avatar-container {
+    * {
+      animation: none !important;
+      transition: none !important;
+    }
+  }
+  
+  .tasky-avatar-container img {
+    will-change: auto;
+  }
+  
+  .thinking-dot {
+    animation: none;
+    opacity: 0.7;
+  }
+}
+
+/* Focus states for accessibility */
+.tasky-avatar-container:focus-visible {
+  outline: 2px solid #667eea;
+  outline-offset: 4px;
+  border-radius: 50%;
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+  .tasky-avatar-container {
+    filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.8));
+  }
+  
+  .avatar-glow {
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.3) 0%, transparent 70%);
+  }
+  
+  .thinking-dot {
+    background: #000000 !important;
+    border: 1px solid #ffffff;
+  }
+}

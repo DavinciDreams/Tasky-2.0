@@ -65,3 +65,7 @@ data/tasky-*.json
 data/tasky.db
 data/tasky.db
 .env
+tasky-entity-extraction-prompt.rules
+tasky-entity-extraction-prompt.md
+Glossary.md
+Glossary.pdf
