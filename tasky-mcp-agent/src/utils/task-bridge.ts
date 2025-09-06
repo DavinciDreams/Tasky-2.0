@@ -43,7 +43,7 @@ export class TaskBridge {
     const envDb = process.env.TASKY_DB_PATH;
     this.dbPath = envDb && envDb.trim().length > 0
       ? (path.isAbsolute(envDb) ? envDb : path.join(process.cwd(), envDb))
-      : path.join(process.cwd(), 'data', 'tasky.db');
+      : path.join(process.cwd(), '..', 'data', 'tasky.db'); // Go up one level to reach main project data folder
     this.db = new Database(this.dbPath);
     const requestedJournal = (process.env.TASKY_SQLITE_JOURNAL || 'DELETE').toUpperCase();
     const journal = requestedJournal === 'WAL' ? 'WAL' : 'DELETE';

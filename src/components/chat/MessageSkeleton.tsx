@@ -1,14 +1,12 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 
-interface MessageSkeletonProps {
+interface ThinkingIndicatorProps {
   isUser?: boolean;
-  isTyping?: boolean;
 }
 
-export const MessageSkeleton: React.FC<MessageSkeletonProps> = ({ 
-  isUser = false,
-  isTyping = false 
+export const ThinkingIndicator: React.FC<ThinkingIndicatorProps> = ({ 
+  isUser = false
 }) => {
   return (
     <motion.div
@@ -23,50 +21,31 @@ export const MessageSkeleton: React.FC<MessageSkeletonProps> = ({
             ? 'bg-primary/10 border-primary/30' 
             : 'bg-card border-border/30'
           }
-          border rounded-2xl px-4 py-3 shadow-sm w-full
-          ${isTyping ? 'min-w-[80px]' : 'min-w-[200px]'}
+          border rounded-2xl px-4 py-3 shadow-sm min-w-[100px]
         `}
       >
-        {isTyping ? (
-          // Typing indicator with animated dots
-          <div className="flex items-center gap-1">
-            <motion.div
-              className="w-2 h-2 bg-muted-foreground/50 rounded-full"
-              animate={{ y: [0, -6, 0] }}
-              transition={{ duration: 0.6, repeat: Infinity, delay: 0 }}
-            />
-            <motion.div
-              className="w-2 h-2 bg-muted-foreground/50 rounded-full"
-              animate={{ y: [0, -6, 0] }}
-              transition={{ duration: 0.6, repeat: Infinity, delay: 0.2 }}
-            />
-            <motion.div
-              className="w-2 h-2 bg-muted-foreground/50 rounded-full"
-              animate={{ y: [0, -6, 0] }}
-              transition={{ duration: 0.6, repeat: Infinity, delay: 0.4 }}
-            />
-          </div>
-        ) : (
-          // Content skeleton
-          <div className="space-y-2">
-            <motion.div
-              className="h-3 bg-muted/30 rounded"
-              animate={{ opacity: [0.5, 1, 0.5] }}
-              transition={{ duration: 1.5, repeat: Infinity }}
-            />
-            <motion.div
-              className="h-3 bg-muted/30 rounded w-3/4"
-              animate={{ opacity: [0.5, 1, 0.5] }}
-              transition={{ duration: 1.5, repeat: Infinity, delay: 0.1 }}
-            />
-            <motion.div
-              className="h-3 bg-muted/30 rounded w-1/2"
-              animate={{ opacity: [0.5, 1, 0.5] }}
-              transition={{ duration: 1.5, repeat: Infinity, delay: 0.2 }}
-            />
-          </div>
-        )}
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <motion.div
+            className="w-1.5 h-1.5 bg-current rounded-full"
+            animate={{ opacity: [0.3, 1, 0.3] }}
+            transition={{ duration: 1.2, repeat: Infinity, delay: 0 }}
+          />
+          <motion.div
+            className="w-1.5 h-1.5 bg-current rounded-full"
+            animate={{ opacity: [0.3, 1, 0.3] }}
+            transition={{ duration: 1.2, repeat: Infinity, delay: 0.4 }}
+          />
+          <motion.div
+            className="w-1.5 h-1.5 bg-current rounded-full"
+            animate={{ opacity: [0.3, 1, 0.3] }}
+            transition={{ duration: 1.2, repeat: Infinity, delay: 0.8 }}
+          />
+          <span className="text-sm ml-1">thinking...</span>
+        </div>
       </div>
     </motion.div>
   );
 };
+
+// Keep old export name for compatibility
+export const MessageSkeleton = ThinkingIndicator;

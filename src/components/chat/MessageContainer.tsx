@@ -188,7 +188,7 @@ export const MessageContainer: React.FC<MessageContainerProps> = ({
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                 >
-                  <MessageSkeleton isTyping />
+                  <MessageSkeleton />
                 </motion.div>
               );
 
