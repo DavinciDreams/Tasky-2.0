@@ -42,18 +42,18 @@ export function diagnoseChatSettings(settings: any): ChatDiagnostic[] {
     }
   }
   
-  if (provider === 'lm-studio' || provider === 'custom') {
+  if (provider === 'custom') {
     if (!settings.llmBaseUrl || settings.llmBaseUrl.trim() === '') {
       issues.push({
-        issue: `${provider === 'lm-studio' ? 'LM Studio' : 'Custom'} base URL is missing`,
+        issue: `Custom base URL is missing`,
         severity: 'error',
-        fix: `Set the base URL in Settings (e.g., http://localhost:1234/v1 for LM Studio)`
+        fix: `Set the base URL in Settings (OpenAI-compatible endpoint)`
       });
     }
   }
   
   // Check if provider is supported
-  const supportedProviders = ['openai', 'lm-studio', 'custom'];
+  const supportedProviders = ['openai', 'custom'];
   if (provider && !supportedProviders.includes(provider)) {
     issues.push({
       issue: `Provider "${provider}" is not supported`,

@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Bell, CheckSquare } from 'lucide-react';
+import { Bell, CheckSquare, Timer, MessageCircle } from 'lucide-react';
 import { TasksTab } from '../tasks/TasksTab';
 import { ChatModule } from './ChatModule';
+import { PomodoroTimer } from './PomodoroTimer';
 import type { TaskyTask, TaskyTaskSchema } from '../../types/task';
 import type { Reminder, Settings as AppSettings } from '../../types';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
@@ -22,8 +23,8 @@ interface ApplicationsTabProps {
   settings: AppSettings;
   remindersContent?: React.ReactNode;
   // Controlled active view (optional). When provided, component becomes controlled.
-  activeApp?: 'home' | 'reminders' | 'tasks' | 'chat';
-  onActiveAppChange?: (next: 'home' | 'reminders' | 'tasks' | 'chat') => void;
+  activeApp?: 'home' | 'reminders' | 'tasks' | 'chat' | 'pomodoro';
+  onActiveAppChange?: (next: 'home' | 'reminders' | 'tasks' | 'chat' | 'pomodoro') => void;
   onSettingChange?: (key: keyof AppSettings, value: any) => void;
 }
 
@@ -44,9 +45,9 @@ export const ApplicationsTab: React.FC<ApplicationsTabProps> = ({
   onActiveAppChange,
   onSettingChange
 }) => {
-  const [internalActive, setInternalActive] = useState<'home' | 'reminders' | 'tasks' | 'chat'>(controlledActive || 'home');
+  const [internalActive, setInternalActive] = useState<'home' | 'reminders' | 'tasks' | 'chat' | 'pomodoro'>(controlledActive || 'home');
   const activeApp = (controlledActive ?? internalActive);
-  const setActiveApp = (next: 'home' | 'reminders' | 'tasks' | 'chat') => {
+  const setActiveApp = (next: 'home' | 'reminders' | 'tasks' | 'chat' | 'pomodoro') => {
     if (onActiveAppChange) onActiveAppChange(next);
     else setInternalActive(next);
   };
@@ -98,9 +99,28 @@ export const ApplicationsTab: React.FC<ApplicationsTabProps> = ({
             >
               <div className="p-5">
                 <div className="flex items-center gap-3 mb-2">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <MessageCircle className="text-primary" size={18} />
+                  </div>
                   <div className="text-lg font-semibold">Chat</div>
                 </div>
                 <div className="text-sm text-muted-foreground">Conversational AI with MCP tools.</div>
+              </div>
+            </button>
+
+            <button
+              onClick={() => setActiveApp('pomodoro')}
+              className="group relative overflow-hidden rounded-2xl bg-card border border-border/30 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-0.5 hover:scale-[1.01] text-left h-36"
+              aria-label="Open Pomodoro Timer"
+            >
+              <div className="p-5">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <Timer className="text-primary" size={18} />
+                  </div>
+                  <div className="text-lg font-semibold">Pomodoro</div>
+                </div>
+                <div className="text-sm text-muted-foreground">Focus timer with work and break sessions using the Pomodoro Technique.</div>
               </div>
             </button>
           </div>
@@ -121,6 +141,11 @@ export const ApplicationsTab: React.FC<ApplicationsTabProps> = ({
           {activeApp === 'chat' && (
             <div className="flex-1 min-h-0 overflow-hidden">
               <ChatModule settings={settings} onSettingChange={onSettingChange || (()=>{})} />
+            </div>
+          )}
+          {activeApp === 'pomodoro' && (
+            <div className="flex-1 min-h-0 overflow-hidden">
+              <PomodoroTimer />
             </div>
           )}
         </div>

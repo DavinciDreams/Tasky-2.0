@@ -131,6 +131,33 @@ export interface ElectronAPI {
   // Push updates
   onTasksUpdated?: (callback: () => void) => void;
   onRemindersUpdated?: (callback: () => void) => void;
+
+  // Pomodoro timer methods
+  pomodoroGetState: () => Promise<any>;
+  pomodoroStart: () => Promise<boolean>;
+  pomodoroPause: () => Promise<boolean>;
+  pomodoroResetCurrent: () => Promise<boolean>;
+  pomodoroResetAll: () => Promise<boolean>;
+
+
+  // Pomodoro event listeners
+  onPomodoroTick: (callback: (event: any, state: any) => void) => void;
+  onPomodoroSessionComplete: (callback: (event: any, data: any) => void) => void;
+  onPomodoroStarted: (callback: (event: any, state: any) => void) => void;
+  onPomodoroPaused: (callback: (event: any, state: any) => void) => void;
+  onPomodoroReset: (callback: (event: any, state: any) => void) => void;
+  onPomodoroResetAll: (callback: (event: any, state: any) => void) => void;
+
+
+  // Pomodoro task methods
+  pomodoroGetTasks: () => Promise<any[]>;
+  pomodoroAddTask: (taskData: { name: string; estimatedPomodoros: number; workDuration: number; shortBreakDuration: number; longBreakDuration: number; order?: number }) => Promise<any>;
+  pomodoroUpdateTask: (id: string, updates: any) => Promise<boolean>;
+  pomodoroDeleteTask: (id: string) => Promise<boolean>;
+  pomodoroSetActiveTask: (id: string | null) => Promise<boolean>;
+  pomodoroGetActiveTask: () => Promise<any>;
+  pomodoroReorderTask: (taskId: string, direction: 'up' | 'down') => Promise<boolean>;
+  pomodoroGetNextTask: () => Promise<any>;
 }
 
 // Component prop types are declared alongside components and not exported globally

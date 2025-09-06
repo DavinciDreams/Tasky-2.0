@@ -22,6 +22,7 @@ import { ChatSqliteStorage } from './core/storage/ChatSqliteStorage';
 import TaskyAssistant from './electron/assistant';
 import { ElectronTaskManager } from './electron/task-manager';
 import { notificationUtility } from './electron/notification-utility';
+import { PomodoroService } from './electron/pomodoro-service';
 import type { Reminder, Settings } from './types/index';
 
 // Vite globals for Electron
@@ -40,6 +41,7 @@ let scheduler: any = null;  // Reminder scheduling service (will be typed later)
 let store: Storage | null = null;      // Persistent data storage service
 let assistant: any = null;  // Desktop companion/assistant (will be typed later)
 let taskManager: ElectronTaskManager | null = null;  // Task management system
+let pomodoroService: PomodoroService | null = null;  // Pomodoro timer service
 let httpServer: http.Server | null = null;  // HTTP server for MCP integration
 let chatStorage: ChatSqliteStorage | null = null; // Chat transcript storage
 
@@ -487,6 +489,54 @@ app.whenReady().then(async () => {
   taskManager = new ElectronTaskManager();
   await taskManager.initialize();
 
+  // Initialize pomodoro service
+  pomodoroService = new PomodoroService(store);
+
+  // Set up pomodoro event forwarding to renderer
+  pomodoroService.on('tick', (state: any) => {
+    if (mainWindow) {
+      mainWindow.webContents.send('pomodoro:tick', state);
+    }
+  });
+
+  pomodoroService.on('sessionComplete', (data: any) => {
+    if (mainWindow) {
+      mainWindow.webContents.send('pomodoro:session-complete', data);
+    }
+  });
+
+  pomodoroService.on('started', (state: any) => {
+    if (mainWindow) {
+      mainWindow.webContents.send('pomodoro:started', state);
+    }
+  });
+
+  pomodoroService.on('paused', (state: any) => {
+    if (mainWindow) {
+      mainWindow.webContents.send('pomodoro:paused', state);
+    }
+  });
+
+  pomodoroService.on('reset', (state: any) => {
+    if (mainWindow) {
+      mainWindow.webContents.send('pomodoro:reset', state);
+    }
+  });
+
+  pomodoroService.on('resetAll', (state: any) => {
+    if (mainWindow) {
+      mainWindow.webContents.send('pomodoro:reset-all', state);
+    }
+  });
+
+
+
+  pomodoroService.on('assistantMessage', (message: string) => {
+    if (assistant) {
+      assistant.showMessage(message);
+    }
+  });
+
   // Initialize chat storage (shares TASKY_DB_PATH)
   try {
     const envDbPath = process.env.TASKY_DB_PATH;
@@ -821,6 +871,9 @@ app.on('before-quit', () => {
   if (taskManager) {
     taskManager.cleanup();
   }
+  if (pomodoroService) {
+    pomodoroService.destroy();
+  }
 });
 
 // Removed forced killing of shell processes on quit to avoid terminating user terminals
@@ -992,6 +1045,105 @@ ipcMain.on('test-notification', () => {
     scheduler.testNotification();
   }
 });
+
+// Pomodoro timer IPC handlers
+ipcMain.handle('pomodoro:get-state', () => {
+  if (pomodoroService) {
+    return pomodoroService.getTimerDisplay();
+  }
+  return null;
+});
+
+ipcMain.handle('pomodoro:start', () => {
+  if (pomodoroService) {
+    return pomodoroService.startTimer();
+  }
+  return false;
+});
+
+ipcMain.handle('pomodoro:pause', () => {
+  if (pomodoroService) {
+    return pomodoroService.pauseTimer();
+  }
+  return false;
+});
+
+ipcMain.handle('pomodoro:reset-current', () => {
+  if (pomodoroService) {
+    return pomodoroService.resetCurrentSession();
+  }
+  return false;
+});
+
+ipcMain.handle('pomodoro:reset-all', () => {
+  if (pomodoroService) {
+    return pomodoroService.resetAllSessions();
+  }
+  return false;
+});
+
+
+
+// Pomodoro task IPC handlers
+ipcMain.handle('pomodoro:get-tasks', () => {
+  if (store) {
+    return store.getPomodoroTasks();
+  }
+  return [];
+});
+
+ipcMain.handle('pomodoro:add-task', (event, taskData) => {
+  if (store) {
+    return store.addPomodoroTask(taskData);
+  }
+  return null;
+});
+
+ipcMain.handle('pomodoro:update-task', (event, id, updates) => {
+  if (store) {
+    return store.updatePomodoroTask(id, updates);
+  }
+  return false;
+});
+
+ipcMain.handle('pomodoro:delete-task', (event, id) => {
+  if (store && pomodoroService) {
+    // Stop timer if this task was active
+    pomodoroService.stopTimerForDeletedTask(id);
+    return store.deletePomodoroTask(id);
+  }
+  return false;
+});
+
+ipcMain.handle('pomodoro:set-active-task', (event, id) => {
+  if (store) {
+    return store.setActivePomodoroTask(id);
+  }
+  return false;
+});
+
+ipcMain.handle('pomodoro:get-active-task', () => {
+  if (store) {
+    return store.getActivePomodoroTask();
+  }
+  return null;
+});
+
+ipcMain.handle('pomodoro:reorder-task', (event, taskId, direction) => {
+  if (store) {
+    return store.reorderPomodoroTask(taskId, direction);
+  }
+  return false;
+});
+
+ipcMain.handle('pomodoro:get-next-task', () => {
+  if (store) {
+    return store.getNextPomodoroTask();
+  }
+  return null;
+});
+
+
 
 ipcMain.on('close-window', () => {
   if (mainWindow) {

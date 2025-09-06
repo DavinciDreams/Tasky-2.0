@@ -1,39 +1,30 @@
+import { tool } from 'ai';
+import { z } from 'zod';
+
 /**
  * MCP Call Tool - Single tool that handles all MCP operations
- * Using a plain interface to avoid TypeScript compatibility issues
+ * Defined with AI SDK tool() helper and Zod schema so it compiles
+ * to a valid JSON Schema for the OpenAI Responses API.
  */
-export const mcpCall = {
-  description: 'Call MCP tools for task and reminder management. Use this to create, list, update, delete tasks and reminders.',
-  parameters: {
-    type: 'object',
-    properties: {
-      name: {
-        type: 'string',
-        description: 'The MCP tool name to call (e.g., tasky_create_task, tasky_list_tasks, tasky_create_reminder, etc.)',
-        enum: [
-          'tasky_create_task',
-          'tasky_list_tasks', 
-          'tasky_update_task',
-          'tasky_delete_task',
-          'tasky_execute_task',
-          'tasky_create_reminder',
-          'tasky_list_reminders',
-          'tasky_update_reminder', 
-          'tasky_delete_reminder'
-        ]
-      },
-      args: {
-        type: 'object',
-        description: 'Arguments to pass to the MCP tool',
-        additionalProperties: true
-      }
-    },
-    required: ['name', 'args']
+export const mcpCall = tool({
+  description: 'Call MCP tools for task and reminder management',
+  parameters: z.object({
+    name: z.string().describe('Tool name'),
+    args: z.object({}).describe('Tool arguments'),
+  }),
+  execute: async ({ name, args }) => {
+    return executeMcpTool(name, args, `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, undefined);
   },
-  execute: async (params: { name: string; args: Record<string, any> }, options?: { toolCallId?: string; abortSignal?: AbortSignal }) => {
-    return executeMcpTool(params.name, params.args, options?.toolCallId, options?.abortSignal);
-  },
-};
+});
+
+// Programmatic invocation from UI when model outputs inline tool JSON
+export async function callMcpTool(
+  name: string,
+  args: Record<string, any> = {},
+  options?: { toolCallId?: string; abortSignal?: AbortSignal }
+): Promise<string> {
+  return executeMcpTool(name, args, options?.toolCallId, options?.abortSignal);
+}
 
 /**
  * Note: Individual tool definitions have been removed due to TypeScript compatibility issues

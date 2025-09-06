@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { streamText } from 'ai';
-import { createOpenAI } from '@ai-sdk/openai';
-import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
+import { AIService, AISettingsAdapter, AISettingsManager } from '../../ai';
+import type { AIConfig } from '../../ai';
 
 // UI Components
 import { Button } from '../ui/button';
@@ -13,7 +12,6 @@ import {
   MessageContainer,
   ChatComposer,
   ConfirmOverlay,
-  ChatToasts,
   useMcpTools,
   useScroll,
   useChatPersistence,
@@ -21,9 +19,8 @@ import {
 
 // Types and Tools
 import type { Settings as AppSettings } from '../../types';
-import type { ChatMessage, Toast } from '../chat/types';
-import { mcpCall } from '../../ai/mcp-tools';
-import { diagnoseChatSettings, getRecommendedSettings } from '../../lib/chat-diagnostic';
+import type { ChatMessage } from '../chat/types';
+import { mcpCall, callMcpTool } from '../../ai/mcp-tools';
 
 interface ChatModuleProps {
   settings: AppSettings;
@@ -36,31 +33,29 @@ interface ChatModuleProps {
 export const ChatModule: React.FC<ChatModuleProps> = ({ settings, onSettingChange }) => {
   const TASKY_DEFAULT_PROMPT = `You are Tasky, the in‑app assistant for Tasky. Stay concise, helpful, and focused on Tasky features: general conversation/ideation plus managing Tasks and Reminders.
 
-When users want to create, list, update, delete, or execute tasks or reminders, use the mcpCall tool with the appropriate MCP tool name and arguments:
+When users want to create, list, update, delete, or execute tasks or reminders, use the mcpCall tool with the appropriate MCP tool name and arguments.
 
-TASK TOOLS (use mcpCall with these tool names):
+TASK TOOLS (use mcpCall tool with these names):
 - tasky_create_task: Create tasks with title, description, dueDate, tags, etc.
-  * IMPORTANT: Extract title and description from user's natural language
-  * Example: "Create task called demo with description hello" → mcpCall({name: "tasky_create_task", args: {title: "demo", description: "hello"}})
-- tasky_list_tasks: List existing tasks with optional filtering
+- tasky_list_tasks: List existing tasks with optional filtering  
 - tasky_update_task: Update task status or properties
-  * Use task ID or you can try the task title/name as the id parameter
 - tasky_delete_task: Delete tasks by ID
 - tasky_execute_task: Execute a task (start or complete it)
 
-REMINDER TOOLS (use mcpCall with these tool names):
+REMINDER TOOLS (use mcpCall tool with these names):
 - tasky_create_reminder: Create reminders with message, time, days array, oneTime boolean
-  * For relative times like "in 10 minutes", set oneTime: true and days: ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"]
-  * Example: "Remind me to call mom in 10 minutes" → mcpCall({name: "tasky_create_reminder", args: {message: "call mom", time: "in 10 minutes", days: ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"], oneTime: true}})
 - tasky_list_reminders: List existing reminders
 - tasky_update_reminder: Update reminders (message, time, days, enabled)
-  * IMPORTANT: You can use either the reminder ID OR the reminder message as the "id" parameter
-  * Example: "update reminder test to test 123" → mcpCall({name: "tasky_update_reminder", args: {id: "test", message: "test 123"}})
 - tasky_delete_reminder: Delete reminders by ID or message
 
-CRITICAL: Always extract parameters properly from natural language requests. Parse titles, descriptions, times, and other details accurately from what the user says. Use mcpCall with the appropriate tool name and arguments.
+IMPORTANT: 
+- Always use the mcpCall tool function when users request task or reminder operations
+- Extract parameters properly from natural language requests
+- Show a brief "Plan:" before calling tools
+- Use tools only when intent is actionable
+- Map "start"→IN_PROGRESS, "finish"→COMPLETED
 
-Always show a brief "Plan:" before calling tools. Use tools only when intent is actionable. Map "start"→IN_PROGRESS, "finish"→COMPLETED.`;
+For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT output text like "<mcpCall name=..." - use the actual function call.`;
 
   // State
   const [input, setInput] = useState('');
@@ -69,10 +64,8 @@ Always show a brief "Plan:" before calling tools. Use tools only when intent is 
   const [systemPrompt, setSystemPrompt] = useState<string>(String(settings.llmSystemPrompt || ''));
   const [useCustomPrompt, setUseCustomPrompt] = useState<boolean>(!!settings.llmUseCustomPrompt);
   const [temperature, setTemperature] = useState<number>(1.0);
-  const [showSettings, setShowSettings] = useState<boolean>(false);
   const [mcpReady, setMcpReady] = useState<boolean>(false);
   const [checkedMcp, setCheckedMcp] = useState<boolean>(false);
-  const [toasts, setToasts] = useState<Toast[]>([]);
   const [streamingAssistantMessage, setStreamingAssistantMessage] = useState<string>('');
 
   // Refs
@@ -105,19 +98,6 @@ Always show a brief "Plan:" before calling tools. Use tools only when intent is 
   useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
-
-  // Toast helper
-  const pushToast = useCallback((message: string, type?: Toast['type']) => {
-    const id = Date.now();
-    setToasts((prev) => [...prev, { id, message, type }]);
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 5000);
-  }, []);
-
-  const dismissToast = useCallback((id: number) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  }, []);
 
   // Persist system prompt on mount
   useEffect(() => {
@@ -159,23 +139,46 @@ Always show a brief "Plan:" before calling tools. Use tools only when intent is 
       baseUrl: settings.llmBaseUrl
     });
     
-    const issues = diagnoseChatSettings(settings);
-    const criticalIssues = issues.filter(i => i.severity === 'error');
+    const adapter = new AISettingsAdapter();
+    const settingsManager = AISettingsManager.getInstance();
     
-    console.log('[Chat] Found issues:', { total: issues.length, critical: criticalIssues.length });
+    // First pass: auto-fix obvious issues
+    const autoFix = adapter.autoFixAppSettings(settings);
+    if (autoFix.applied.length > 0) {
+      console.log('[Chat] Auto-fixing settings:', autoFix.applied);
+      // Apply fixes
+      Object.entries(autoFix.fixed).forEach(([key, value]) => {
+        onSettingChange?.(key as keyof AppSettings, value);
+      });
+    }
     
-    if (criticalIssues.length > 0) {
-      console.warn('[Chat] Critical settings issues found:', criticalIssues);
+    // Validate current settings
+    const aiSettings = adapter.fromAppSettings(settings);
+    const validation = settingsManager.validateSettings(aiSettings);
+    
+    console.log('[Chat] Validation result:', { 
+      isValid: validation.isValid, 
+      errors: validation.errors.length, 
+      warnings: validation.warnings.length 
+    });
+    
+    if (!validation.isValid) {
+      console.warn('[Chat] Settings validation failed:', validation.errors);
       
-      // Show helpful error message
-      const errorMsg = criticalIssues.map(i => i.issue).join(', ');
-      pushToast(`Chat setup needed: ${errorMsg}`, 'error');
+      // Show helpful error message inside the chat as an assistant bubble
+      const errorMsg = validation.errors.join(', ');
+      const suggestionsMsg = validation.suggestions.length > 0 
+        ? ' Suggestions: ' + validation.suggestions.join(', ')
+        : '';
       
-      // Auto-fix if possible
-      if (!settings.llmProvider) {
-        console.log('[Chat] Auto-fixing: Setting default provider to OpenAI');
-        onSettingChange?.('llmProvider', 'openai');
-      }
+      setMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: `Chat setup needed: ${errorMsg}${suggestionsMsg}` 
+      } as ChatMessage]);
+      saveMessages([...messagesRef.current, { 
+        role: 'assistant', 
+        content: `Chat setup needed: ${errorMsg}${suggestionsMsg}` 
+      } as ChatMessage]);
       
       return false;
     }
@@ -188,31 +191,39 @@ Always show a brief "Plan:" before calling tools. Use tools only when intent is 
     ensureMcp();
   }, []);
 
-  // Build provider clients
-  const provider = useMemo(() => (settings.llmProvider || 'openai').toLowerCase(), [settings.llmProvider]);
-  const openaiModelId = useMemo(() => {
-    const requested = (settings.llmModel || 'o4-mini').toString();
-    const m = requested.toLowerCase();
-    if (m === 'gpt-4o-mini' || m === 'gpt-5-mini') return 'o4-mini';
-    if (m === 'gpt-4o' || m === 'gpt-5') return 'o4';
-    if (m.startsWith('gpt-4')) return 'o4';
-    return requested;
-  }, [settings.llmModel]);
+  // Build AI service
+  const aiService = useMemo(() => {
+    const adapter = new AISettingsAdapter();
+    const aiSettings = adapter.fromAppSettings(settings);
+    const settingsManager = AISettingsManager.getInstance();
+    const normalizedSettings = settingsManager.normalizeSettings(aiSettings);
+    
+    const config: AIConfig = {
+      provider: normalizedSettings.provider,
+      apiKey: normalizedSettings.apiKey,
+      model: normalizedSettings.model,
+      temperature: normalizedSettings.temperature,
+      maxTokens: normalizedSettings.maxTokens,
+      baseUrl: normalizedSettings.baseUrl
+    };
+    
+    try {
+      return new AIService(config);
+    } catch (error) {
+      console.error('[Chat] Failed to create AI service:', error);
+      // Fallback to Google with default model
+      return new AIService({
+        provider: 'google',
+        apiKey: settings.llmApiKey || '',
+        model: 'gemini-2.5-flash',
+        temperature: temperature
+      });
+    }
+  }, [settings.llmProvider, settings.llmApiKey, settings.llmModel, settings.llmBaseUrl, temperature]);
 
-  const lmModelId = useMemo(() => (settings.llmModel || 'llama-3.2-1b').toString(), [settings.llmModel]);
-  const customBaseUrl = useMemo(() => (settings.llmBaseUrl || '').toString().trim(), [settings.llmBaseUrl]);
-
-  const openaiClient = useMemo(() => {
-    const apiKey = settings.llmApiKey || '';
-    return createOpenAI({ apiKey });
-  }, [settings.llmApiKey]);
-
-  const lmStudioClient = useMemo(() => {
-    const baseURL = settings.llmBaseUrl || 'http://localhost:1234/v1';
-    return createOpenAICompatible({ name: 'lmstudio', baseURL });
-  }, [settings.llmBaseUrl]);
-
-  const providerSupported = useMemo(() => ['openai', 'lm-studio', 'custom'].includes(provider), [provider]);
+  const providerSupported = useMemo(() => ['google', 'custom'].includes(
+    (settings.llmProvider || 'google').toLowerCase()
+  ), [settings.llmProvider]);
 
   // Persist confirm/result snapshots
   useEffect(() => {
@@ -262,10 +273,10 @@ Always show a brief "Plan:" before calling tools. Use tools only when intent is 
           }
         }
       } catch (error) {
-        pushToast('Failed to delete chat', 'error');
+        console.error('Failed to delete chat:', error);
       }
     }
-  }, [handleConfirm, pendingConfirm, chatId, handleChatSwitch, handleNewChat, pushToast]);
+  }, [handleConfirm, pendingConfirm, chatId, handleChatSwitch, handleNewChat]);
 
   // Send message
   const onSend = async () => {
@@ -276,6 +287,43 @@ Always show a brief "Plan:" before calling tools. Use tools only when intent is 
       return;
     }
     
+    // Check for inline JSON tool call pattern and run immediately
+    try {
+      const maybeJson = JSON.parse(trimmed);
+      if (maybeJson && maybeJson.name && typeof maybeJson.name === 'string') {
+        setError(null);
+        setBusy(true);
+        const id = `${Date.now()}-${Math.random().toString(36).slice(2,6)}`;
+        // surface confirm overlay
+        try {
+          (window as any).dispatchEvent(new CustomEvent('tasky:tool:confirm', { detail: { id, name: maybeJson.name, args: maybeJson.args || {} } }));
+        } catch {}
+        const acceptedPromise = new Promise<boolean>((resolve) => {
+          const handler = (e: any) => {
+            const d = e?.detail || {};
+            if (d.id === id) {
+              (window as any).removeEventListener('tasky:tool:confirm:response', handler);
+              resolve(!!d.accepted);
+            }
+          };
+          (window as any).addEventListener('tasky:tool:confirm:response', handler);
+          setTimeout(() => resolve(false), 15000);
+        });
+        const accepted = await acceptedPromise;
+        if (!accepted) {
+          setBusy(false);
+          return;
+        }
+        // execute
+        const output = await callMcpTool(maybeJson.name, maybeJson.args || {});
+        try {
+          (window as any).dispatchEvent(new CustomEvent('tasky:tool', { detail: { id, phase: 'done', name: maybeJson.name, args: maybeJson.args || {}, output } }));
+        } catch {}
+        setBusy(false);
+        return;
+      }
+    } catch {}
+
     // Validate settings before sending
     console.log('[Chat] Validating settings...');
     if (!validateSettings()) {
@@ -290,6 +338,10 @@ Always show a brief "Plan:" before calling tools. Use tools only when intent is 
     setInput('');
     setBusy(true);
     requestAnimationFrame(scrollToBottom);
+
+    // Prepare variables so they are accessible in catch/fallback
+    let chatMessages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [];
+    let controller: AbortController | null = null;
 
     try {
       // Ensure a chat exists and persist immediately (direct save to avoid stale closures)
@@ -314,218 +366,208 @@ Always show a brief "Plan:" before calling tools. Use tools only when intent is 
         ? systemPrompt.trim() 
         : TASKY_DEFAULT_PROMPT;
 
-      const chatMessages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
+      chatMessages = [
         { role: 'system', content: effectiveSys },
         ...next.map(m => ({ role: m.role, content: m.content }))
       ];
 
-      // Setup model
-      const controller = new AbortController();
+      // Setup streaming with AI service
+      controller = new AbortController();
       abortRef.current = controller;
-      
-      let model: any;
-      if (provider === 'lm-studio') {
-        model = lmStudioClient(lmModelId);
-      } else if (provider === 'custom' && customBaseUrl) {
-        const customClient = createOpenAICompatible({ name: 'custom', baseURL: customBaseUrl });
-        model = customClient(lmModelId);
-      } else {
-        model = (openaiClient as any).responses
-          ? (openaiClient as any).responses(openaiModelId)
-          : (openaiClient as any)(openaiModelId);
-      }
 
-      const options: any = {
-        model,
-        messages: chatMessages as any,
-        temperature,
-        maxRetries: 0,
-        maxSteps: 5,
-        abortSignal: controller.signal as any,
-        
-        onStepFinish: (params: any) => {
-          const { toolCalls, toolResults } = params;
-          console.log('[Chat] Step completed:', {
-            toolCallsCount: toolCalls.length,
-            toolResultsCount: toolResults.length
-          });
-        },
-        
-        onFinish: async (params: any) => {
-          const { response, usage, steps } = params;
-          console.log('[Chat] Stream finished:', {
-            usage,
-            stepsCount: steps.length,
-            responseLength: response.text?.length
-          });
-          
-          try {
-            // Ensure we save the complete conversation including tool calls
-            if (chatId) {
-              const currentMessages = messagesRef.current;
-              if (response.text) {
-                const finalMessages = [...currentMessages, { role: 'assistant', content: response.text }];
-                await window.electronAPI.saveChat(chatId, finalMessages.map(m => ({
-                  role: m.role,
-                  content: m.content
-                })));
-              } else {
-                await saveMessages();
-              }
-            }
-          } catch (err) {
-            console.error('[Chat] Failed to save final transcript:', err);
-          }
-        },
+      // Temporarily disable tools to test basic chat functionality
+      const tools = undefined; // mcpReady ? { mcpCall } as any : undefined;
+      console.log('[Chat] Running without tools (temporarily disabled for testing)');
 
-        experimental_repairToolCall: async (params: any) => {
-          const { toolCall, error } = params;
-          console.warn('[Chat] Tool call repair needed:', {
-            toolName: toolCall.toolName,
-            error: error.message
-          });
-          
-          if (error.message.includes('NoSuchTool') || error.message.includes('not found')) {
-            console.log('[Chat] Skipping invalid tool:', toolCall.toolName);
-            return null;
-          }
-          
-          if (error.message.includes('invalid') || error.message.includes('required')) {
-            try {
-              const fixedInput = {
-                name: toolCall.toolName.replace('mcpCall.', ''),
-                args: typeof toolCall.input === 'string'
-                  ? JSON.parse(toolCall.input)
-                  : toolCall.input?.args || {}
-              };
-              
-              console.log('[Chat] Attempting tool repair:', fixedInput);
-              return {
-                ...toolCall,
-                input: JSON.stringify(fixedInput)
-              };
-            } catch (repairErr) {
-              console.error('[Chat] Tool repair failed:', repairErr);
-              return null;
-            }
-          }
-          
-          return null;
-        }
-      };
-      
-      if (mcpReady) {
-        options.tools = {
-          mcpCall
-        };
-      } else {
-        // If MCP is not ready, still allow basic chat without tools
-        console.log('[Chat] MCP not ready, running without tools');
-      }
-      
-      const result = await streamText(options);
-      
-      // Stream response
-      let assistantMessage = '';
-      let streamStarted = false;
-      setStreamingAssistantMessage(''); // Reset streaming content
-      
       try {
-        for await (const chunk of result.textStream) {
-          if (controller.signal.aborted) {
-            console.log('[Chat] Stream aborted by user');
-            break;
-          }
-          
-          assistantMessage += chunk;
-          setStreamingAssistantMessage(assistantMessage);
-
-          const now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
-          const shouldFlush = now - (lastFlushRef.current || 0) > 60 || chunk.includes('\n');
-          
-          if (shouldFlush) {
-            lastFlushRef.current = now;
-            
-            // Only add the message once at the start
-            if (!streamStarted) {
-              setMessages(prev => [...prev, { role: 'assistant', content: '' } as ChatMessage]);
-              streamStarted = true;
+        const result = await aiService.streamText(
+          chatMessages as any,
+          {
+            onStart: () => {
+              console.log('[Chat] Stream started');
+            },
+            onError: (error) => {
+              console.error('[Chat] Stream error:', error);
+            }
+          },
+          tools
+        );
+        
+        // Stream response
+        let assistantMessage = '';
+        let streamStarted = false;
+        setStreamingAssistantMessage(''); // Reset streaming content
+        
+        try {
+          for await (const chunk of result.textStream) {
+            if (controller.signal.aborted) {
+              console.log('[Chat] Stream aborted by user');
+              break;
             }
             
-            autoScrollIfNeeded();
-          }
-        }
-        
-        // Final update - set the complete message
-        setStreamingAssistantMessage(''); // Clear streaming state
-        setMessages(prev => {
-          const copy = [...prev];
-          const lastIdx = copy.length - 1;
-          if (streamStarted && lastIdx >= 0 && copy[lastIdx].role === 'assistant') {
-            copy[lastIdx] = { role: 'assistant', content: assistantMessage } as ChatMessage;
-          } else {
-            copy.push({ role: 'assistant', content: assistantMessage } as ChatMessage);
-          }
-          return copy;
-        });
-        autoScrollIfNeeded();
+            assistantMessage += chunk;
+            setStreamingAssistantMessage(assistantMessage);
 
-        result.consumeStream?.();
-        
-      } catch (streamError: any) {
-        console.warn('[Chat] Stream interrupted:', streamError.message);
-        setStreamingAssistantMessage(''); // Clear streaming state on error
-        
-        if (assistantMessage.length > 0) {
+            const now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+            const shouldFlush = now - (lastFlushRef.current || 0) > 60 || chunk.includes('\n');
+            
+            if (shouldFlush) {
+              lastFlushRef.current = now;
+              
+              // Only add the message once at the start
+              if (!streamStarted) {
+                setMessages(prev => [...prev, { role: 'assistant', content: '' } as ChatMessage]);
+                streamStarted = true;
+              }
+              
+              autoScrollIfNeeded();
+            }
+          }
+          
+          // Final update - set the complete message
+          setStreamingAssistantMessage(''); // Clear streaming state
           setMessages(prev => {
             const copy = [...prev];
             const lastIdx = copy.length - 1;
-            if (lastIdx >= 0 && copy[lastIdx].role === 'assistant') {
-              copy[lastIdx] = {
-                role: 'assistant',
-                content: assistantMessage + ' [Stream interrupted]'
-              };
+            if (streamStarted && lastIdx >= 0 && copy[lastIdx].role === 'assistant') {
+              copy[lastIdx] = { role: 'assistant', content: assistantMessage } as ChatMessage;
+            } else {
+              copy.push({ role: 'assistant', content: assistantMessage } as ChatMessage);
             }
             return copy;
           });
+          autoScrollIfNeeded();
+          
+        } catch (streamError: any) {
+          console.warn('[Chat] Stream interrupted:', streamError.message);
+          setStreamingAssistantMessage(''); // Clear streaming state on error
+          
+          if (assistantMessage.length > 0) {
+            setMessages(prev => {
+              const copy = [...prev];
+              const lastIdx = copy.length - 1;
+              if (lastIdx >= 0 && copy[lastIdx].role === 'assistant') {
+                copy[lastIdx] = {
+                  role: 'assistant',
+                  content: assistantMessage + ' [Stream interrupted]'
+                };
+              }
+              return copy;
+            });
+          }
+          
+          if (!controller.signal.aborted) {
+            throw streamError;
+          }
         }
         
-        if (!controller.signal.aborted) {
-          throw streamError;
+        // Save final transcript with current messages state
+        if (chatId) {
+          const currentMessages = messagesRef.current;
+          await window.electronAPI.saveChat(chatId, currentMessages.map(m => ({
+            role: m.role,
+            content: m.content
+          })));
         }
-      }
-      
-      // Save final transcript with current messages state
-      if (chatId) {
-        const currentMessages = messagesRef.current;
-        await window.electronAPI.saveChat(chatId, currentMessages.map(m => ({
-          role: m.role,
-          content: m.content
-        })));
+        
+      } catch (schemaErr: any) {
+        // If tool schema errors (400) or invalid function schema, retry without tools
+        const msg = schemaErr?.message || '';
+        if (msg.includes('Invalid schema') || msg.includes('400')) {
+          console.warn('[Chat] Tool schema error, retrying without tools');
+          // Already running without tools, so just throw the error
+          throw schemaErr;
+        } else {
+          throw schemaErr;
+        }
       }
       
     } catch (e: any) {
       console.error('[Chat] Error during stream:', e);
-      
+
+      // Fallback: if schema/400 errors, retry once without tools
+      const errorMessage = e?.message || '';
+      const isSchemaOr400 = errorMessage.includes('Invalid schema') || errorMessage.includes('400');
+      if (isSchemaOr400) {
+        try {
+          console.warn('[Chat] Retrying without tools due to schema/400 error');
+          const retryResult = await aiService.streamText(
+            chatMessages as any,
+            {
+              onStart: () => {
+                console.log('[Chat] Retry stream started');
+              },
+              onError: (error) => {
+                console.error('[Chat] Retry stream error:', error);
+              }
+            }
+          );
+
+          // Stream response (retry)
+          let assistantMessageRetry = '';
+          let streamStartedRetry = false;
+          setStreamingAssistantMessage('');
+          try {
+            for await (const chunk of retryResult.textStream) {
+              assistantMessageRetry += chunk;
+              setStreamingAssistantMessage(assistantMessageRetry);
+              const nowRetry = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+              const shouldFlushRetry = nowRetry - (lastFlushRef.current || 0) > 60 || chunk.includes('\n');
+              if (shouldFlushRetry) {
+                lastFlushRef.current = nowRetry;
+                if (!streamStartedRetry) {
+                  setMessages(prev => [...prev, { role: 'assistant', content: '' } as ChatMessage]);
+                  streamStartedRetry = true;
+                }
+                autoScrollIfNeeded();
+              }
+            }
+            setStreamingAssistantMessage('');
+            setMessages(prev => {
+              const copy = [...prev];
+              const lastIdx = copy.length - 1;
+              if (streamStartedRetry && lastIdx >= 0 && copy[lastIdx].role === 'assistant') {
+                copy[lastIdx] = { role: 'assistant', content: assistantMessageRetry } as ChatMessage;
+              } else {
+                copy.push({ role: 'assistant', content: assistantMessageRetry } as ChatMessage);
+              }
+              return copy;
+            });
+            autoScrollIfNeeded();
+
+            // Save transcript after retry
+            if (chatId) {
+              const currentMessages = messagesRef.current;
+              await window.electronAPI.saveChat(chatId, currentMessages.map(m => ({ role: m.role, content: m.content })));
+            }
+            return; // handled fallback successfully
+          } catch (retryErr) {
+            console.warn('[Chat] Retry stream failed:', (retryErr as any)?.message);
+          }
+        } catch (retrySetupErr) {
+          console.warn('[Chat] Retry setup failed:', (retrySetupErr as any)?.message);
+        }
+      }
+
       let msg = 'Chat request failed';
-      
-      // Handle specific error types
-      if (e?.message?.includes('Invalid schema')) {
+      if (errorMessage.includes('Invalid schema')) {
         msg = 'Tool configuration error. Please check MCP server status.';
-      } else if (e?.message?.includes('401')) {
-        msg = 'Invalid API key. Please check your OpenAI API key in settings.';
-      } else if (e?.message?.includes('400')) {
+      } else if (errorMessage.includes('401')) {
+        msg = 'Invalid API key. Please check your Google AI API key in settings.';
+      } else if (errorMessage.includes('400')) {
         msg = 'Bad request. Please check your provider settings.';
-      } else if (e?.message?.includes('429')) {
+      } else if (errorMessage.includes('429')) {
         msg = 'Rate limit exceeded. Please try again later.';
-      } else if (e?.message?.includes('fetch')) {
+      } else if (errorMessage.includes('insufficient_quota') || errorMessage.includes('quota')) {
+        msg = 'API quota exceeded. Please check your billing or try a local model.';
+      } else if (errorMessage.includes('fetch')) {
         msg = 'Network error. Please check your internet connection.';
       } else if (e?.message) {
         msg = e.message;
       }
-      
+
       setError(msg);
-      pushToast(msg, 'error');
+      console.error('Chat error:', msg);
       
       if (chatId) {
         await saveMessages();
@@ -550,7 +592,6 @@ Always show a brief "Plan:" before calling tools. Use tools only when intent is 
         <ChatHeader
           settings={settings}
           onSettingChange={onSettingChange}
-          onSettingsClick={() => setShowSettings(true)}
           chatId={chatId}
           onChatSwitch={handleChatSwitch}
           onNewChat={handleNewChat}
@@ -560,43 +601,14 @@ Always show a brief "Plan:" before calling tools. Use tools only when intent is 
 
         {!providerSupported && (
           <div className="text-xs text-accent mb-2">
-            Provider not yet supported here. Please select OpenAI, LM Studio, or Custom in Settings.
+            Provider not yet supported here. Please select Google or Custom in Settings.
           </div>
         )}
 
 
 
-        {/* Message container with animated background */}
-        <div className={`flex-1 w-full rounded-2xl border border-border/30 p-2 flex flex-col min-h-[calc(100vh-280px)] max-h-[calc(100vh-280px)] relative overflow-hidden ${
-          showSettings ? 'hidden' : 'bg-slate-900/95'
-        }`}>
-          {/* Animated background layers */}
-          <div className="absolute inset-0 pointer-events-none">
-            {/* Base gradient */}
-            <div className="absolute inset-0 bg-gradient-to-br from-slate-800/50 via-slate-900/60 to-stone-800/40" />
-            
-            {/* Thinking animation when AI is responding */}
-            {busy && (
-              <div className="absolute inset-0">
-                <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-blue-500/5 via-purple-500/8 to-blue-500/5 animate-pulse" />
-                <div className="absolute top-0 left-0 w-full h-full">
-                  <div className="w-32 h-32 bg-gradient-radial from-blue-400/10 to-transparent rounded-full animate-ping absolute top-1/4 left-1/4" />
-                  <div className="w-24 h-24 bg-gradient-radial from-purple-400/15 to-transparent rounded-full animate-ping absolute top-1/2 right-1/3 animation-delay-1000" />
-                  <div className="w-20 h-20 bg-gradient-radial from-indigo-400/12 to-transparent rounded-full animate-ping absolute bottom-1/3 left-1/2 animation-delay-2000" />
-                </div>
-              </div>
-            )}
-            
-            {/* Typing animation when user is typing - removed glow effects */}
-            
-            {/* Subtle particle effect */}
-            <div className="absolute inset-0 opacity-30">
-              <div className="absolute w-1 h-1 bg-white/20 rounded-full animate-float-1" style={{top: '20%', left: '10%'}} />
-              <div className="absolute w-1 h-1 bg-white/15 rounded-full animate-float-2" style={{top: '60%', left: '80%'}} />
-              <div className="absolute w-1 h-1 bg-white/25 rounded-full animate-float-3" style={{top: '40%', left: '60%'}} />
-              <div className="absolute w-1 h-1 bg-white/10 rounded-full animate-float-1" style={{top: '80%', left: '30%'}} />
-            </div>
-          </div>
+        {/* Message container with simplified background */}
+        <div className="flex-1 w-full rounded-2xl border border-border/30 p-2 flex flex-col min-h-[calc(100vh-280px)] max-h-[calc(100vh-280px)] relative overflow-hidden bg-background">
           <div
             ref={scrollRef}
             className="flex-1 min-h-0 overflow-y-auto no-scrollbar p-2 w-full relative"
@@ -637,114 +649,15 @@ Always show a brief "Plan:" before calling tools. Use tools only when intent is 
       </div>
 
       {/* Composer with proper spacing */}
-      {!showSettings && (
-        <div className="px-3 pb-3 pt-2">
-          <ChatComposer
-            input={input}
-            setInput={setInput}
-            onSend={onSend}
-            onStop={onStop}
-            busy={busy}
-          />
-        </div>
-      )}
-
-      {/* Settings Modal */}
-      <Modal
-        open={showSettings}
-        title="Chat Settings"
-        onClose={() => setShowSettings(false)}
-        maxWidth={560}
-        fullHeight
-        tone="background"
-        backdropClass="bg-black/60"
-      >
-        <div className="space-y-5">
-          <div className="space-y-2">
-            <div className="text-sm font-medium text-foreground">System Prompt</div>
-            <textarea
-              className="w-full min-h-[160px] bg-background text-foreground border border-border/30 rounded-2xl px-4 py-3 text-sm placeholder:text-muted-foreground hover:border-border/60 focus:border-primary/50 transition-colors resize-none shadow"
-              value={systemPrompt}
-              onChange={(e) => setSystemPrompt(e.target.value)}
-              placeholder="Enter your custom system prompt..."
-            />
-            <div className="text-[11px] text-muted-foreground">
-              Choose whether to use your custom prompt or Tasky's default.
-            </div>
-            <div className="space-y-3 mt-3">
-              <label className="text-sm flex items-center gap-2 text-foreground">
-                <input
-                  type="checkbox"
-                  checked={useCustomPrompt}
-                  onChange={(e) => {
-                    const v = e.target.checked;
-                    setUseCustomPrompt(v);
-                    try {
-                      window.electronAPI.setSetting('llmUseCustomPrompt' as any, v);
-                    } catch {}
-                    if (!v) {
-                      setSystemPrompt(TASKY_DEFAULT_PROMPT);
-                      try {
-                        window.electronAPI.setSetting('llmSystemPrompt' as any, TASKY_DEFAULT_PROMPT);
-                      } catch {}
-                    }
-                  }}
-                />
-                Use custom prompt
-              </label>
-              
-              <div className="flex gap-3">
-                <Button
-                  size="sm"
-                  className="rounded-xl bg-white text-gray-900 hover:bg-gray-100 border border-gray-300"
-                  onClick={() => {
-                    setSystemPrompt(TASKY_DEFAULT_PROMPT);
-                    try {
-                      window.electronAPI.setSetting('llmSystemPrompt' as any, TASKY_DEFAULT_PROMPT);
-                    } catch {}
-                  }}
-                >
-                  Reset to Tasky default
-                </Button>
-                <Button
-                  size="sm"
-                  className="rounded-xl bg-white text-gray-900 hover:bg-gray-100 border border-gray-300"
-                  onClick={() => {
-                    try {
-                      window.electronAPI.setSetting('llmSystemPrompt' as any, systemPrompt || '');
-                    } catch {}
-                    pushToast('Settings saved', 'success');
-                  }}
-                >
-                  Save
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="text-sm font-medium text-foreground">Temperature</div>
-              <div className="text-xs text-muted-foreground">{temperature.toFixed(2)}</div>
-            </div>
-            <input
-              type="range"
-              min={0}
-              max={2}
-              step={0.05}
-              value={temperature}
-              onChange={(e) => setTemperature(parseFloat(e.target.value))}
-              className="w-full accent-primary"
-            />
-            <div className="text-[11px] text-muted-foreground">
-              Lower = more focused, Higher = more creative.
-            </div>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Toast notifications */}
-      <ChatToasts toasts={toasts} onDismiss={dismissToast} />
+      <div className="px-3 pb-3 pt-2">
+        <ChatComposer
+          input={input}
+          setInput={setInput}
+          onSend={onSend}
+          onStop={onStop}
+          busy={busy}
+        />
+      </div>
     </div>
   );
 };

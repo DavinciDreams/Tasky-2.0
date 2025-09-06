@@ -1,15 +1,12 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { createPortal } from 'react-dom';
-import { motion } from 'framer-motion';
-import { Settings as Cog } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Modal } from '../ui/modal';
+import { GOOGLE_AI_MODELS } from '../../ai/providers';
 import type { Settings } from '../../types';
 
 interface ChatHeaderProps {
   settings: Settings;
   onSettingChange?: (key: keyof Settings, value: any) => void;
-  onSettingsClick: () => void;
   chatId: string | null;
   onChatSwitch: (chatId: string) => void;
   onNewChat: () => void;
@@ -20,7 +17,6 @@ interface ChatHeaderProps {
 export const ChatHeader: React.FC<ChatHeaderProps> = ({
   settings,
   onSettingChange,
-  onSettingsClick,
   chatId,
   onChatSwitch,
   onNewChat,
@@ -75,6 +71,29 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
     loadChatHistory();
   }, []);
 
+  // Get available models for the current provider
+  const getAvailableModels = (provider: string) => {
+    const normalizedProvider = provider.toLowerCase();
+    
+    if (normalizedProvider === 'google') {
+      return GOOGLE_AI_MODELS.map(model => ({
+        value: model,
+        label: model
+          .replace('gemini-', 'Gemini ')
+          .replace('-', ' ')
+          .replace(/\b\w/g, l => l.toUpperCase())
+      }));
+    }
+    
+    // For custom providers, provide some common models
+    return [
+      { value: 'llama-3.1-70b', label: 'Llama 3.1 70B' },
+      { value: 'llama-3.1-8b', label: 'Llama 3.1 8B' },
+      { value: 'mistral-7b', label: 'Mistral 7B' },
+      { value: 'codellama-13b', label: 'CodeLlama 13B' },
+    ];
+  };
+
   // Modal handles its own click-outside behavior, so no need for manual handling
 
   const handleDeleteChat = async (deleteId: string) => {
@@ -122,9 +141,9 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
         {/* Left side - History */}
         <div className="relative inline-block" ref={historyAnchorRef}>
           <Button
-            size="sm"
+            size="default"
             variant="outline"
-            className="rounded-xl text-xs h-8 px-2 flex items-center gap-1 border-border bg-card hover:bg-muted text-foreground flex-shrink-0"
+            className="rounded-xl text-sm h-10 px-3 flex items-center gap-2 border-border bg-card hover:bg-muted text-foreground flex-shrink-0"
             disabled={busy}
             onClick={() => {
               const nextOpen = !showHistory;
@@ -135,7 +154,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
             }}
           >
             <span>📋</span>
-            <span className="hidden sm:inline">History</span>
+            <span>History</span>
             <span className={`transition-transform ${showHistory ? 'rotate-180' : ''}`}>▼</span>
           </Button>
 
@@ -268,50 +287,20 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           </Modal>
         </div>
 
-        {/* Right side - Provider, Model, Settings */}
+        {/* Right side - Model selector */}
         <div className="flex items-center gap-2">
-          {/* Provider selector */}
-          <select
-            value={String(settings.llmProvider || 'openai')}
-            onChange={(e) => onSettingChange && onSettingChange('llmProvider', e.target.value)}
-            className="bg-card text-foreground border border-border rounded-xl text-xs h-8 w-[75px] pl-2 pr-6 hover:border-border focus:border-primary/50 focus:outline-none transition-colors cursor-pointer flex-shrink-0"
-          >
-            <option value="openai">OpenAI</option>
-            <option value="lm-studio">LM Studio</option>
-            <option value="custom">Custom</option>
-          </select>
-
           {/* Model selector */}
-          {String(settings.llmProvider || 'openai') === 'openai' ? (
-            <select
-              value={String(settings.llmModel || 'o4-mini')}
-              onChange={(e) => onSettingChange && onSettingChange('llmModel', e.target.value)}
-              className="bg-card text-foreground border border-border rounded-xl text-xs h-8 w-[95px] pl-2 pr-6 hover:border-border focus:border-primary/50 focus:outline-none transition-colors cursor-pointer flex-shrink-0"
-            >
-              <option value="o4-mini">o4-mini</option>
-              <option value="o4">o4</option>
-              <option value="gpt-4o-mini">4o-mini</option>
-              <option value="gpt-5-mini">5-mini</option>
-            </select>
-          ) : (
-            <input
-              value={String(settings.llmModel || 'llama-3.2-1b')}
-              onChange={(e) => onSettingChange && onSettingChange('llmModel', e.target.value)}
-              className="bg-card text-foreground border border-border rounded-xl px-2 text-xs h-8 w-[105px] hover:border-border focus:border-primary/50 focus:outline-none transition-colors flex-shrink-0"
-              placeholder="Model name"
-            />
-          )}
-
-          {/* Settings button */}
-          <Button
-            size="icon"
-            variant="outline"
-            aria-label="Chat settings"
-            className="rounded-xl bg-card hover:bg-muted border-border text-foreground h-8 w-8 flex-shrink-0"
-            onClick={onSettingsClick}
+          <select
+            value={String(settings.llmModel || 'gemini-2.5-flash')}
+            onChange={(e) => onSettingChange && onSettingChange('llmModel', e.target.value)}
+            className="bg-card text-foreground border border-border rounded-xl text-xs h-8 w-[140px] pl-2 pr-6 hover:border-border focus:border-primary/50 focus:outline-none transition-colors cursor-pointer flex-shrink-0"
           >
-            <Cog className="h-4 w-4" />
-          </Button>
+            {getAvailableModels(settings.llmProvider || 'google').map(model => (
+              <option key={model.value} value={model.value}>
+                {model.label}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
     </div>

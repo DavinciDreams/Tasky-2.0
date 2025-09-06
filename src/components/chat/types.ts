@@ -29,7 +29,7 @@ export type ConfirmState = {
   args: any;
 } | null;
 
-export type ChatProvider = 'openai' | 'lm-studio' | 'custom';
+export type ChatProvider = 'openai' | 'custom';
 
 export type Toast = {
   id: number;

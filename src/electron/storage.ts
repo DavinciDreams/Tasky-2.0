@@ -7,13 +7,25 @@
  */
 const Store = require('electron-store');
 import { Settings, Reminder } from '../types';
+import { PomodoroTask } from '../types/pomodoro';
 import { ReminderSqliteStorage } from '../core/storage/ReminderSqliteStorage';
 import * as path from 'path';
 import * as fs from 'fs';
 
+interface PomodoroState {
+  isRunning: boolean;
+  sessionType: 'work' | 'shortBreak' | 'longBreak';
+  sessionCount: number;
+  cycleCount: number;
+  startTime?: number; // timestamp when timer started
+  pausedTime?: number; // remaining time when paused (in seconds)
+}
+
 interface StoreSchema {
   reminders: Reminder[];
   settings: Settings;
+  pomodoroState: PomodoroState;
+  pomodoroTasks: PomodoroTask[];
 }
 
 export class Storage {
@@ -50,7 +62,14 @@ export class Storage {
           autoArchiveCompleted: false,
           taskSortBy: 'dueDate',
           showTaskStats: true
-        }
+        },
+            pomodoroState: {
+      isRunning: false,
+      sessionType: 'work',
+      sessionCount: 0,
+      cycleCount: 0
+    },
+        pomodoroTasks: []
       }
     });
     // If TASKY_DB_PATH is set, use SQLite for reminders
@@ -321,6 +340,257 @@ export class Storage {
     }
   }
 
+  // Pomodoro state methods
+  getPomodoroState(): PomodoroState {
+    try {
+      const state = this.store.get('pomodoroState');
+      return state || {
+        isRunning: false,
+        sessionType: 'work',
+        sessionCount: 0,
+        cycleCount: 0
+      };
+    } catch (error) {
+      return {
+        isRunning: false,
+        sessionType: 'work',
+        sessionCount: 0,
+        cycleCount: 0
+      };
+    }
+  }
+
+  setPomodoroState(state: Partial<PomodoroState>): boolean {
+    try {
+      const currentState = this.getPomodoroState();
+      const updatedState = { ...currentState, ...state };
+      this.store.set('pomodoroState', updatedState);
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  resetPomodoroState(): boolean {
+    try {
+      const defaultState: PomodoroState = {
+        isRunning: false,
+        sessionType: 'work',
+        sessionCount: 0,
+        cycleCount: 0
+      };
+      this.store.set('pomodoroState', defaultState);
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  // Pomodoro task methods
+  getPomodoroTasks(): PomodoroTask[] {
+    try {
+      const tasks = this.store.get('pomodoroTasks', []);
+      const migratedTasks = tasks.map((task: any, index: number) => ({
+        ...task,
+        workDuration: task.workDuration || 25,
+        shortBreakDuration: task.shortBreakDuration || 5,
+        longBreakDuration: task.longBreakDuration || 30,
+        order: task.order !== undefined ? task.order : index, // Migrate existing tasks
+        createdAt: new Date(task.createdAt),
+        updatedAt: new Date(task.updatedAt),
+        completedAt: task.completedAt ? new Date(task.completedAt) : undefined
+      }));
+      
+      // Sort by order (ascending - lower numbers first)
+      return migratedTasks.sort((a: PomodoroTask, b: PomodoroTask) => a.order - b.order);
+    } catch (error) {
+      return [];
+    }
+  }
+
+  addPomodoroTask(taskData: { name: string; estimatedPomodoros: number; workDuration: number; shortBreakDuration: number; longBreakDuration: number; order?: number }): PomodoroTask | null {
+    try {
+      const tasks = this.getPomodoroTasks();
+      // Use provided order or get the highest order number and add 1
+      const defaultOrder = tasks.length > 0 ? Math.max(...tasks.map(t => t.order)) + 1 : 0;
+      
+      const newTask: PomodoroTask = {
+        id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+        name: taskData.name,
+        estimatedPomodoros: taskData.estimatedPomodoros,
+        workDuration: taskData.workDuration,
+        shortBreakDuration: taskData.shortBreakDuration,
+        longBreakDuration: taskData.longBreakDuration,
+        order: taskData.order !== undefined ? taskData.order : defaultOrder,
+        completedPomodoros: 0,
+        isActive: false,
+        isCompleted: false,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      
+      tasks.push(newTask);
+      this.store.set('pomodoroTasks', tasks);
+      return newTask;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  updatePomodoroTask(id: string, updates: Partial<PomodoroTask>): boolean {
+    try {
+      const tasks = this.getPomodoroTasks();
+      const taskIndex = tasks.findIndex(task => task.id === id);
+      
+      if (taskIndex === -1) {
+        return false;
+      }
+
+      tasks[taskIndex] = {
+        ...tasks[taskIndex],
+        ...updates,
+        updatedAt: new Date(),
+        completedAt: updates.isCompleted ? new Date() : tasks[taskIndex].completedAt
+      };
+
+      this.store.set('pomodoroTasks', tasks);
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  deletePomodoroTask(id: string): boolean {
+    try {
+      const tasks = this.getPomodoroTasks();
+      const filteredTasks = tasks.filter(task => task.id !== id);
+      
+      if (filteredTasks.length === tasks.length) {
+        return false;
+      }
+
+      this.store.set('pomodoroTasks', filteredTasks);
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  getActivePomodoroTask(): PomodoroTask | null {
+    try {
+      const tasks = this.getPomodoroTasks();
+      return tasks.find(task => task.isActive && !task.isCompleted) || null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  setActivePomodoroTask(id: string | null): boolean {
+    try {
+      const tasks = this.getPomodoroTasks();
+      
+      // Deactivate all tasks first
+      tasks.forEach(task => {
+        task.isActive = false;
+        task.updatedAt = new Date();
+      });
+
+      // If id is null, just deactivate all tasks
+      if (id === null) {
+        this.store.set('pomodoroTasks', tasks);
+        return true;
+      }
+
+      // Activate the selected task
+      const taskIndex = tasks.findIndex(task => task.id === id);
+      if (taskIndex === -1) {
+        return false;
+      }
+
+      tasks[taskIndex].isActive = true;
+      tasks[taskIndex].updatedAt = new Date();
+
+      this.store.set('pomodoroTasks', tasks);
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  incrementPomodoroTaskProgress(id: string): boolean {
+    try {
+      const tasks = this.getPomodoroTasks();
+      const taskIndex = tasks.findIndex(task => task.id === id);
+      
+      if (taskIndex === -1) {
+        return false;
+      }
+
+      tasks[taskIndex].completedPomodoros += 1;
+      tasks[taskIndex].updatedAt = new Date();
+
+      // Mark as completed if we've reached the estimate
+      if (tasks[taskIndex].completedPomodoros >= tasks[taskIndex].estimatedPomodoros) {
+        tasks[taskIndex].isCompleted = true;
+        tasks[taskIndex].isActive = false;
+        tasks[taskIndex].completedAt = new Date();
+      }
+
+      this.store.set('pomodoroTasks', tasks);
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  reorderPomodoroTask(taskId: string, direction: 'up' | 'down'): boolean {
+    try {
+      const tasks = this.getPomodoroTasks();
+      const taskIndex = tasks.findIndex(task => task.id === taskId);
+      
+      if (taskIndex === -1) {
+        return false;
+      }
+
+      const currentTask = tasks[taskIndex];
+      
+      if (direction === 'up' && taskIndex > 0) {
+        // Swap with previous task
+        const prevTask = tasks[taskIndex - 1];
+        const tempOrder = currentTask.order;
+        currentTask.order = prevTask.order;
+        prevTask.order = tempOrder;
+        currentTask.updatedAt = new Date();
+        prevTask.updatedAt = new Date();
+      } else if (direction === 'down' && taskIndex < tasks.length - 1) {
+        // Swap with next task
+        const nextTask = tasks[taskIndex + 1];
+        const tempOrder = currentTask.order;
+        currentTask.order = nextTask.order;
+        nextTask.order = tempOrder;
+        currentTask.updatedAt = new Date();
+        nextTask.updatedAt = new Date();
+      } else {
+        return false; // Can't move further in that direction
+      }
+
+      this.store.set('pomodoroTasks', tasks);
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  getNextPomodoroTask(): PomodoroTask | null {
+    try {
+      const tasks = this.getPomodoroTasks();
+      // Find the first incomplete task in order
+      return tasks.find(task => !task.isCompleted) || null;
+    } catch (error) {
+      return null;
+    }
+  }
+
   // Migration helper
   migrate(): boolean {
     try {
@@ -337,3 +607,6 @@ export class Storage {
     }
   }
 }
+
+// Export the PomodoroState type for use in other files
+export type { PomodoroState };

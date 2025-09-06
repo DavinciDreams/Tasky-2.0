@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
+import { GoogleAIProvider, GOOGLE_AI_MODELS } from '../ai/providers';
 import { Checkbox } from '../components/ui/checkbox';
 import CustomSwitch from '../components/ui/CustomSwitch';
 import { Bell, Settings, Smile, X, Plus, Edit2, Edit3, Trash2, Clock, Calendar, Minus, Paperclip, CheckSquare, Upload } from 'lucide-react';
@@ -212,57 +213,57 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
   const [llmTesting, setLlmTesting] = useState(false);
   const [llmTestStatus, setLlmTestStatus] = useState<null | { ok: boolean; message: string }>(null);
 
+  // Get available models for the current provider
+  const getAvailableModels = (provider: string) => {
+    const normalizedProvider = provider.toLowerCase();
+    
+    if (normalizedProvider === 'google') {
+      // Get models from exported constant
+      return GOOGLE_AI_MODELS.map(model => ({
+        value: model,
+        label: model
+          .replace('gemini-', 'Gemini ')
+          .replace('-', ' ')
+          .replace(/\b\w/g, l => l.toUpperCase())
+      }));
+    }
+    
+    // For custom providers, return empty array (user will input manually)
+    return [];
+  };
+
   const testAIProvider = async () => {
     setLlmTesting(true);
     setLlmTestStatus(null);
-    const provider = String(settings.llmProvider || 'openai').toLowerCase();
+    const provider = String(settings.llmProvider || 'google').toLowerCase();
     try {
-      if (provider === 'openai') {
+      if (provider === 'google') {
         const key = (settings.llmApiKey || '').trim();
         if (!key) {
           throw new Error('Enter an API key first.');
         }
-        // Prefer v2 Responses API minimal test
-        const modelId = String(settings.llmModel || 'o4-mini');
-        let responsesOk = false;
-        let v2ErrorMessage: string | null = null;
-        try {
-          const res2 = await fetch('https://api.openai.com/v1/responses', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${key}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ model: modelId, input: 'ping', max_output_tokens: 16 })
-          });
-          if (res2.ok) {
-            responsesOk = true;
-            setLlmTestStatus({ ok: true, message: 'OpenAI' });
-          } else {
-            const j = await res2.json().catch(() => ({} as any));
-            const err = (j && j.error && j.error.message) ? j.error.message : `${res2.status} ${res2.statusText}`;
-            v2ErrorMessage = `OpenAI v2 error: ${err}`;
-          }
-        } catch (e: any) {
-          // Network or CORS – fall back to models endpoint
-        }
-        if (!responsesOk) {
-          const res = await fetch('https://api.openai.com/v1/models', {
-            method: 'GET',
-            headers: {
-              'Authorization': `Bearer ${key}`,
-              'Content-Type': 'application/json'
+        // Test Google AI API with a minimal request
+        const modelId = String(settings.llmModel || 'gemini-2.5-flash');
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${key}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            contents: [{
+              parts: [{ text: 'Hello' }]
+            }],
+            generationConfig: {
+              maxOutputTokens: 10
             }
-          });
-          if (res.ok) {
-            const j = await res.json().catch(() => ({} as any));
-            const count = Array.isArray(j?.data) ? j.data.length : 0;
-            setLlmTestStatus((prev) => prev?.ok ? prev : { ok: true, message: 'OpenAI' });
-          } else if (!responsesOk) {
-            const j = await res.json().catch(() => ({} as any));
-            const err = (j && j.error && j.error.message) ? j.error.message : `${res.status} ${res.statusText}`;
-            setLlmTestStatus({ ok: false, message: 'OpenAI' });
-          }
+          })
+        });
+        if (res.ok) {
+          setLlmTestStatus({ ok: true, message: 'Google AI' });
+        } else {
+          const j = await res.json().catch(() => ({} as any));
+          const err = (j && j.error && j.message) ? j.error.message : `${res.status} ${res.statusText}`;
+          setLlmTestStatus({ ok: false, message: 'Google AI' });
         }
       } else {
         const baseURL = (settings.llmBaseUrl || 'http://localhost:1234/v1').trim();
@@ -274,13 +275,13 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
           let count = 0;
           if (Array.isArray(models)) count = models.length;
           else if (models && Array.isArray(models.data)) count = models.data.length;
-          setLlmTestStatus({ ok: true, message: 'LM Studio' });
+          setLlmTestStatus({ ok: true, message: 'Custom' });
         } else {
-          setLlmTestStatus({ ok: false, message: 'LM Studio' });
+          setLlmTestStatus({ ok: false, message: 'Custom' });
         }
       }
     } catch (e: any) {
-      setLlmTestStatus({ ok: false, message: provider === 'openai' ? 'OpenAI' : 'LM Studio' });
+      setLlmTestStatus({ ok: false, message: provider === 'google' ? 'Google AI' : 'Custom' });
     } finally {
       setLlmTesting(false);
     }
@@ -428,75 +429,59 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
                 title="Provider"
                 description="Choose the AI provider to use across the app"
                 type="select"
-                value={settings.llmProvider || 'openai'}
+                value={settings.llmProvider || 'google'}
                 options={[
-                  { value: 'openai', label: 'OpenAI' },
-                  { value: 'lm-studio', label: 'LM Studio (OpenAI compatible)' },
+                  { value: 'google', label: 'Google AI' },
+                  { value: 'custom', label: 'Custom' },
                 ]}
                 onChange={(val) => {
                   onSettingChange('llmProvider', val);
-                  if (val === 'lm-studio' && !settings.llmBaseUrl) {
-                    onSettingChange('llmBaseUrl', 'http://localhost:1234/v1');
-                  }
                 }}
               />
 
-              {/* Model selector: use select for OpenAI; free text for LM Studio/Custom */}
-              {['openai'].includes(String(settings.llmProvider || 'openai').toLowerCase()) ? (
+              {/* Model selector: use select for Google; free text for Custom */}
+              {['google'].includes(String(settings.llmProvider || 'google').toLowerCase()) ? (
                 <div className="md:col-span-2">
                   <SettingItem
                     icon="🧠"
                     title="Model"
                     description="Choose a suggested model for the selected provider"
                     type="select"
-                    value={settings.llmModel || 'o4-mini'}
+                    value={settings.llmModel || 'gemini-2.5-flash'}
                     options={(() => {
-                      // OpenAI v2 models per AI SDK
+                      // Get models dynamically from AI providers
+                      const availableModels = getAvailableModels(settings.llmProvider || 'google');
+                      if (availableModels.length > 0) {
+                        return availableModels;
+                      }
+                      
+                      // Fallback for Google AI models
                       return [
-                        { value: 'o4', label: 'o4' },
-                        { value: 'o4-mini', label: 'o4-mini' },
-                        { value: 'gpt-4o-mini', label: 'gpt-4o-mini' },
-                        { value: 'gpt-5-mini', label: 'gpt-5-mini' },
+                        { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
+                        { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
+                        { value: 'gemini-1.5-pro-latest', label: 'Gemini 1.5 Pro Latest' },
+                        { value: 'gemini-1.5-flash-latest', label: 'Gemini 1.5 Flash Latest' },
                       ];
                     })()}
                     onChange={(val) => onSettingChange('llmModel', val)}
                   />
                 </div>
               ) : (
-                <div className="md:col-span-2 flex flex-col gap-2 py-2 px-4 rounded-xl hover:bg-muted/30 transition-colors duration-200">
-                  <Label className="text-sm">Model</Label>
-                  <Input
-                    type="text"
-                    placeholder="Enter model id (e.g., llama-3.2-1b)"
-                    value={settings.llmModel || 'llama-3.2-1b'}
-                    onChange={(e) => onSettingChange('llmModel', e.target.value)}
-                  />
-                </div>
+                null
               )}
 
               <div className="flex flex-col gap-2 py-2 px-4 rounded-xl hover:bg-muted/30 transition-colors duration-200">
                 <Label className="text-sm">API Key</Label>
                 <Input
                   type="password"
-                  placeholder={settings.llmProvider === 'lm-studio' ? 'Not required for default LM Studio' : 'Enter API key'}
+                  placeholder={'Enter API key'}
                   value={settings.llmApiKey || ''}
                   onChange={(e) => onSettingChange('llmApiKey', e.target.value)}
                 />
-                <span className="text-[11px] text-muted-foreground">Stored locally. For LM Studio default server, key is optional.</span>
+                <span className="text-[11px] text-muted-foreground">Stored locally.</span>
               </div>
 
-              {String(settings.llmProvider || 'openai').toLowerCase() === 'lm-studio' && (
-                <div className="flex flex-col gap-2 py-2 px-4 rounded-xl hover:bg-muted/30 transition-colors duration-200">
-                  <Label className="text-sm">Base URL (OpenAI compatible)</Label>
-                  <Input
-                    type="text"
-                    placeholder="http://localhost:1234/v1 (LM Studio default)"
-                    value={settings.llmBaseUrl || ''}
-                    onChange={(e) => onSettingChange('llmBaseUrl', e.target.value)}
-                  />
-                  <span className="text-[11px] text-muted-foreground">Used for LM Studio or any OpenAI-compatible server.</span>
-                </div>
-              )}
+              {false && null}
 
               <div className="md:col-span-2 flex items-center gap-3 py-2 px-4 rounded-xl hover:bg-muted/30 transition-colors duration-200">
                 <Button onClick={testAIProvider} disabled={llmTesting} className="rounded-xl bg-white text-gray-900 hover:bg-gray-100">
@@ -507,9 +492,9 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
                     <span className={`text-sm font-semibold ${llmTestStatus.ok ? 'text-green-500' : 'text-red-500'}`}>
                       {llmTestStatus.ok ? '✓ Pass' : '✗ Failed'}
                     </span>
-                    {!llmTestStatus.ok && llmTestStatus.message.toLowerCase().includes('openai') && (
+                    {!llmTestStatus.ok && llmTestStatus.message.toLowerCase().includes('google') && (
                       <a 
-                        href="https://platform.openai.com/api-keys" 
+                        href="https://aistudio.google.com/app/apikey" 
                         target="_blank" 
                         rel="noopener noreferrer"
                         className="text-xs text-blue-400 hover:text-blue-300 underline"
@@ -519,6 +504,31 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
                     )}
                   </div>
                 )}
+              </div>
+
+              {/* System Prompt Settings */}
+              <div className="md:col-span-2 space-y-3">
+                <div className="flex flex-col gap-2 py-2 px-4 rounded-xl hover:bg-muted/30 transition-colors duration-200">
+                  <Label className="text-sm">System Prompt</Label>
+                  <textarea
+                    className="w-full min-h-[120px] bg-background text-foreground border border-border/30 rounded-xl px-3 py-2 text-sm placeholder:text-muted-foreground hover:border-border/60 focus:border-primary/50 transition-colors resize-none"
+                    value={settings.llmSystemPrompt || ''}
+                    onChange={(e) => onSettingChange('llmSystemPrompt', e.target.value)}
+                    placeholder="Enter your custom system prompt..."
+                  />
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="useCustomPrompt"
+                      checked={!!settings.llmUseCustomPrompt}
+                      onChange={(e) => onSettingChange('llmUseCustomPrompt', e.target.checked)}
+                      className="rounded"
+                    />
+                    <Label htmlFor="useCustomPrompt" className="text-xs text-muted-foreground cursor-pointer">
+                      Use custom prompt (otherwise uses Tasky default)
+                    </Label>
+                  </div>
+                </div>
               </div>
             </div>
           </SettingSection>
@@ -1349,7 +1359,7 @@ const ReminderItem: React.FC<ReminderItemProps> = ({ reminder, onRemove, onEdit,
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('applications');
-  const [activeAppView, setActiveAppView] = useState<'home' | 'reminders' | 'tasks' | 'chat'>('home');
+  const [activeAppView, setActiveAppView] = useState<'home' | 'reminders' | 'tasks' | 'chat' | 'pomodoro'>('home');
   const [reminders, setReminders] = useState<Reminder[]>([]);
   
   // Debug: Log reminders state changes
@@ -1513,6 +1523,14 @@ const App: React.FC = () => {
       const bubbleSide = await window.electronAPI.getSetting('bubbleSide');
       const enableAnimationSetting = await window.electronAPI.getSetting('enableAnimation');
       
+      // Load LLM settings
+      const llmProvider = await window.electronAPI.getSetting('llmProvider');
+      const llmApiKey = await window.electronAPI.getSetting('llmApiKey');
+      const llmModel = await window.electronAPI.getSetting('llmModel');
+      const llmBaseUrl = await window.electronAPI.getSetting('llmBaseUrl');
+      const llmSystemPrompt = await window.electronAPI.getSetting('llmSystemPrompt');
+      const llmUseCustomPrompt = await window.electronAPI.getSetting('llmUseCustomPrompt');
+      
       setSettings({
         enableSound: enableSound !== undefined ? enableSound : true,
         enableAssistant: enableAssistant !== undefined ? enableAssistant : true,
@@ -1526,6 +1544,13 @@ const App: React.FC = () => {
         enableDragging: enableDragging !== undefined ? enableDragging : true,
         assistantLayer: assistantLayer !== undefined ? assistantLayer : 'above',
         bubbleSide: bubbleSide !== undefined ? bubbleSide : 'left',
+        // LLM settings
+        llmProvider: llmProvider || 'google',
+        llmApiKey: llmApiKey || '',
+        llmModel: llmModel || 'o4-mini',
+        llmBaseUrl: llmBaseUrl || '',
+        llmSystemPrompt: llmSystemPrompt || '',
+        llmUseCustomPrompt: llmUseCustomPrompt || false,
       });
     } catch (error) {
       console.error('Failed to load settings:', error);

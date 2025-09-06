@@ -84,6 +84,33 @@ const electronAPI: ElectronAPI = {
   
   // Remove listeners
   removeAllListeners: (channel) => ipcRenderer.removeAllListeners(channel),
+
+  // Pomodoro timer methods
+  pomodoroGetState: () => ipcRenderer.invoke('pomodoro:get-state'),
+  pomodoroStart: () => ipcRenderer.invoke('pomodoro:start'),
+  pomodoroPause: () => ipcRenderer.invoke('pomodoro:pause'),
+  pomodoroResetCurrent: () => ipcRenderer.invoke('pomodoro:reset-current'),
+  pomodoroResetAll: () => ipcRenderer.invoke('pomodoro:reset-all'),
+
+
+  // Pomodoro event listeners
+  onPomodoroTick: (callback) => ipcRenderer.on('pomodoro:tick', callback),
+  onPomodoroSessionComplete: (callback) => ipcRenderer.on('pomodoro:session-complete', callback),
+  onPomodoroStarted: (callback) => ipcRenderer.on('pomodoro:started', callback),
+  onPomodoroPaused: (callback) => ipcRenderer.on('pomodoro:paused', callback),
+  onPomodoroReset: (callback) => ipcRenderer.on('pomodoro:reset', callback),
+  onPomodoroResetAll: (callback) => ipcRenderer.on('pomodoro:reset-all', callback),
+
+
+  // Pomodoro task methods
+  pomodoroGetTasks: () => ipcRenderer.invoke('pomodoro:get-tasks'),
+  pomodoroAddTask: (taskData) => ipcRenderer.invoke('pomodoro:add-task', taskData),
+  pomodoroUpdateTask: (id, updates) => ipcRenderer.invoke('pomodoro:update-task', id, updates),
+  pomodoroDeleteTask: (id) => ipcRenderer.invoke('pomodoro:delete-task', id),
+  pomodoroSetActiveTask: (id) => ipcRenderer.invoke('pomodoro:set-active-task', id),
+  pomodoroGetActiveTask: () => ipcRenderer.invoke('pomodoro:get-active-task'),
+  pomodoroReorderTask: (taskId, direction) => ipcRenderer.invoke('pomodoro:reorder-task', taskId, direction),
+  pomodoroGetNextTask: () => ipcRenderer.invoke('pomodoro:get-next-task'),
 };
 
 contextBridge.exposeInMainWorld('electronAPI', electronAPI);
