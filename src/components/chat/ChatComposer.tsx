@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Send, Square } from 'lucide-react';
+import { Send, Square, Wrench } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { McpToolsHelper } from './McpToolsHelper';
 
 interface ChatComposerProps {
   input: string;
@@ -20,6 +21,8 @@ export const ChatComposer: React.FC<ChatComposerProps> = ({
   disabled = false,
 }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const mcpButtonRef = useRef<HTMLButtonElement>(null);
+  const [showMcpTools, setShowMcpTools] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
 
   // Auto-resize textarea
@@ -39,6 +42,25 @@ export const ChatComposer: React.FC<ChatComposerProps> = ({
         onSend();
       }
     }
+  };
+
+  // Handle MCP tool template insertion
+  const handleInsertTemplate = (template: string) => {
+    const currentInput = input;
+    const newInput = currentInput ? `${currentInput}\n\n${template}` : template;
+    setInput(newInput);
+    
+    // Focus textarea after insertion
+    setTimeout(() => {
+      textareaRef.current?.focus();
+      // Auto-resize after insertion
+      if (textareaRef.current) {
+        textareaRef.current.style.height = 'auto';
+        const lineHeight = 24;
+        const maxHeight = lineHeight * 5;
+        textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, maxHeight) + 'px';
+      }
+    }, 100);
   };
 
   // Focus on mount
@@ -112,6 +134,27 @@ export const ChatComposer: React.FC<ChatComposerProps> = ({
 
         {/* Action Buttons */}
         <div className="flex items-center gap-1 mb-1 mr-1">
+          {/* MCP Tools Button */}
+          <motion.button
+            ref={mcpButtonRef}
+            type="button"
+            onClick={() => setShowMcpTools(!showMcpTools)}
+            className={`
+              relative flex items-center justify-center
+              w-8 h-8 rounded-2xl
+              transition-all duration-200
+              ${showMcpTools
+                ? 'bg-primary text-primary-foreground shadow-md'
+                : 'bg-muted/50 text-muted-foreground hover:bg-muted/70'
+              }
+              focus:outline-none focus:ring-2 focus:ring-primary/50
+            `}
+            title="MCP Tools Helper"
+          >
+            <Wrench className="w-4 h-4" />
+            <span className="sr-only">MCP Tools</span>
+          </motion.button>
+
           <AnimatePresence mode="wait">
             {!busy ? (
               <motion.button
@@ -182,6 +225,14 @@ export const ChatComposer: React.FC<ChatComposerProps> = ({
           </motion.div>
         </div>
       )}
+
+      {/* MCP Tools Helper */}
+      <McpToolsHelper
+        isOpen={showMcpTools}
+        onClose={() => setShowMcpTools(false)}
+        onInsertTemplate={handleInsertTemplate}
+        triggerRef={mcpButtonRef}
+      />
     </div>
   );
 };

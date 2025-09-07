@@ -8,6 +8,7 @@ export { ToolEventTimeline } from './ToolEventTimeline';
 export { ToolCallFlow } from './ToolCallFlow';
 export { ChatComposer } from './ChatComposer';
 export { ConfirmOverlay } from './ConfirmOverlay';
+export { McpToolsHelper } from './McpToolsHelper';
 
 // Hooks
 export { useMcpTools } from './hooks/useMcpTools';
