@@ -3,7 +3,6 @@ import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 // @ts-ignore - use runtime types only
 import Database from 'better-sqlite3';
 import path from 'path';
-import { request } from 'http';
 
 type Reminder = {
   id: string;
@@ -23,7 +22,7 @@ export class ReminderBridge {
     const envDb = process.env.TASKY_DB_PATH;
     this.dbPath = envDb && envDb.trim().length > 0
       ? (path.isAbsolute(envDb) ? envDb : path.join(process.cwd(), envDb))
-      : path.join(process.cwd(), 'data', 'tasky.db');
+      : path.join(process.cwd(), '..', 'data', 'tasky.db'); // Point to parent directory's data folder
     this.db = new Database(this.dbPath);
     const requestedJournal = (process.env.TASKY_SQLITE_JOURNAL || 'DELETE').toUpperCase();
     const journal = requestedJournal === 'WAL' ? 'WAL' : 'DELETE';
@@ -50,37 +49,11 @@ export class ReminderBridge {
   }
 
   /**
-   * Notify the main application about a created reminder
+   * Log reminder creation (notification now handled by main app via IPC)
    */
   private async notifyReminderCreated(message: string, time: string, days: string[]): Promise<void> {
-    try {
-      const postData = JSON.stringify({ message, time, days });
-      
-      const req = request({
-        hostname: 'localhost',
-        port: 7844,
-        path: '/notify-reminder-created',
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Content-Length': Buffer.byteLength(postData)
-        }
-      }, (res) => {
-        if (res.statusCode !== 200) {
-          console.warn(`Notification request failed with status: ${res.statusCode}`);
-        }
-      });
-
-      req.on('error', (error) => {
-        console.warn('Failed to notify main app about reminder creation:', error);
-      });
-
-      req.write(postData);
-      req.end();
-    } catch (error) {
-      // Log but don't throw - notification failure shouldn't break reminder creation
-      console.warn('Failed to notify main app about reminder creation:', error);
-    }
+    // With stdio protocol, main app handles notifications when it receives MCP responses
+    console.log('[ReminderBridge] Reminder created:', message, `at ${time}`, `on ${days.join(', ')}`);
   }
 
   async createReminder(args: any): Promise<CallToolResult> {

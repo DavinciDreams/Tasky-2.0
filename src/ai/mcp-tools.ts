@@ -182,22 +182,11 @@ async function performMcpCall(name: string, args: any, abortSignal?: AbortSignal
     params: { name, arguments: args || {} }
   };
   
-  console.log('[MCP] Sending request to MCP server:', JSON.stringify(requestBody, null, 2));
+  console.log('[MCP] Sending request to MCP server via IPC:', JSON.stringify(requestBody, null, 2));
 
-  const res = await fetch('http://localhost:7844/mcp', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(requestBody),
-    signal: controller.signal
-  });
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(`MCP call failed (${res.status}): ${text}`);
-  }
-
-  const json = await res.json().catch(() => null);
-  const content = json?.result?.content ?? json?.result ?? json;
+  // Use IPC to communicate with MCP server via main process
+  const json = await window.electronAPI.mcpToolsCall(name, args || {});
+  const content = json?.content ?? json;
 
   // Process MCP response content
   if (Array.isArray(content)) {

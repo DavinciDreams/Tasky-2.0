@@ -12,8 +12,7 @@ import { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, dialog, shell, Op
 import * as path from 'path';
 import * as os from 'os';
 import * as fs from 'fs';
-import { spawn } from 'child_process';
-import * as http from 'http';
+import { spawn, ChildProcess } from 'child_process';
 import logger from './lib/logger';
 import { MainWindow, TrayIcon } from './types/electron';
 import { Storage } from './electron/storage';
@@ -42,318 +41,128 @@ let store: Storage | null = null;      // Persistent data storage service
 let assistant: any = null;  // Desktop companion/assistant (will be typed later)
 let taskManager: ElectronTaskManager | null = null;  // Task management system
 let pomodoroService: PomodoroService | null = null;  // Pomodoro timer service
-let httpServer: http.Server | null = null;  // HTTP server for MCP integration
 let chatStorage: ChatSqliteStorage | null = null; // Chat transcript storage
+let mcpServerProcess: ChildProcess | null = null; // MCP server subprocess
 
 /**
  * Creates a simple HTTP server for MCP integration
  */
-const createHttpServer = () => {
-  const server = http.createServer(async (req: http.IncomingMessage, res: http.ServerResponse) => {
-    // Enable CORS
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+// MCP server integration using stdio protocol (replaces HTTP approach)
+// The MCP tool functionality will be handled via IPC to the MCP subprocess
+
+/**
+ * Starts the local MCP server subprocess
+ */
+const startMcpServer = (): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    const mcpPath = path.join(process.cwd(), 'tasky-mcp-agent');
+    const serverScript = path.join(mcpPath, 'src', 'mcp-server.ts');
     
-    if (req.method === 'OPTIONS') {
-      res.writeHead(200);
-      res.end();
+    logger.info('Starting MCP server with stdio transport at:', serverScript);
+    
+    // Use npm run start:local from the MCP directory with stdio
+    mcpServerProcess = spawn('npm', ['run', 'start:local'], {
+      cwd: mcpPath,
+      stdio: ['pipe', 'pipe', 'pipe'],
+      env: {
+        ...process.env,
+        TASKY_DB_PATH: path.join(process.cwd(), 'data', 'tasky.db')
+      },
+      shell: true // Use shell on Windows
+    });
+
+    let serverStarted = false;
+
+    mcpServerProcess.stdout?.on('data', (data) => {
+      const output = data.toString();
+      logger.debug('MCP Server stdout:', output.trim());
+      
+      // Handle MCP protocol messages here if needed
+    });
+
+    mcpServerProcess.stderr?.on('data', (data) => {
+      const error = data.toString();
+      logger.info('MCP Server stderr:', error.trim());
+      
+      // Check if server has started (stdio transport doesn't bind to ports)
+      if (error.includes('connected via stdio') || error.includes('Starting Tasky MCP server')) {
+        if (!serverStarted) {
+          serverStarted = true;
+          logger.info('MCP server started successfully with stdio transport');
+          resolve();
+        }
+      }
+    });
+
+    mcpServerProcess.on('error', (error) => {
+      logger.error('Failed to start MCP server:', error);
+      if (!serverStarted) {
+        reject(error);
+      }
+    });
+
+    mcpServerProcess.on('exit', (code) => {
+      logger.info(`MCP server exited with code ${code}`);
+      mcpServerProcess = null;
+    });
+
+    // Timeout after 10 seconds if server doesn't start
+    setTimeout(() => {
+      if (!serverStarted) {
+        logger.error('MCP server startup timeout');
+        reject(new Error('MCP server startup timeout'));
+      }
+    }, 10000);
+  });
+};
+
+/**
+ * Stops the MCP server subprocess
+ */
+const stopMcpServer = () => {
+  if (mcpServerProcess) {
+    logger.info('Stopping MCP server...');
+    mcpServerProcess.kill('SIGTERM');
+    mcpServerProcess = null;
+  }
+};
+
+/**
+ * Send a message to the MCP server via stdio and await response
+ */
+const sendMcpMessage = async (message: any): Promise<any> => {
+  return new Promise((resolve, reject) => {
+    if (!mcpServerProcess || !mcpServerProcess.stdin || !mcpServerProcess.stdout) {
+      reject(new Error('MCP server not available'));
       return;
     }
+
+    const messageStr = JSON.stringify(message) + '\n';
     
-    if (req.method === 'POST' && req.url === '/execute-task') {
+    // Set up response handler
+    const responseHandler = (data: Buffer) => {
       try {
-        let body = '';
-        req.on('data', (chunk: any) => body += chunk.toString());
-        req.on('end', async () => {
-          try {
-            const { taskId, options } = JSON.parse(body);
-            logger.info('MCP task execution request:', taskId);
-            
-            if (!taskManager) {
-              logger.error('Task manager not initialized');
-              res.writeHead(500, { 'Content-Type': 'application/json' });
-              res.end(JSON.stringify({ success: false, error: 'Task manager not initialized' }));
-              return;
-            }
-            
-            // Call the actual task execution logic
-            const result = await (taskManager as any).executeTask(taskId, options);
-            logger.info('Task execution completed:', taskId, result.success ? '✓' : '✗');
-            
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify(result));
-          } catch (error) {
-            res.writeHead(400, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ success: false, error: (error as Error).message }));
-          }
-        });
+        const response = JSON.parse(data.toString().trim());
+        if (response.id === message.id) {
+          mcpServerProcess!.stdout!.removeListener('data', responseHandler);
+          resolve(response);
+        }
       } catch (error) {
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ success: false, error: (error as Error).message }));
+        // Not a JSON response, ignore
       }
-    } else if (req.method === 'POST' && req.url === '/notify-task-created') {
-      try {
-        let body = '';
-        req.on('data', (chunk: any) => body += chunk.toString());
-        req.on('end', async () => {
-          try {
-            const { title, description } = JSON.parse(body);
-            logger.info('MCP task creation notification:', title);
-            
-            // Show notification for MCP-created task
-            notificationUtility.showTaskCreatedNotification(title, description);
-            
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ success: true }));
-          } catch (error) {
-            res.writeHead(400, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ success: false, error: (error as Error).message }));
-          }
-        });
-      } catch (error) {
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ success: false, error: (error as Error).message }));
-      }
-    } else if (req.method === 'POST' && req.url === '/notify-reminder-created') {
-      try {
-        let body = '';
-        req.on('data', (chunk: any) => body += chunk.toString());
-        req.on('end', async () => {
-          try {
-            const { message, time, days } = JSON.parse(body);
-            logger.info('MCP reminder creation notification:', message);
-            
-            // Show notification for MCP-created reminder
-            notificationUtility.showReminderCreatedNotification(message, time, days);
-            
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ success: true }));
-          } catch (error) {
-            res.writeHead(400, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ success: false, error: (error as Error).message }));
-          }
-        });
-      } catch (error) {
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ success: false, error: (error as Error).message }));
-      }
-    } else if (req.method === 'POST' && req.url === '/mcp') {
-      // MCP tool calling endpoint (bridge from renderer Chat to MCP agent)
-      try {
-        let body = '';
-        req.on('data', (chunk: any) => body += chunk.toString());
-        req.on('end', async () => {
-          try {
-            const { id, method, params } = JSON.parse(body);
-            
-            if (method === 'tools/list') {
-              // Forward directly to the MCP agent process over stdio in a future iteration.
-              // For now, enumerate known tools to keep the UI functional.
-              res.writeHead(200, { 'Content-Type': 'application/json' });
-              res.end(JSON.stringify({ jsonrpc: '2.0', id, result: { tools: [
-                { name: 'tasky_create_task', description: 'Create a new task' },
-                { name: 'tasky_update_task', description: 'Update a task' },
-                { name: 'tasky_delete_task', description: 'Delete a task' },
-                { name: 'tasky_list_tasks', description: 'List tasks' },
-                { name: 'tasky_execute_task', description: 'Execute a task' },
-                { name: 'tasky_create_reminder', description: 'Create a new reminder' },
-                { name: 'tasky_update_reminder', description: 'Update a reminder' },
-                { name: 'tasky_delete_reminder', description: 'Delete a reminder' },
-                { name: 'tasky_list_reminders', description: 'List reminders' },
-              ] } }));
-              return;
-            }
+    };
 
-            if (method !== 'tools/call') {
-              res.writeHead(400, { 'Content-Type': 'application/json' });
-              res.end(JSON.stringify({ jsonrpc: '2.0', id, error: { code: -32601, message: 'Method not found' } }));
-              return;
-            }
-
-            const { name, arguments: args } = params || {};
-            if (!name) {
-              res.writeHead(400, { 'Content-Type': 'application/json' });
-              res.end(JSON.stringify({ jsonrpc: '2.0', id, error: { code: -32602, message: 'Missing tool name' } }));
-              return;
-            }
-
-            // Route to actual subsystems so creations persist in SQLite and UI updates broadcast
-            let text = '';
-            if (name === 'tasky_create_task') {
-              try {
-                const task = await (taskManager as any).createTaskDirect({
-                  title: args?.title ?? args?.random_string ?? 'Untitled Task',
-                  description: args?.description,
-                  dueDate: args?.dueDate,
-                  tags: Array.isArray(args?.tags) ? args.tags : undefined,
-                  affectedFiles: Array.isArray(args?.affectedFiles) ? args.affectedFiles : undefined,
-                  estimatedDuration: typeof args?.estimatedDuration === 'number' ? args.estimatedDuration : undefined,
-                  dependencies: Array.isArray(args?.dependencies) ? args.dependencies : undefined,
-                  reminderEnabled: !!args?.reminderEnabled,
-                  reminderTime: args?.reminderTime,
-                  assignedAgent: ['claude','gemini'].includes(String(args?.assignedAgent)) ? args.assignedAgent : undefined,
-                  executionPath: args?.executionPath,
-                });
-                text = `Created task: ${task.schema.title}`;
-                // Notify UI
-                notificationUtility.showTaskCreatedNotification(task.schema.title, task.schema.description);
-              } catch (e) {
-                text = `Error creating task: ${(e as Error).message}`;
-              }
-            } else if (name === 'tasky_create_reminder') {
-              try {
-                const payload = {
-                  message: String(args?.message || 'Reminder'),
-                  time: String(args?.time || ''),
-                  days: Array.isArray(args?.days) ? args.days.map((d:any)=>String(d)) : [],
-                };
-                // Reuse existing notification helper; actual DB persistence happens in reminder bridge via agent normally.
-                notificationUtility.showReminderCreatedNotification(payload.message, payload.time, payload.days);
-                text = `Created reminder: ${payload.message}`;
-                // Also let renderer refresh reminders from storage
-                try { if (mainWindow) mainWindow.webContents.send('tasky:reminders-updated'); } catch {}
-              } catch (e) {
-                text = `Error creating reminder: ${(e as Error).message}`;
-              }
-            } else if (name === 'tasky_list_reminders') {
-              try {
-                const raw = store ? store.getReminders() : [];
-                let reminders = Array.isArray(raw) ? raw : [];
-                if (typeof args?.enabled === 'boolean') reminders = reminders.filter((r: any) => !!r.enabled === args.enabled);
-                if (args?.day) reminders = reminders.filter((r: any) => Array.isArray(r.days) && r.days.includes(String(args.day)));
-                if (args?.search) {
-                  const s = String(args.search).toLowerCase();
-                  reminders = reminders.filter((r: any) => String(r.message || '').toLowerCase().includes(s));
-                }
-                text = `Returned ${reminders.length} reminders`;
-                res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ jsonrpc: '2.0', id, result: { content: [
-                  { type: 'text', text },
-                  { type: 'text', text: JSON.stringify(reminders) }
-                ] } }));
-                return;
-              } catch (e) {
-                text = `Error listing reminders: ${(e as Error).message}`;
-              }
-            } else if (name === 'tasky_list_tasks') {
-              try {
-                const tasks = await (taskManager as any).listTasksDirect(args || {});
-                const limited = (typeof args?.limit === 'number') ? tasks.slice(0, args.limit) : tasks;
-                text = `Returned ${limited.length} of ${tasks.length} tasks`;
-                res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ jsonrpc: '2.0', id, result: { content: [
-                  { type: 'text', text },
-                  { type: 'text', text: JSON.stringify(limited) }
-                ] } }));
-                return;
-              } catch (e) {
-                text = `Error listing tasks: ${(e as Error).message}`;
-              }
-            } else if (name === 'tasky_update_reminder') {
-              try {
-                const { id: rid, ...updates } = args || {};
-                if (!rid) throw new Error('id is required');
-                if (store) {
-                  store.updateReminder(String(rid), updates || {});
-                  const updated = store.getReminderById(String(rid));
-                  text = 'Reminder updated';
-                  res.writeHead(200, { 'Content-Type': 'application/json' });
-                  res.end(JSON.stringify({ jsonrpc: '2.0', id, result: { content: [
-                    { type: 'text', text },
-                    { type: 'text', text: JSON.stringify(updated || {}) }
-                  ] } }));
-                  try { if (mainWindow) mainWindow.webContents.send('tasky:reminders-updated'); } catch {}
-                  return;
-                }
-              } catch (e) {
-                text = `Error updating reminder: ${(e as Error).message}`;
-              }
-            } else if (name === 'tasky_delete_reminder') {
-              try {
-                const { id: rid } = args || {};
-                if (!rid) throw new Error('id is required');
-                if (store) {
-                  const ok = store.deleteReminder(String(rid));
-                  text = ok ? 'Reminder deleted' : 'Reminder not found';
-                  res.writeHead(200, { 'Content-Type': 'application/json' });
-                  res.end(JSON.stringify({ jsonrpc: '2.0', id, result: { content: [ { type: 'text', text } ] } }));
-                  try { if (mainWindow) mainWindow.webContents.send('tasky:reminders-updated'); } catch {}
-                  return;
-                }
-              } catch (e) {
-                text = `Error deleting reminder: ${(e as Error).message}`;
-              }
-            } else if (name === 'tasky_update_task') {
-              try {
-                const { id: tid, ...updates } = args || {};
-                if (!tid) throw new Error('id is required');
-                const task = await (taskManager as any).updateTaskDirect(String(tid), updates || {});
-                text = 'Task updated';
-                res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ jsonrpc: '2.0', id, result: { content: [
-                  { type: 'text', text },
-                  { type: 'text', text: JSON.stringify(task) }
-                ] } }));
-                try { if (mainWindow) mainWindow.webContents.send('tasky:tasks-updated'); } catch {}
-                return;
-              } catch (e) {
-                text = `Error updating task: ${(e as Error).message}`;
-              }
-            } else if (name === 'tasky_delete_task') {
-              try {
-                const { id: tid } = args || {};
-                if (!tid) throw new Error('id is required');
-                await (taskManager as any).deleteTaskDirect(String(tid));
-                text = 'Task deleted';
-                res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ jsonrpc: '2.0', id, result: { content: [ { type: 'text', text } ] } }));
-                try { if (mainWindow) mainWindow.webContents.send('tasky:tasks-updated'); } catch {}
-                return;
-              } catch (e) {
-                text = `Error deleting task: ${(e as Error).message}`;
-              }
-            } else if (name === 'tasky_execute_task') {
-              try {
-                const { id: tid, status } = args || {};
-                if (!tid) throw new Error('id is required');
-                const execResult = await (taskManager as any).executeTask(String(tid), { agent: 'claude' });
-                text = `Task execution started: ${execResult.performed || 'external agent execution'}`;
-                res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ jsonrpc: '2.0', id, result: { content: [
-                  { type: 'text', text },
-                  { type: 'text', text: JSON.stringify(execResult) }
-                ] } }));
-                return;
-              } catch (e) {
-                text = `Error executing task: ${(e as Error).message}`;
-              }
-            } else {
-              text = `Tool ${name} executed`;
-            }
-
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ jsonrpc: '2.0', id, result: { content: [{ type: 'text', text }] } }));
-          } catch (error) {
-            res.writeHead(400, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ jsonrpc: '2.0', id: 1, error: { code: -32700, message: 'Parse error', data: (error as Error).message } }));
-          }
-        });
-      } catch (error) {
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ jsonrpc: '2.0', id: 1, error: { code: -32603, message: 'Internal error', data: (error as Error).message } }));
-      }
-    } else {
-      res.writeHead(404);
-      res.end('Not Found');
-    }
+    mcpServerProcess.stdout.on('data', responseHandler);
+    
+    // Send message
+    mcpServerProcess.stdin.write(messageStr);
+    
+    // Timeout after 5 seconds
+    setTimeout(() => {
+      mcpServerProcess!.stdout!.removeListener('data', responseHandler);
+      reject(new Error('MCP message timeout'));
+    }, 5000);
   });
-  
-  server.listen(7844, 'localhost', () => {
-    logger.info('HTTP server for MCP integration running on http://localhost:7844');
-  });
-  
-  return server;
 };
 
 /**
@@ -547,8 +356,17 @@ app.whenReady().then(async () => {
     chatStorage.initialize();
   } catch {}
   
-  // Start HTTP server for MCP integration
-  httpServer = createHttpServer();
+  // Start local MCP server
+  try {
+    await startMcpServer();
+    logger.info('MCP server integration ready');
+  } catch (error) {
+    logger.error('Failed to start MCP server:', error);
+    // Don't fail startup if MCP server fails - the app can still work without it
+  }
+  
+  // MCP server integration ready - using stdio protocol
+  logger.info('MCP server integration ready');
   
   // Initialize scheduler
   scheduler = new ReminderScheduler();
@@ -719,6 +537,83 @@ app.whenReady().then(async () => {
       chatStorage.resetAll();
       return { success: true };
     });
+
+    // MCP IPC handlers for stdio communication
+    ipcMain.handle('mcp:tools/list', async () => {
+      try {
+        const message = {
+          jsonrpc: '2.0',
+          id: Date.now(),
+          method: 'tools/list'
+        };
+        const response = await sendMcpMessage(message);
+        return response.result;
+      } catch (error) {
+        logger.error('MCP tools/list error:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('mcp:tools/call', async (event, toolName: string, toolArgs: any) => {
+      try {
+        const message = {
+          jsonrpc: '2.0',
+          id: Date.now(),
+          method: 'tools/call',
+          params: {
+            name: toolName,
+            arguments: toolArgs
+          }
+        };
+        const response = await sendMcpMessage(message);
+        
+        // Handle notifications for task/reminder creation
+        if (response.result && !response.error) {
+          if (toolName === 'tasky_create_task' && toolArgs?.title) {
+            // Show notification for created task
+            notificationUtility.showTaskCreatedNotification(toolArgs.title, toolArgs.description);
+            // Notify UI to refresh tasks
+            try { 
+              if (mainWindow) mainWindow.webContents.send('tasky:tasks-updated'); 
+            } catch (e) {
+              logger.warn('Failed to send tasks-updated event:', e);
+            }
+          } else if (toolName === 'tasky_create_reminder' && toolArgs?.message) {
+            // Show notification for created reminder
+            notificationUtility.showReminderCreatedNotification(
+              toolArgs.message, 
+              toolArgs.time || '', 
+              toolArgs.days || []
+            );
+            // Notify UI to refresh reminders
+            try { 
+              if (mainWindow) mainWindow.webContents.send('tasky:reminders-updated'); 
+            } catch (e) {
+              logger.warn('Failed to send reminders-updated event:', e);
+            }
+          } else if (toolName.includes('update_task') || toolName.includes('delete_task')) {
+            // Refresh tasks for update/delete operations
+            try { 
+              if (mainWindow) mainWindow.webContents.send('tasky:tasks-updated'); 
+            } catch (e) {
+              logger.warn('Failed to send tasks-updated event:', e);
+            }
+          } else if (toolName.includes('update_reminder') || toolName.includes('delete_reminder')) {
+            // Refresh reminders for update/delete operations
+            try { 
+              if (mainWindow) mainWindow.webContents.send('tasky:reminders-updated'); 
+            } catch (e) {
+              logger.warn('Failed to send reminders-updated event:', e);
+            }
+          }
+        }
+        
+        return response.result;
+      } catch (error) {
+        logger.error(`MCP tools/call error for ${toolName}:`, error);
+        throw error;
+      }
+    });
   } catch {}
 
   // On OS X it's common to re-create a window in the app when the
@@ -874,6 +769,8 @@ app.on('before-quit', () => {
   if (pomodoroService) {
     pomodoroService.destroy();
   }
+  // Stop MCP server
+  stopMcpServer();
 });
 
 // Removed forced killing of shell processes on quit to avoid terminating user terminals

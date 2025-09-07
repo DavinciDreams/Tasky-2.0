@@ -113,8 +113,10 @@ export interface ElectronAPI {
   saveChat: (chatId: string, messages: Array<{ role: 'user' | 'assistant'; content: string }>) => Promise<{ success: boolean }>;
   deleteChat: (chatId: string) => Promise<{ success: boolean }>;
   resetChats: () => Promise<{ success: boolean }>;
-  
-  // Task-reminder integration
+
+  // MCP communication via IPC
+  mcpToolsList: () => Promise<any>;
+  mcpToolsCall: (toolName: string, toolArgs: any) => Promise<any>;
   convertReminderToTask: (reminderId: string) => Promise<any>;
   convertTaskToReminder: (taskId: string) => Promise<any>;
   

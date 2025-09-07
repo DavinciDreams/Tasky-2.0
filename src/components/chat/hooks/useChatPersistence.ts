@@ -26,9 +26,12 @@ export const useChatPersistence = () => {
             setMessages(loaded);
           } catch {}
         } else {
-          // Create new chat
-          const id = await window.electronAPI.createChat('Chat');
-          if (mounted) setChatId(id);
+          // Don't automatically create a chat - let user see empty state
+          // They can create a new chat manually via the + New Chat button
+          if (mounted) {
+            setChatId(null);
+            setMessages([]);
+          }
         }
       } catch (e) {
         console.warn('Failed to initialize chat:', e);
@@ -52,8 +55,15 @@ export const useChatPersistence = () => {
   }, [chatId, messages]);
 
   // Switch to a different chat
-  const switchToChat = useCallback(async (newChatId: string) => {
+  const switchToChat = useCallback(async (newChatId: string | null) => {
     if (newChatId === chatId) return;
+    
+    // Handle switching to null (empty state)
+    if (!newChatId) {
+      setChatId(null);
+      setMessages([]);
+      return;
+    }
     
     try {
       const messages = await window.electronAPI.loadChat(newChatId);

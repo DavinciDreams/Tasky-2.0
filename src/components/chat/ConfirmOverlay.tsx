@@ -39,23 +39,23 @@ export const ConfirmOverlay: React.FC<ConfirmOverlayProps> = ({
         transition={{ duration: 0.3, ease: "easeOut" }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between mb-3 rounded-xl p-3 border bg-background border-border/30" style={{backgroundColor: 'hsl(var(--background))'}}>
+        <div className="flex items-center justify-between mb-3 rounded-xl p-3 bg-card border border-border">
           <div className="flex items-center gap-2">
             {!isDelete && (
-              <div className="w-8 h-8 rounded-md flex items-center justify-center font-semibold bg-primary/10 text-primary">
+              <div className="w-8 h-8 rounded-md flex items-center justify-center font-semibold bg-primary/20 text-primary">
                 {nameLower.includes('reminder') ? '🔔' : nameLower.includes('task') ? '📝' : '⚙️'}
               </div>
             )}
             {isDelete && (
               <AlertTriangle className="h-5 w-5 text-destructive" />
             )}
-            <h3 className="font-semibold text-sm">Confirm</h3>
+            <h3 className="font-semibold text-sm text-foreground">Confirm</h3>
             <span className="text-xs text-muted-foreground">{name}</span>
           </div>
         </div>
 
         {/* Content preview */}
-        <div className="bg-muted/50 rounded-xl p-3 mb-4 border border-border/30">
+        <div className="bg-card rounded-xl p-3 mb-4 border border-border">
           <div className="text-xs space-y-2">
             {(() => {
               // Destructive actions
@@ -198,7 +198,7 @@ export const ConfirmOverlay: React.FC<ConfirmOverlayProps> = ({
             className="
               flex-1 rounded-xl 
               transition-all duration-200 font-medium py-3 
-              bg-white text-gray-900 hover:bg-gray-100 border border-gray-300
+              bg-card border border-border hover:bg-accent hover:text-accent-foreground
             "
             onClick={() => onConfirm(false)}
           >
@@ -210,8 +210,8 @@ export const ConfirmOverlay: React.FC<ConfirmOverlayProps> = ({
               flex-1 rounded-xl shadow-lg hover:shadow-xl 
               transition-all duration-200 font-medium py-3 
               ${isDelete 
-                ? 'bg-destructive/90 text-destructive-foreground hover:bg-destructive' 
-                : 'bg-white text-gray-900 hover:bg-gray-100 border border-gray-300'
+                ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90' 
+                : 'bg-primary text-primary-foreground hover:bg-primary/90'
               }
             `}
             onClick={() => onConfirm(true)}

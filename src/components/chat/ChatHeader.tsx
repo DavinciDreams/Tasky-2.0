@@ -8,7 +8,7 @@ interface ChatHeaderProps {
   settings: Settings;
   onSettingChange?: (key: keyof Settings, value: any) => void;
   chatId: string | null;
-  onChatSwitch: (chatId: string) => void;
+  onChatSwitch: (chatId: string | null) => void;
   onNewChat: () => void;
   busy: boolean;
   rootRef: React.RefObject<HTMLDivElement | null>;
@@ -105,7 +105,8 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
         if (Array.isArray(updatedList) && updatedList.length > 0) {
           onChatSwitch(updatedList[0].id);
         } else {
-          onNewChat();
+          // No chats left - switch to null state to show empty state
+          onChatSwitch(null);
         }
       }
     } catch (error) {

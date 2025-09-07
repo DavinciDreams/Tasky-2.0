@@ -1,5 +1,6 @@
 import React from 'react';
-import { Clock, Calendar, Bell, BellOff } from 'lucide-react';
+import { Tool, ToolHeader, ToolContent, ToolOutput } from '@/components/ai-elements';
+import { TaskDisplay, ReminderDisplay } from './TaskDisplay';
 import type { AdaptiveCard } from './types';
 
 interface AdaptiveCardRendererProps {
@@ -37,14 +38,19 @@ export const AdaptiveCardRenderer: React.FC<AdaptiveCardRendererProps> = ({ card
 
   if (kind === 'confirm') {
     return (
-      <div className="bg-card border border-border/30 rounded-2xl px-4 py-3 w-full">
-        <div className="text-xs font-medium text-muted-foreground mb-1">
-          Confirm: {String(name)}
-        </div>
-        <pre className="text-xs whitespace-pre-wrap break-words text-foreground">
-          {JSON.stringify(args, null, 2)}
-        </pre>
-      </div>
+      <Tool defaultOpen={true}>
+        <ToolHeader type={`tool-${name}`} state="input-available" />
+        <ToolContent>
+          <div className="p-3">
+            <div className="text-xs font-medium text-muted-foreground mb-2">
+              Confirm: {String(name)}
+            </div>
+            <pre className="text-xs whitespace-pre-wrap break-words text-foreground bg-muted/50 p-2 rounded">
+              {JSON.stringify(args, null, 2)}
+            </pre>
+          </div>
+        </ToolContent>
+      </Tool>
     );
   }
 
@@ -53,95 +59,107 @@ export const AdaptiveCardRenderer: React.FC<AdaptiveCardRendererProps> = ({ card
     const outputStr = typeof output === 'string' ? output : JSON.stringify(output);
     const parsedOut = extractJsonFromOutput(outputStr);
 
-    // Render list_reminders results
+    // Render list_reminders results using ReminderDisplay
     if (nameLower.includes('list_reminders') && Array.isArray(parsedOut)) {
       return (
-        <div className="space-y-2 w-full">
-          {parsedOut.map((r: any, idx: number) => (
-            <div key={idx} className="p-3 bg-card rounded-lg border border-border/30 hover:border-border/50 transition-colors">
-              <div className="flex items-center justify-between">
-                <div className="font-medium text-foreground">{String(r.message || 'Reminder')}</div>
-                <span className={`text-[10px] px-2 py-0.5 rounded-full border ${
-                  r.enabled 
-                    ? 'bg-primary/10 text-primary border-primary/30' 
-                    : 'bg-muted text-muted-foreground border-border/30'
-                }`}>
-                  {r.enabled ? 'Enabled' : 'Disabled'}
-                </span>
+        <Tool defaultOpen={true}>
+          <ToolHeader type="tool-list_reminders" state="output-available" />
+          <ToolContent>
+            <div className="p-3">
+              <ReminderDisplay reminders={parsedOut} />
+            </div>
+          </ToolContent>
+        </Tool>
+      );
+    }
+
+    // Render list_tasks results using TaskDisplay
+    if (nameLower.includes('list_tasks') && Array.isArray(parsedOut)) {
+      return (
+        <Tool defaultOpen={true}>
+          <ToolHeader type="tool-list_tasks" state="output-available" />
+          <ToolContent>
+            <div className="p-3">
+              <TaskDisplay tasks={parsedOut} />
+            </div>
+          </ToolContent>
+        </Tool>
+      );
+    }
+
+    // Render create_task results using TaskDisplay (single task)
+    if (nameLower.includes('create_task') && parsedOut && typeof parsedOut === 'object' && !Array.isArray(parsedOut)) {
+      return (
+        <Tool defaultOpen={true}>
+          <ToolHeader type="tool-create_task" state="output-available" />
+          <ToolContent>
+            <div className="p-3">
+              <TaskDisplay tasks={[parsedOut]} />
+            </div>
+          </ToolContent>
+        </Tool>
+      );
+    }
+
+    // Render update_task results using TaskDisplay (single task)
+    if (nameLower.includes('update_task') && parsedOut && typeof parsedOut === 'object' && !Array.isArray(parsedOut)) {
+      return (
+        <Tool defaultOpen={true}>
+          <ToolHeader type="tool-update_task" state="output-available" />
+          <ToolContent>
+            <div className="p-3">
+              <TaskDisplay tasks={[parsedOut]} />
+            </div>
+          </ToolContent>
+        </Tool>
+      );
+    }
+
+    // Render create_reminder results using ReminderDisplay (single reminder)
+    if (nameLower.includes('create_reminder') && parsedOut && typeof parsedOut === 'object' && !Array.isArray(parsedOut)) {
+      return (
+        <Tool defaultOpen={true}>
+          <ToolHeader type="tool-create_reminder" state="output-available" />
+          <ToolContent>
+            <div className="p-3">
+              <ReminderDisplay reminders={[parsedOut]} />
+            </div>
+          </ToolContent>
+        </Tool>
+      );
+    }
+
+    // Render delete operations with a success message
+    if (nameLower.includes('delete_task') || nameLower.includes('delete_reminder')) {
+      return (
+        <Tool defaultOpen={true}>
+          <ToolHeader type={`tool-${nameLower.includes('delete_task') ? 'delete_task' : 'delete_reminder'}`} state="output-available" />
+          <ToolContent>
+            <div className="p-3">
+              <div className="text-sm text-green-600 bg-green-50 border border-green-200 rounded-lg p-3">
+                ✅ {nameLower.includes('delete_task') ? 'Task' : 'Reminder'} deleted successfully
               </div>
-              <div className="mt-1 text-xs text-muted-foreground flex items-center gap-1">
-                <Clock className="h-3 w-3 text-primary" />
-                {String(r.time || '')}
-              </div>
-              {Array.isArray(r.days) && r.days.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1 items-center">
-                  <Calendar className="h-3 w-3 text-primary" />
-                  {r.days.map((d: string, i2: number) => (
-                    <span key={i2} className="text-[10px] px-2 py-0.5 rounded-full bg-primary/5 text-primary border border-primary/20">
-                      {d}
-                    </span>
-                  ))}
+              {outputStr && outputStr !== 'undefined' && (
+                <div className="mt-2 text-xs text-muted-foreground">
+                  {outputStr}
                 </div>
               )}
             </div>
-          ))}
-        </div>
+          </ToolContent>
+        </Tool>
       );
     }
 
-    // Render list_tasks results
-    if (nameLower.includes('list_tasks') && Array.isArray(parsedOut)) {
-      return (
-        <div className="space-y-2 w-full">
-          {parsedOut.map((t: any, idx: number) => {
-            const taskTitle = t?.schema?.title || t?.title || 'Task';
-            const taskStatus = t?.status || 'PENDING';
-            const taskDueDate = t?.schema?.dueDate || t?.dueDate;
-            const taskTags = t?.schema?.tags || t?.tags;
-            
-            return (
-              <div key={idx} className="p-3 bg-card rounded-lg border border-border/30 hover:border-border/50 transition-colors">
-                <div className="flex items-center justify-between">
-                  <div className="font-medium text-foreground">{String(taskTitle)}</div>
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full border ${
-                    taskStatus === 'COMPLETED' 
-                      ? 'bg-primary/10 text-primary border-primary/30'
-                      : taskStatus === 'IN_PROGRESS'
-                      ? 'bg-accent text-accent-foreground border-accent'
-                      : 'bg-muted text-muted-foreground border-border/30'
-                  }`}>
-                    {String(taskStatus).replace('_', ' ')}
-                  </span>
-                </div>
-                {taskDueDate && (
-                  <div className="mt-1 text-xs text-muted-foreground flex items-center gap-1">
-                    <Calendar className="h-3 w-3 text-primary" />
-                    Due: {new Date(taskDueDate).toLocaleString()}
-                  </div>
-                )}
-                {Array.isArray(taskTags) && taskTags.length > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-1">
-                    {taskTags.map((tag: string, i: number) => (
-                      <span key={i} className="text-[10px] px-2 py-0.5 rounded-full bg-accent/20 text-accent-foreground border border-accent/30">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      );
-    }
-
-    // Fallback to raw output
+    // Default result display for other tools
     return (
-      <div className="bg-card border border-border/30 rounded-2xl px-4 py-3 w-full">
-        <pre className="text-xs whitespace-pre-wrap break-words text-foreground">
-          {outputStr}
-        </pre>
-      </div>
+      <Tool defaultOpen={true}>
+        <ToolHeader type={`tool-${name}`} state="output-available" />
+        <ToolContent>
+          <ToolOutput 
+            output={typeof output === 'string' ? output : JSON.stringify(output, null, 2)}
+          />
+        </ToolContent>
+      </Tool>
     );
   }
 

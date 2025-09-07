@@ -5,8 +5,6 @@ import Database from 'better-sqlite3';
 import path from 'path';
 import { format } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
-import * as http from 'http';
-import { request } from 'http';
 
 type TaskStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'NEEDS_REVIEW' | 'ARCHIVED';
 
@@ -43,7 +41,7 @@ export class TaskBridge {
     const envDb = process.env.TASKY_DB_PATH;
     this.dbPath = envDb && envDb.trim().length > 0
       ? (path.isAbsolute(envDb) ? envDb : path.join(process.cwd(), envDb))
-      : path.join(process.cwd(), '..', 'data', 'tasky.db'); // Go up one level to reach main project data folder
+      : path.join(process.cwd(), '..', 'data', 'tasky.db'); // Point to parent directory's data folder
     this.db = new Database(this.dbPath);
     const requestedJournal = (process.env.TASKY_SQLITE_JOURNAL || 'DELETE').toUpperCase();
     const journal = requestedJournal === 'WAL' ? 'WAL' : 'DELETE';
@@ -92,37 +90,11 @@ export class TaskBridge {
   }
 
   /**
-   * Notify the main application about a created task
+   * Log task creation (notification now handled by main app via IPC)
    */
   private async notifyTaskCreated(title: string, description?: string): Promise<void> {
-    try {
-      const postData = JSON.stringify({ title, description });
-      
-      const req = request({
-        hostname: 'localhost',
-        port: 7844,
-        path: '/notify-task-created',
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Content-Length': Buffer.byteLength(postData)
-        }
-      }, (res) => {
-        if (res.statusCode !== 200) {
-          console.warn(`Notification request failed with status: ${res.statusCode}`);
-        }
-      });
-
-      req.on('error', (error) => {
-        console.warn('Failed to notify main app about task creation:', error);
-      });
-
-      req.write(postData);
-      req.end();
-    } catch (error) {
-      // Log but don't throw - notification failure shouldn't break task creation
-      console.warn('Failed to notify main app about task creation:', error);
-    }
+    // With stdio protocol, main app handles notifications when it receives MCP responses
+    console.log('[TaskBridge] Task created:', title, description ? `- ${description}` : '');
   }
 
   async createTask(args: any): Promise<CallToolResult> {
@@ -339,78 +311,27 @@ export class TaskBridge {
     if (!id) return { content: [{ type: 'text', text: 'id is required' }], isError: true };
     
     try {
-      // Call the main Tasky app's HTTP endpoint for actual task execution
-      const postData = JSON.stringify({
-        taskId: id,
-        options: { agent: 'claude' }
-      });
-
-      const result: any = await new Promise((resolve, reject) => {
-        const req = http.request({
-          hostname: 'localhost',
-          port: 7844,
-          path: '/execute-task',
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Content-Length': Buffer.byteLength(postData)
-          }
-        }, (res: any) => {
-          let data = '';
-          res.on('data', (chunk: any) => data += chunk);
-          res.on('end', () => {
-            try {
-              if (res.statusCode !== 200) {
-                reject(new Error(`HTTP ${res.statusCode}: ${data}`));
-              } else {
-                resolve(JSON.parse(data));
-              }
-            } catch (e) {
-              reject(e);
-            }
-          });
-        });
-
-        req.on('error', reject);
-        req.setTimeout(8000); // 8s timeout to keep logs concise
-        req.on('timeout', () => {
-          req.destroy();
-          reject(new Error('HTTP request timeout'));
-        });
-        
-        req.write(postData);
-        req.end();
-      });
+      // Since we removed HTTP server, just update task status to indicate execution
+      const executionStatus: TaskStatus = (status === 'COMPLETED' ? 'COMPLETED' : 'IN_PROGRESS');
+      const updates: any = { status: executionStatus };
       
-      // If user specified COMPLETED status, update the task status after execution
-      if (status === 'COMPLETED') {
-        const completeResult = await this.updateTask({ id, updates: { status: 'COMPLETED' } });
-        if (completeResult.isError) return completeResult;
+      const result = await this.updateTask({ id, updates });
+      
+      if (result.isError) {
+        return result;
       }
       
       return { content: [
-        { type: 'text', text: `Task execution started: ${result.performed || 'external agent execution'}` },
-        { type: 'text', text: JSON.stringify(result) }
+        { type: 'text', text: `Task marked as ${executionStatus.toLowerCase()}` },
+        { type: 'text', text: JSON.stringify({ success: true, status: executionStatus }) }
       ] };
       
     } catch (error) {
-      // Fallback to simple status update if HTTP call fails
-      const fallbackStatus: TaskStatus = (status === 'COMPLETED' ? 'COMPLETED' : 'IN_PROGRESS');
-      const updates: any = { status: fallbackStatus };
-      const fallbackResult = await this.updateTask({ id, updates });
-      
-      // Add error info to the response
-      if (!fallbackResult.isError) {
-        const errorMsg = error instanceof Error ? error.message : String(error);
-        const errorType = errorMsg.includes('ECONNREFUSED') || errorMsg.includes('ENOTFOUND') || errorMsg.includes('timeout') 
-          ? 'Tasky app not running or not accessible' 
-          : errorMsg || 'Unknown connection error';
-        fallbackResult.content.push({ 
-          type: 'text', 
-          text: `Note: Task execution requires main Tasky app to be running (Error: ${errorType})` 
-        });
-      }
-      return fallbackResult;
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      return { 
+        content: [{ type: 'text', text: `Error executing task: ${errorMsg}` }], 
+        isError: true 
+      };
     }
   }
 }

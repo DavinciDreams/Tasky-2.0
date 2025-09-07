@@ -317,16 +317,30 @@ server.tool(
   }
 );
 
-// Start the server
+// Start the server using stdio transport
 async function main() {
+  console.error('Starting Tasky MCP server with stdio transport...');
+  
   const transport = new StdioServerTransport();
+  
+  // Connect the server to the transport
   await server.connect(transport);
-  // keep quiet; host tools already show tool availability
+  
+  console.error('Tasky MCP server connected via stdio');
+  
+  // Handle graceful shutdown
+  process.on('SIGTERM', () => {
+    console.error('Received SIGTERM, shutting down gracefully');
+    process.exit(0);
+  });
+
+  process.on('SIGINT', () => {
+    console.error('Received SIGINT, shutting down gracefully');
+    process.exit(0);
+  });
 }
 
 main().catch((error) => {
-  // minimal fatal log
-  // eslint-disable-next-line no-console
-  console.error('MCP server fatal error');
+  console.error('MCP server fatal error:', error);
   process.exit(1);
 });

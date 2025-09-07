@@ -13,8 +13,8 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      // Point '@/...' imports to the renderer source directory
-      '@': resolve(__dirname, 'src/renderer'),
+      // Point '@/...' imports to the src directory to match TypeScript paths
+      '@': resolve(__dirname, 'src'),
     },
   },
   build: {

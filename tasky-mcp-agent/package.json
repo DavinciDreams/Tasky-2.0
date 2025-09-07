@@ -7,6 +7,7 @@
     "dev": "tsx src/mcp-server.ts",
     "build": "rimraf dist && tsc",
     "start": "node dist/mcp-server.js",
+    "start:local": "tsx src/mcp-server.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

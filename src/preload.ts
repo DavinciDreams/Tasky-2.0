@@ -63,6 +63,10 @@ const electronAPI: ElectronAPI = {
   saveChat: (chatId: string, messages: Array<{ role: 'user' | 'assistant'; content: string }>) => ipcRenderer.invoke('chat:save', chatId, messages),
   deleteChat: (chatId: string) => ipcRenderer.invoke('chat:delete', chatId),
   resetChats: () => ipcRenderer.invoke('chat:reset'),
+
+  // MCP communication via IPC
+  mcpToolsList: () => ipcRenderer.invoke('mcp:tools/list'),
+  mcpToolsCall: (toolName: string, toolArgs: any) => ipcRenderer.invoke('mcp:tools/call', toolName, toolArgs),
   
   // Task-reminder integration
   // Not implemented in main process yet; provide stubs to satisfy typing

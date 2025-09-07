@@ -119,12 +119,13 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT
         setMcpReady(false);
         return;
       }
-      const res = await fetch('http://localhost:7844/mcp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jsonrpc: '2.0', id: Date.now(), method: 'tools/list' })
-      });
-      if (res.ok) setMcpReady(true);
+      try {
+        await (window as any).electronAPI.mcpToolsList();
+        setMcpReady(true);
+      } catch (error) {
+        console.warn('[Chat] MCP tools list failed:', error);
+        setMcpReady(false);
+      }
     } catch {
       setMcpReady(false);
     }
@@ -245,7 +246,7 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT
   }, [pendingResult?.id]);
 
   // Handle chat switching
-  const handleChatSwitch = useCallback(async (newChatId: string) => {
+  const handleChatSwitch = useCallback(async (newChatId: string | null) => {
     await switchToChat(newChatId);
     // Clear tool events when switching chats
     // Note: toolEvents is managed by useMcpTools hook, would need to expose a clear method
@@ -269,14 +270,15 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT
           if (Array.isArray(updatedList) && updatedList.length > 0) {
             await handleChatSwitch(updatedList[0].id);
           } else {
-            await handleNewChat();
+            // No chats left - switch to null state to show empty state
+            await handleChatSwitch(null);
           }
         }
       } catch (error) {
         console.error('Failed to delete chat:', error);
       }
     }
-  }, [handleConfirm, pendingConfirm, chatId, handleChatSwitch, handleNewChat]);
+  }, [handleConfirm, pendingConfirm, chatId, handleChatSwitch]);
 
   // Send message
   const onSend = async () => {
@@ -375,9 +377,9 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT
       controller = new AbortController();
       abortRef.current = controller;
 
-      // Temporarily disable tools to test basic chat functionality
-      const tools = undefined; // mcpReady ? { mcpCall } as any : undefined;
-      console.log('[Chat] Running without tools (temporarily disabled for testing)');
+      // Enable MCP tools when server is ready
+      const tools = mcpReady ? { mcpCall } as any : undefined;
+      console.log('[Chat] Tools enabled:', !!tools, 'MCP ready:', mcpReady);
 
       try {
         const result = await aiService.streamText(

@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { MessageBubble } from './MessageBubble';
 import { MessageSkeleton } from './MessageSkeleton';
 import { AdaptiveCardRenderer } from './AdaptiveCardRenderer';
-import { ToolCallFlow } from './ToolCallFlow';
+import { ToolCallDisplay } from './ToolCallDisplay';
 import type { ChatMessage, ToolEvent } from './types';
 
 interface MessageItem {
@@ -116,23 +116,6 @@ export const MessageContainer: React.FC<MessageContainerProps> = ({
     return allItems;
   }, [messages, toolEvents, pendingConfirm, isStreaming]);
 
-  // Get tool state for inline indicators
-  const getToolState = (toolEvent: ToolEvent) => {
-    if (pendingConfirm && pendingConfirm.id === toolEvent.id) {
-      return 'confirming';
-    }
-    switch (toolEvent.phase) {
-      case 'start':
-        return 'executing';
-      case 'done':
-        return 'complete';
-      case 'error':
-        return 'error';
-      default:
-        return 'pending';
-    }
-  };
-
   return (
     <div className="space-y-3">
       <AnimatePresence mode="popLayout">
@@ -203,10 +186,8 @@ export const MessageContainer: React.FC<MessageContainerProps> = ({
                   exit={{ opacity: 0, scale: 0.95 }}
                   transition={{ duration: 0.2 }}
                 >
-                  <ToolCallFlow
-                    toolName={item.toolEvent.name}
-                    state="confirming"
-                    args={item.toolEvent.args}
+                  <ToolCallDisplay
+                    toolEvent={item.toolEvent}
                   />
                 </motion.div>
               );
@@ -222,12 +203,8 @@ export const MessageContainer: React.FC<MessageContainerProps> = ({
                   exit={{ opacity: 0, x: 10 }}
                   transition={{ duration: 0.2 }}
                 >
-                  <ToolCallFlow
-                    toolName={item.toolEvent.name}
-                    state={getToolState(item.toolEvent) as any}
-                    args={item.toolEvent.args}
-                    result={item.toolEvent.output}
-                    error={item.toolEvent.error}
+                  <ToolCallDisplay
+                    toolEvent={item.toolEvent}
                   />
                 </motion.div>
               );
@@ -260,7 +237,6 @@ export const MessageContainer: React.FC<MessageContainerProps> = ({
           animate={{ opacity: 1 }}
           className="flex flex-col items-center justify-center py-12 text-muted-foreground"
         >
-          <div className="text-4xl mb-4">💬</div>
           <div className="text-sm">Start a conversation with Tasky</div>
           <div className="text-xs mt-2 opacity-70">
             Ask me about tasks, reminders, or anything else!
