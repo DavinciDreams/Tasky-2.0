@@ -8,8 +8,6 @@ export const GOOGLE_AI_MODELS = [
   'gemini-2.5-flash',
   'gemini-2.5-flash-lite',
   'gemini-2.0-flash',
-  'gemini-1.5-pro',
-  'gemini-1.5-pro-latest',
   'gemini-1.5-flash',
   'gemini-1.5-flash-latest',
   'gemini-1.5-flash-8b',
@@ -43,7 +41,7 @@ export class GoogleAIProvider implements AIProvider {
     if (requested.includes('2.5-pro') || requested.includes('pro')) return 'gemini-2.5-pro';
     if (requested.includes('2.5-flash')) return 'gemini-2.5-flash';
     if (requested.includes('2.0-flash')) return 'gemini-2.0-flash';
-    if (requested.includes('1.5-pro')) return 'gemini-1.5-pro-latest';
+    if (requested.includes('1.5-pro')) return 'gemini-2.5-pro'; // Fallback to 2.5-pro since 1.5-pro is removed
     if (requested.includes('1.5-flash-8b')) return 'gemini-1.5-flash-8b-latest';
     if (requested.includes('1.5-flash')) return 'gemini-1.5-flash-latest';
     if (requested.includes('flash-8b')) return 'gemini-1.5-flash-8b-latest';

@@ -16,6 +16,7 @@ import type { Reminder, Settings as AppSettings, CustomAvatar, DefaultAvatar } f
 import type { TaskyTask, TaskyTaskSchema } from '../types/task';
 import { TasksTab } from '../components/tasks/TasksTab';
 import { ApplicationsTab } from '../components/apps/ApplicationsTab';
+import LocationDateTime from '../components/ui/LocationDateTime';
 import '../types/css.d.ts';
 
 // Build a list of IANA timezones (fallback) if Intl doesn't expose them
@@ -241,8 +242,18 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
         if (!key) {
           throw new Error('Enter an API key first.');
         }
-        // Test Google AI API with a minimal request
-        const modelId = String(settings.llmModel || 'gemini-2.5-flash');
+        
+        // Force a valid Google AI model if an incompatible one is selected
+        let modelId = String(settings.llmModel || 'gemini-1.5-flash');
+        
+        // Check if the current model is a Google/Gemini model
+        if (!modelId.includes('gemini')) {
+          console.warn(`Model "${modelId}" is not compatible with Google AI. Using gemini-1.5-flash instead.`);
+          modelId = 'gemini-1.5-flash';
+        }
+        
+        console.log('Testing Google AI with model:', modelId);
+        
         const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${key}`, {
           method: 'POST',
           headers: {
@@ -257,12 +268,18 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
             }
           })
         });
+        
+        console.log('Google AI test response status:', res.status, res.statusText);
+        
         if (res.ok) {
+          const responseData = await res.json();
+          console.log('Google AI test response:', responseData);
           setLlmTestStatus({ ok: true, message: 'Google AI' });
         } else {
           const j = await res.json().catch(() => ({} as any));
-          const err = (j && j.error && j.message) ? j.error.message : `${res.status} ${res.statusText}`;
-          setLlmTestStatus({ ok: false, message: 'Google AI' });
+          console.error('Google AI test failed:', j);
+          const err = (j && j.error && j.error.message) ? j.error.message : `${res.status} ${res.statusText}`;
+          setLlmTestStatus({ ok: false, message: `Google AI - ${err}` });
         }
       } else {
         const baseURL = (settings.llmBaseUrl || 'http://localhost:1234/v1').trim();
@@ -280,7 +297,8 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
         }
       }
     } catch (e: any) {
-      setLlmTestStatus({ ok: false, message: provider === 'google' ? 'Google AI' : 'LM Studio' });
+      console.error('AI Provider test error:', e);
+      setLlmTestStatus({ ok: false, message: `${provider === 'google' ? 'Google AI' : 'LM Studio'} - ${e.message}` });
     } finally {
       setLlmTesting(false);
     }
@@ -435,6 +453,12 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
                 ]}
                 onChange={(val) => {
                   onSettingChange('llmProvider', val);
+                  // Auto-set appropriate default model for each provider
+                  if (val === 'google') {
+                    onSettingChange('llmModel', 'gemini-1.5-flash');
+                  } else if (val === 'lmstudio') {
+                    onSettingChange('llmModel', 'llama-3.2-1b-instruct');
+                  }
                 }}
               />
 
@@ -446,7 +470,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
                     title="Model"
                     description="Choose a suggested model for the selected provider"
                     type="select"
-                    value={settings.llmModel || 'gemini-2.5-flash'}
+                    value={settings.llmModel || 'gemini-1.5-flash'}
                     options={(() => {
                       // Get models dynamically from AI providers
                       const availableModels = getAvailableModels(settings.llmProvider || 'google');
@@ -456,9 +480,9 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
                       
                       // Fallback for Google AI models
                       return [
-                        { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
+                        { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash' },
+                        { value: 'gemini-2.0-flash-exp', label: 'Gemini 2.0 Flash (Experimental)' },
                         { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
-                        { value: 'gemini-1.5-pro-latest', label: 'Gemini 1.5 Pro Latest' },
                         { value: 'gemini-1.5-flash-latest', label: 'Gemini 1.5 Flash Latest' },
                       ];
                     })()}
@@ -1738,14 +1762,14 @@ const App: React.FC = () => {
       <div className="flex flex-col w-full overflow-hidden bg-background text-foreground">
         {/* Header with Tabs */}
         <header className="flex-shrink-0 bg-background border-b-0 header sticky top-0 z-50" style={{WebkitAppRegion: 'drag'}}>
-          <div className="flex flex-col h-20">
+          <div className="flex flex-col">
             {/* Window Controls */}
-             <div className="flex justify-end items-center h-8 pr-0">
+             <div className="flex justify-end items-center h-7 pr-0">
               <div className="flex items-center" style={{WebkitAppRegion: 'no-drag'}}>
                 <button
                   onClick={handleMinimizeApp}
                    aria-label="Minimize window"
-                   className="flex items-center justify-center w-12 h-8 hover:bg-gray-600 hover:text-white transition-all duration-200 border-none outline-none"
+                   className="flex items-center justify-center w-12 h-7 hover:bg-gray-600 hover:text-white transition-all duration-200 border-none outline-none"
                   title="Minimize"
                 >
                   <Minus size={14} className="text-muted-foreground hover:text-white" />
@@ -1754,14 +1778,25 @@ const App: React.FC = () => {
                   onClick={handleCloseApp}
                   onDoubleClick={handleForceQuit}
                    aria-label="Close window"
-                   className="flex items-center justify-center w-12 h-8 hover:bg-red-600 hover:text-white transition-all duration-200 border-none outline-none"
+                   className="flex items-center justify-center w-12 h-7 hover:bg-red-600 hover:text-white transition-all duration-200 border-none outline-none"
                   title="Close (Double-click to quit app completely)"
                 >
                   <span className="text-muted-foreground hover:text-white text-sm font-bold">✕</span>
                 </button>
               </div>
             </div>
-            
+          </div>
+        </header>
+        
+        {/* Date and Time Header */}
+        <LocationDateTime 
+          timeFormat={settings.timeFormat || '24h'}
+          timezone={settings.timezone}
+        />
+        
+        {/* Navigation Header */}
+        <header className="flex-shrink-0 bg-background border-b-0 header sticky top-0 z-50" style={{WebkitAppRegion: 'drag'}}>
+          <div className="flex flex-col">
             {/* Navigation Tabs */}
             <div className="flex justify-center items-center h-12 px-6">
               <nav className="flex items-center gap-2 top-nav" style={{WebkitAppRegion: 'no-drag'}}>

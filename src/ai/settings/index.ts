@@ -177,12 +177,6 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT
         capabilities: baseCapabilities
       },
       {
-        id: 'gemini-1.5-pro-latest',
-        name: 'Gemini 1.5 Pro Latest',
-        description: 'Latest 1.5 Pro model',
-        capabilities: baseCapabilities
-      },
-      {
         id: 'gemini-1.5-flash-latest',
         name: 'Gemini 1.5 Flash Latest',
         description: 'Latest 1.5 Flash model',
