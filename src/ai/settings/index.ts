@@ -18,7 +18,7 @@ export class AISettingsManager {
       model: 'gemini-2.5-flash',
       temperature: 1.0,
       maxTokens: 4096,
-      systemPrompt: this.getDefaultSystemPrompt(),
+      systemPrompt: '',
       useCustomPrompt: false
     };
   }
@@ -59,8 +59,8 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT
     // Provider validation
     if (!settings.provider) {
       errors.push('AI provider is required');
-    } else if (!['google', 'custom'].includes(settings.provider)) {
-      errors.push('AI provider must be either "google" or "custom"');
+    } else if (!['google', 'lmstudio'].includes(settings.provider)) {
+      errors.push('AI provider must be either "google" or "lmstudio"');
     }
 
     // API Key validation
@@ -68,8 +68,10 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT
       if (settings.provider === 'google') {
         errors.push('Google AI API key is required');
         suggestions.push('Get your API key from https://aistudio.google.com/app/apikey');
-      } else if (settings.provider === 'custom' && (!settings.baseUrl || !settings.baseUrl.includes('localhost'))) {
-        warnings.push('API key recommended for external custom providers');
+      } else if (settings.provider === 'lmstudio') {
+        // LM Studio typically uses a placeholder API key like "lm-studio"
+        warnings.push('LM Studio usually uses "lm-studio" as API key');
+        suggestions.push('Use "lm-studio" as the API key for local LM Studio instances');
       }
     }
 
@@ -83,14 +85,19 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT
       }
     }
 
-    // Base URL validation for custom providers
-    if (settings.provider === 'custom') {
+    // Base URL validation for LM Studio providers
+    if (settings.provider === 'lmstudio') {
       if (!settings.baseUrl || settings.baseUrl.trim() === '') {
-        errors.push('Base URL is required for custom providers');
-        suggestions.push('Example: http://localhost:1234/v1 for LM Studio');
+        // Set default LM Studio URL
+        suggestions.push('Default LM Studio URL: http://localhost:1234/v1');
+        warnings.push('Using default LM Studio URL. Make sure LM Studio server is running.');
       } else {
         try {
           new URL(settings.baseUrl);
+          // Validate it looks like an LM Studio URL
+          if (!settings.baseUrl.includes('localhost') && !settings.baseUrl.includes('127.0.0.1')) {
+            warnings.push('LM Studio typically runs on localhost. Verify your server address.');
+          }
         } catch {
           errors.push('Base URL must be a valid URL');
         }
@@ -123,8 +130,8 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT
     switch (provider) {
       case 'google':
         return this.getGoogleModels();
-      case 'custom':
-        return this.getCustomModels();
+      case 'lmstudio':
+        return this.getLMStudioModels();
       default:
         return [];
     }
@@ -190,36 +197,61 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT
     ];
   }
 
-  private getCustomModels(): AIModelInfo[] {
-    const customCapabilities: AIProviderCapabilities = {
+  private getLMStudioModels(): AIModelInfo[] {
+    const lmstudioCapabilities: AIProviderCapabilities = {
       supportsStreaming: true,
-      supportsTools: false, // Most custom providers don't support tools
-      supportsImages: false, // Depends on the model
-      supportsObjectGeneration: false,
+      supportsTools: true, // LM Studio supports tools through OpenAI compatibility
+      supportsImages: false, // Depends on the loaded model
+      supportsObjectGeneration: true, // LM Studio supports structured output
       supportsSearch: false,
       supportsUrlContext: false,
-      maxContextLength: 4096 // Varies by model
+      maxContextLength: 8192 // Varies by model
     };
 
     return [
       {
+        id: 'llama-3.3-70b-instruct',
+        name: 'Llama 3.3 70B Instruct',
+        description: 'Latest and most capable Llama model',
+        capabilities: { ...lmstudioCapabilities, maxContextLength: 32768 },
+        isDefault: true,
+        isRecommended: true
+      },
+      {
         id: 'llama-3.1-8b-instruct',
         name: 'Llama 3.1 8B Instruct',
-        description: 'Popular open-source model for local hosting',
-        capabilities: customCapabilities,
-        isDefault: true
+        description: 'Fast and efficient model for most tasks',
+        capabilities: lmstudioCapabilities
       },
       {
         id: 'llama-3.1-70b-instruct',
         name: 'Llama 3.1 70B Instruct',
-        description: 'Larger Llama model with better performance',
-        capabilities: { ...customCapabilities, maxContextLength: 8192 }
+        description: 'Larger model with better performance',
+        capabilities: { ...lmstudioCapabilities, maxContextLength: 16384 }
+      },
+      {
+        id: 'qwen2.5-7b-instruct',
+        name: 'Qwen2.5 7B Instruct',
+        description: 'Efficient Chinese and English model',
+        capabilities: { ...lmstudioCapabilities, maxContextLength: 32768 }
+      },
+      {
+        id: 'qwen2.5-14b-instruct',
+        name: 'Qwen2.5 14B Instruct',
+        description: 'Balanced performance and efficiency',
+        capabilities: { ...lmstudioCapabilities, maxContextLength: 32768 }
+      },
+      {
+        id: 'deepseek-r1-distill-qwen-7b',
+        name: 'DeepSeek R1 Distill Qwen 7B',
+        description: 'Reasoning-focused model',
+        capabilities: { ...lmstudioCapabilities, maxContextLength: 32768 }
       },
       {
         id: 'custom-model',
-        name: 'Custom Model',
-        description: 'Your own model configuration',
-        capabilities: customCapabilities
+        name: 'Your Model',
+        description: 'Use any model loaded in LM Studio',
+        capabilities: lmstudioCapabilities
       }
     ];
   }
@@ -237,7 +269,7 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT
     if (provider === 'google') {
       return this.getGoogleModels()[0].capabilities;
     } else {
-      return this.getCustomModels()[0].capabilities;
+      return this.getLMStudioModels()[0].capabilities;
     }
   }
 
@@ -278,8 +310,8 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT
     try {
       if (settings.provider === 'google') {
         return await this.testGoogleConnection(settings);
-      } else if (settings.provider === 'custom') {
-        return await this.testCustomConnection(settings);
+      } else if (settings.provider === 'lmstudio') {
+        return await this.testLMStudioConnection(settings);
       } else {
         return { success: false, message: 'Unsupported provider' };
       }
@@ -316,25 +348,47 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT
     }
   }
 
-  private async testCustomConnection(settings: AISettings): Promise<{ success: boolean; message: string }> {
-    if (!settings.baseUrl) {
-      return { success: false, message: 'Base URL required for custom provider' };
-    }
-
+  private async testLMStudioConnection(settings: AISettings): Promise<{ success: boolean; message: string }> {
+    const baseUrl = settings.baseUrl || 'http://localhost:1234/v1';
+    
     try {
-      const response = await fetch(`${settings.baseUrl}/models`, {
-        headers: settings.apiKey ? {
-          'Authorization': `Bearer ${settings.apiKey}`
-        } : {}
+      // Test LM Studio's /v1/models endpoint
+      const response = await fetch(`${baseUrl}/models`, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(settings.apiKey && { 'Authorization': `Bearer ${settings.apiKey}` })
+        }
       });
 
       if (response.ok) {
-        return { success: true, message: 'Custom provider connection successful' };
+        const data = await response.json();
+        const modelCount = data?.data?.length || 0;
+        return { 
+          success: true, 
+          message: `LM Studio connection successful. Found ${modelCount} model(s).` 
+        };
+      } else if (response.status === 404) {
+        return { 
+          success: false, 
+          message: 'LM Studio server not found. Make sure LM Studio is running and server is started.' 
+        };
       } else {
-        return { success: false, message: `Custom provider error: ${response.status}` };
+        return { 
+          success: false, 
+          message: `LM Studio error: ${response.status}. Check if server is properly configured.` 
+        };
       }
     } catch (error) {
-      return { success: false, message: 'Custom provider connection failed' };
+      if ((error as any)?.code === 'ECONNREFUSED') {
+        return { 
+          success: false, 
+          message: 'Cannot connect to LM Studio. Please start LM Studio and enable the server.' 
+        };
+      }
+      return { 
+        success: false, 
+        message: 'LM Studio connection failed. Check if the server is running on the correct port.' 
+      };
     }
   }
 }

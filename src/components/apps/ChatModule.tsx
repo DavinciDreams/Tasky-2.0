@@ -8,7 +8,6 @@ import { Modal } from '../ui/modal';
 
 // Chat Components
 import {
-  ChatHeader,
   MessageContainer,
   ChatComposer,
   ConfirmOverlay,
@@ -19,7 +18,7 @@ import {
 
 // Types and Tools
 import type { Settings as AppSettings } from '../../types';
-import type { ChatMessage } from '../chat/types';
+import type { ChatMessage, ToolEvent } from '../chat/types';
 import { mcpCall, callMcpTool } from '../../ai/mcp-tools';
 
 interface ChatModuleProps {
@@ -57,7 +56,17 @@ IMPORTANT:
 
 For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT output text like "<mcpCall name=..." - use the actual function call.`;
 
-  // State
+  // State - Chat persistence
+  const {
+    chatId,
+    messages,
+    setMessages,
+    saveMessages,
+    switchToChat,
+    createNewChat,
+  } = useChatPersistence();
+  
+  // Other state
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -75,7 +84,6 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT
   const messagesRef = useRef<ChatMessage[]>([]);
 
   // Custom hooks
-  const { chatId, messages, setMessages, saveMessages, switchToChat, createNewChat } = useChatPersistence();
   const {
     toolEvents,
     pendingConfirm,
@@ -85,10 +93,9 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT
     createConfirmSnapshot,
     createResultSnapshot,
     clearResult,
-  } = useMcpTools(chatId);
+  } = useMcpTools(chatId); // Pass chat ID for MCP tools
   const {
     scrollRef,
-    showJumpToLatest,
     scrollToBottom,
     handleScroll,
     autoScrollIfNeeded,
@@ -98,6 +105,39 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT
   useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
+
+  // Save messages when they change (and we have a chat ID)
+  useEffect(() => {
+    if (chatId && messages.length > 0) {
+      saveMessages(messages);
+    }
+  }, [messages, chatId, saveMessages]);
+
+  // Reset chat function
+  const resetChat = useCallback(async () => {
+    try {
+      // Reset all chats in the database
+      await window.electronAPI.resetChats();
+      
+      // Clear local state
+      setMessages([]);
+      setInput('');
+      setError(null);
+      setStreamingAssistantMessage('');
+      setBusy(false);
+      
+      // Reset to no chat ID (empty state)
+      switchToChat(null);
+      
+      if (abortRef.current) {
+        abortRef.current.abort();
+        abortRef.current = null;
+      }
+    } catch (error) {
+      console.error('Failed to reset chat:', error);
+      setError('Failed to reset chat');
+    }
+  }, [setMessages, switchToChat]);
 
   // Persist system prompt on mount
   useEffect(() => {
@@ -176,10 +216,6 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT
         role: 'assistant', 
         content: `Chat setup needed: ${errorMsg}${suggestionsMsg}` 
       } as ChatMessage]);
-      saveMessages([...messagesRef.current, { 
-        role: 'assistant', 
-        content: `Chat setup needed: ${errorMsg}${suggestionsMsg}` 
-      } as ChatMessage]);
       
       return false;
     }
@@ -222,63 +258,31 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT
     }
   }, [settings.llmProvider, settings.llmApiKey, settings.llmModel, settings.llmBaseUrl, temperature]);
 
-  const providerSupported = useMemo(() => ['google', 'custom'].includes(
+  const providerSupported = useMemo(() => ['google', 'lmstudio'].includes(
     (settings.llmProvider || 'google').toLowerCase()
   ), [settings.llmProvider]);
 
-  // Persist confirm/result snapshots
+  // Persist confirm/result snapshots (simplified without chat persistence)
   useEffect(() => {
     const snapshot = createConfirmSnapshot();
-    if (snapshot && chatId) {
+    if (snapshot) {
       setMessages(prev => [...prev, snapshot]);
-      saveMessages([...messagesRef.current, snapshot]);
     }
-  }, [pendingConfirm, chatId]);
+  }, [pendingConfirm, createConfirmSnapshot]);
 
   useEffect(() => {
     const snapshot = createResultSnapshot();
-    if (snapshot && chatId) {
+    if (snapshot) {
       setMessages(prev => [...prev, snapshot]);
-      saveMessages([...messagesRef.current, snapshot]);
       clearResult();
       autoScrollIfNeeded();
     }
-  }, [pendingResult?.id]);
+  }, [pendingResult?.id, createResultSnapshot, clearResult, autoScrollIfNeeded]);
 
-  // Handle chat switching
-  const handleChatSwitch = useCallback(async (newChatId: string | null) => {
-    await switchToChat(newChatId);
-    // Clear tool events when switching chats
-    // Note: toolEvents is managed by useMcpTools hook, would need to expose a clear method
-  }, [switchToChat]);
-
-  // Handle new chat
-  const handleNewChat = useCallback(async () => {
-    await createNewChat();
-    // Clear tool events for new chat
-  }, [createNewChat]);
-
-  // Handle confirmation
-  const handleConfirmWithChatDelete = useCallback(async (accepted: boolean) => {
-    const chatToDelete = handleConfirm(accepted);
-    if (chatToDelete && pendingConfirm?.name === 'delete_chat') {
-      // Handle chat deletion
-      try {
-        await window.electronAPI.deleteChat(chatToDelete);
-        const updatedList = await window.electronAPI.listChats(50).catch(() => []);
-        if (chatToDelete === chatId) {
-          if (Array.isArray(updatedList) && updatedList.length > 0) {
-            await handleChatSwitch(updatedList[0].id);
-          } else {
-            // No chats left - switch to null state to show empty state
-            await handleChatSwitch(null);
-          }
-        }
-      } catch (error) {
-        console.error('Failed to delete chat:', error);
-      }
-    }
-  }, [handleConfirm, pendingConfirm, chatId, handleChatSwitch]);
+  // Handle confirmation (simplified without chat deletion)
+  const handleConfirmSimplified = useCallback(async (accepted: boolean) => {
+    handleConfirm(accepted);
+  }, [handleConfirm]);
 
   // Send message
   const onSend = async () => {
@@ -287,6 +291,17 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT
     if (!trimmed || busy) {
       console.log('[Chat] Blocked: empty input or busy:', { trimmed, busy });
       return;
+    }
+    
+    // Ensure we have a chat to save to
+    let currentChatId = chatId;
+    if (!currentChatId) {
+      console.log('[Chat] Creating new chat for first message');
+      currentChatId = await createNewChat();
+      if (!currentChatId) {
+        setError('Failed to create chat session');
+        return;
+      }
     }
     
     // Check for inline JSON tool call pattern and run immediately
@@ -346,20 +361,7 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT
     let controller: AbortController | null = null;
 
     try {
-      // Ensure a chat exists and persist immediately (direct save to avoid stale closures)
-      let effectiveChatId: string | null = chatId;
-      const toSave = next.map(m => ({ role: m.role, content: m.content }));
-      try {
-        if (!effectiveChatId) {
-          const createdId = await window.electronAPI.createChat('Chat') as string;
-          effectiveChatId = createdId;
-          await window.electronAPI.saveChat(createdId, toSave);
-          await switchToChat(createdId);
-        } else {
-          await window.electronAPI.saveChat(effectiveChatId, toSave);
-        }
-      } catch {}
-
+      // No chat persistence needed - just process the messages
       if (!providerSupported) {
         throw new Error('Selected provider not yet supported in this chat module');
       }
@@ -463,14 +465,7 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT
           }
         }
         
-        // Save final transcript with current messages state
-        if (chatId) {
-          const currentMessages = messagesRef.current;
-          await window.electronAPI.saveChat(chatId, currentMessages.map(m => ({
-            role: m.role,
-            content: m.content
-          })));
-        }
+        // No chat persistence needed
         
       } catch (schemaErr: any) {
         // If tool schema errors (400) or invalid function schema, retry without tools
@@ -537,11 +532,7 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT
             });
             autoScrollIfNeeded();
 
-            // Save transcript after retry
-            if (chatId) {
-              const currentMessages = messagesRef.current;
-              await window.electronAPI.saveChat(chatId, currentMessages.map(m => ({ role: m.role, content: m.content })));
-            }
+            // No chat persistence needed
             return; // handled fallback successfully
           } catch (retryErr) {
             console.warn('[Chat] Retry stream failed:', (retryErr as any)?.message);
@@ -571,9 +562,7 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT
       setError(msg);
       console.error('Chat error:', msg);
       
-      if (chatId) {
-        await saveMessages();
-      }
+      // No chat persistence needed
     } finally {
       abortRef.current = null;
       setBusy(false);
@@ -590,27 +579,34 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT
   return (
     <div ref={rootRef} className="flex-1 min-h-0 flex flex-col relative">
       <div className="flex-1 min-h-0 flex flex-col relative w-full">
-        {/* Header */}
-        <ChatHeader
-          settings={settings}
-          onSettingChange={onSettingChange}
-          chatId={chatId}
-          onChatSwitch={handleChatSwitch}
-          onNewChat={handleNewChat}
-          busy={busy}
-          rootRef={rootRef}
-        />
+        {/* Simple header with reset button */}
+        <div className="flex-shrink-0 flex items-center justify-between mb-2 px-1">
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-semibold text-foreground">Tasky Chat</h2>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              className="rounded-xl text-sm h-8 px-3 flex items-center gap-2 border-border bg-card hover:bg-muted text-foreground focus:ring-0 focus:border-border"
+              disabled={busy}
+              onClick={resetChat}
+            >
+              <span>🔄</span>
+              <span>Reset Chat</span>
+            </Button>
+          </div>
+        </div>
 
         {!providerSupported && (
           <div className="text-xs text-accent mb-2">
-            Provider not yet supported here. Please select Google or Custom in Settings.
+            Provider not yet supported here. Please select Google or LM Studio in Settings.
           </div>
         )}
 
-
-
         {/* Message container with simplified background */}
-        <div className="flex-1 w-full rounded-2xl border border-border/30 p-2 flex flex-col min-h-[calc(100vh-280px)] max-h-[calc(100vh-280px)] relative overflow-hidden bg-background">
+        <div className="flex-1 w-full rounded-2xl border border-border/30 p-2 flex flex-col min-h-0 relative overflow-hidden bg-background">
+
           <div
             ref={scrollRef}
             className="flex-1 min-h-0 overflow-y-auto no-scrollbar p-2 w-full relative"
@@ -623,23 +619,8 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT
               pendingConfirm={pendingConfirm}
               isStreaming={busy}
               streamingContent={streamingAssistantMessage}
-              onConfirm={handleConfirmWithChatDelete}
+              onConfirm={handleConfirmSimplified}
             />
-
-            {/* Jump to latest button */}
-            {showJumpToLatest && (
-              <div className="absolute bottom-2 right-2 z-10">
-                <Button
-                  size="sm"
-                  className="rounded-full px-3 py-1 text-xs bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg"
-                  onClick={() => {
-                    scrollToBottom();
-                  }}
-                >
-                  Jump to latest
-                </Button>
-              </div>
-            )}
           </div>
         </div>
 
@@ -647,7 +628,7 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT
         {false && pendingConfirm && (
           <ConfirmOverlay
             pendingConfirm={pendingConfirm}
-            onConfirm={handleConfirmWithChatDelete}
+            onConfirm={handleConfirmSimplified}
             rootRef={rootRef}
           />
         )}

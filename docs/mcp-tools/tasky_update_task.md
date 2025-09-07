@@ -48,7 +48,6 @@ UPDATE tasks SET
   status = @status,
   updated_at = @updated_at,
   due_date = @due_date,
-  human_approved = @human_approved,
   reminder_enabled = @reminder_enabled,
   result = @result,
   completed_at = @completed_at,
@@ -106,7 +105,7 @@ curl -X POST http://localhost:7844/mcp \
       },
       {
         "type": "text",
-        "text": "{\"schema\":{\"id\":\"fix_login_bug_20250907_143022_abc123\",\"title\":\"Fix login bug\",\"description\":\"Fixed OAuth redirect issue - deployed to production\",\"createdAt\":\"2025-09-07T14:30:22.000Z\",\"updatedAt\":\"2025-09-07T16:45:00.000Z\",\"dueDate\":\"2025-09-08T17:00:00.000Z\",\"tags\":[\"bug\",\"authentication\",\"completed\"],\"assignedAgent\":\"claude\"},\"status\":\"COMPLETED\",\"humanApproved\":false,\"reminderEnabled\":false,\"completedAt\":\"2025-09-07T16:45:00.000Z\"}"
+        "text": "{\"schema\":{\"id\":\"fix_login_bug_20250907_143022_abc123\",\"title\":\"Fix login bug\",\"description\":\"Fixed OAuth redirect issue - deployed to production\",\"createdAt\":\"2025-09-07T14:30:22.000Z\",\"updatedAt\":\"2025-09-07T16:45:00.000Z\",\"dueDate\":\"2025-09-08T17:00:00.000Z\",\"tags\":[\"bug\",\"authentication\",\"completed\"],\"assignedAgent\":\"claude\"},\"status\":\"COMPLETED\",\"reminderEnabled\":false,\"completedAt\":\"2025-09-07T16:45:00.000Z\"}"
       }
     ]
   }

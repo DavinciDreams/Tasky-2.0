@@ -1,10 +1,10 @@
 export interface AISettings {
-  provider: 'google' | 'custom';
+  provider: 'google' | 'lmstudio';
   apiKey: string;
   model: string;
   temperature: number;
   maxTokens: number;
-  baseUrl?: string; // For custom providers
+  baseUrl?: string; // For LM Studio providers
   systemPrompt?: string;
   useCustomPrompt?: boolean;
 }

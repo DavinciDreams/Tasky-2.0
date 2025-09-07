@@ -86,7 +86,6 @@ TaskyTask.schema
 
 TaskyTask (top‑level)
 - status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'NEEDS_REVIEW' | 'ARCHIVED'
-- humanApproved: boolean
 - result?: string
 - completedAt?: Date
 - reminderEnabled?: boolean

@@ -87,7 +87,7 @@ curl -X POST http://localhost:7844/mcp \
       },
       {
         "type": "text",
-        "text": "[{\"schema\":{\"id\":\"fix_login_bug_20250907_143022_abc123\",\"title\":\"Fix login bug\",\"description\":\"Users cannot log in with Google OAuth\",\"createdAt\":\"2025-09-07T14:30:22.000Z\",\"updatedAt\":\"2025-09-07T14:30:22.000Z\",\"dueDate\":\"2025-09-08T17:00:00.000Z\",\"tags\":[\"bug\",\"authentication\"],\"assignedAgent\":\"claude\"},\"status\":\"PENDING\",\"humanApproved\":false,\"reminderEnabled\":false},{\"schema\":{\"id\":\"update_auth_flow_20250907_150000_def456\",\"title\":\"Update auth flow\",\"description\":\"Modernize authentication system\",\"createdAt\":\"2025-09-07T15:00:00.000Z\",\"updatedAt\":\"2025-09-07T15:00:00.000Z\",\"tags\":[\"enhancement\",\"authentication\"],\"assignedAgent\":\"claude\"},\"status\":\"PENDING\",\"humanApproved\":false,\"reminderEnabled\":false}]"
+        "text": "[{\"schema\":{\"id\":\"fix_login_bug_20250907_143022_abc123\",\"title\":\"Fix login bug\",\"description\":\"Users cannot log in with Google OAuth\",\"createdAt\":\"2025-09-07T14:30:22.000Z\",\"updatedAt\":\"2025-09-07T14:30:22.000Z\",\"dueDate\":\"2025-09-08T17:00:00.000Z\",\"tags\":[\"bug\",\"authentication\"],\"assignedAgent\":\"claude\"},\"status\":\"PENDING\",\"reminderEnabled\":false},{\"schema\":{\"id\":\"update_auth_flow_20250907_150000_def456\",\"title\":\"Update auth flow\",\"description\":\"Modernize authentication system\",\"createdAt\":\"2025-09-07T15:00:00.000Z\",\"updatedAt\":\"2025-09-07T15:00:00.000Z\",\"tags\":[\"enhancement\",\"authentication\"],\"assignedAgent\":\"claude\"},\"status\":\"PENDING\",\"reminderEnabled\":false}]"
       }
     ]
   }

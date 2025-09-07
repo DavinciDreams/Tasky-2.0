@@ -122,13 +122,18 @@ export const ChatComposer: React.FC<ChatComposerProps> = ({
             py-3 px-2
             overflow-y-auto
             disabled:opacity-50 disabled:cursor-not-allowed
-            [&::-webkit-scrollbar]:hidden
+            [&::-webkit-scrollbar]:w-1.5
+            [&::-webkit-scrollbar-track]:bg-transparent
+            [&::-webkit-scrollbar-thumb]:bg-muted-foreground/20
+            [&::-webkit-scrollbar-thumb]:rounded-full
+            [&::-webkit-scrollbar-thumb:hover]:bg-muted-foreground/30
+            [&::-webkit-scrollbar-thumb:active]:bg-muted-foreground/40
           "
           style={{ 
             minHeight: 48,
             maxHeight: 120,
-            scrollbarWidth: 'none',
-            msOverflowStyle: 'none'
+            scrollbarWidth: 'thin',
+            scrollbarColor: 'hsl(var(--muted-foreground) / 0.2) transparent',
           } as React.CSSProperties}
         />
 

@@ -39,7 +39,7 @@ Add new tasks to the system with full metadata support including tags, due dates
 -- Main task insertion
 INSERT INTO tasks (
   id, title, description, status, created_at, updated_at, 
-  due_date, human_approved, reminder_enabled, result, 
+  due_date, reminder_enabled, result, 
   completed_at, assigned_agent, execution_path, metadata
 ) VALUES (
   @id, @title, @description, 'PENDING', @created_at, @updated_at,
@@ -88,7 +88,7 @@ curl -X POST http://localhost:7844/mcp \
       },
       {
         "type": "text", 
-        "text": "{\"schema\":{\"id\":\"fix_login_bug_20250907_143022_abc123\",\"title\":\"Fix login bug\",\"description\":\"Users cannot log in with Google OAuth\",\"createdAt\":\"2025-09-07T14:30:22.000Z\",\"updatedAt\":\"2025-09-07T14:30:22.000Z\",\"dueDate\":\"2025-09-08T17:00:00.000Z\",\"tags\":[\"bug\",\"authentication\",\"urgent\"],\"assignedAgent\":\"claude\",\"estimatedDuration\":120},\"status\":\"PENDING\",\"humanApproved\":false,\"reminderEnabled\":false}"
+        "text": "{\"schema\":{\"id\":\"fix_login_bug_20250907_143022_abc123\",\"title\":\"Fix login bug\",\"description\":\"Users cannot log in with Google OAuth\",\"createdAt\":\"2025-09-07T14:30:22.000Z\",\"updatedAt\":\"2025-09-07T14:30:22.000Z\",\"dueDate\":\"2025-09-08T17:00:00.000Z\",\"tags\":[\"bug\",\"authentication\",\"urgent\"],\"assignedAgent\":\"claude\",\"estimatedDuration\":120},\"status\":\"PENDING\",\"reminderEnabled\":false}"
       }
     ]
   }

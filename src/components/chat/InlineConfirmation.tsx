@@ -164,7 +164,7 @@ export const InlineConfirmation: React.FC<InlineConfirmationProps> = ({
         </div>
         {args && Object.keys(args).length > 0 && (
           <div className="pl-6 text-sm text-muted-foreground">
-            <pre className="text-xs overflow-hidden">{JSON.stringify(args, null, 2)}</pre>
+            <pre className="text-xs overflow-auto max-h-24 scrollbar-thin">{JSON.stringify(args, null, 2)}</pre>
           </div>
         )}
       </div>

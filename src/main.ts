@@ -16,8 +16,8 @@ import { spawn, ChildProcess } from 'child_process';
 import logger from './lib/logger';
 import { MainWindow, TrayIcon } from './types/electron';
 import { Storage } from './electron/storage';
-import ReminderScheduler from './electron/scheduler';
 import { ChatSqliteStorage } from './core/storage/ChatSqliteStorage';
+import ReminderScheduler from './electron/scheduler';
 import TaskyAssistant from './electron/assistant';
 import { ElectronTaskManager } from './electron/task-manager';
 import { notificationUtility } from './electron/notification-utility';
@@ -38,10 +38,10 @@ let mainWindow: MainWindow | null = null;        // Main settings/UI window
 let tray: TrayIcon | null = null;               // System tray instance
 let scheduler: any = null;  // Reminder scheduling service (will be typed later)
 let store: Storage | null = null;      // Persistent data storage service
+let chatStorage: ChatSqliteStorage | null = null; // Chat persistence storage
 let assistant: any = null;  // Desktop companion/assistant (will be typed later)
 let taskManager: ElectronTaskManager | null = null;  // Task management system
 let pomodoroService: PomodoroService | null = null;  // Pomodoro timer service
-let chatStorage: ChatSqliteStorage | null = null; // Chat transcript storage
 let mcpServerProcess: ChildProcess | null = null; // MCP server subprocess
 
 /**
@@ -299,6 +299,11 @@ app.whenReady().then(async () => {
   store = new Storage();
   store.migrate(); // Run any necessary migrations
   
+  // Initialize chat storage
+  const dbPath = path.join(process.cwd(), 'data', 'tasky.db');
+  chatStorage = new ChatSqliteStorage(dbPath);
+  chatStorage.initialize();
+  
   // Initialize task manager
   taskManager = new ElectronTaskManager();
   await taskManager.initialize();
@@ -351,15 +356,7 @@ app.whenReady().then(async () => {
     }
   });
 
-  // Initialize chat storage (shares TASKY_DB_PATH)
-  try {
-    const envDbPath = process.env.TASKY_DB_PATH;
-    const dbPath = envDbPath && typeof envDbPath === 'string' && envDbPath.trim().length > 0
-      ? (path.isAbsolute(envDbPath) ? envDbPath : path.join(process.cwd(), envDbPath))
-      : path.join(process.cwd(), 'data', 'tasky.db');
-    chatStorage = new ChatSqliteStorage(dbPath);
-    chatStorage.initialize();
-  } catch {}
+  // Chat storage initialization removed (no longer needed with simplified chat)
   
   // Start local MCP server
   try {
@@ -510,39 +507,71 @@ app.whenReady().then(async () => {
   } catch {}
 
   // IPC handlers for chat transcripts
-  try {
-    ipcMain.handle('chat:create', async (_event: any, title?: string) => {
+  ipcMain.handle('chat:create', async (event, title?: string) => {
+    try {
       if (!chatStorage) throw new Error('Chat storage not initialized');
-      return chatStorage.createChat(title);
-    });
-    ipcMain.handle('chat:list', async (_event: any, limit?: number) => {
+      const chatId = chatStorage.createChat(title);
+      return chatId;
+    } catch (error) {
+      logger.error('Error creating chat:', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('chat:list', async (event, limit?: number) => {
+    try {
       if (!chatStorage) throw new Error('Chat storage not initialized');
-      return chatStorage.listChats(typeof limit === 'number' ? limit : 20);
-    });
-    ipcMain.handle('chat:load', async (_event: any, chatId: string) => {
+      return chatStorage.listChats(limit);
+    } catch (error) {
+      logger.error('Error listing chats:', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('chat:load', async (event, chatId: string) => {
+    try {
       if (!chatStorage) throw new Error('Chat storage not initialized');
-      if (!chatId || typeof chatId !== 'string') throw new Error('chatId is required');
       return chatStorage.loadMessages(chatId);
-    });
-    ipcMain.handle('chat:save', async (_event: any, chatId: string, messages: Array<{ role: 'user' | 'assistant'; content: string }>) => {
+    } catch (error) {
+      logger.error('Error loading chat:', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('chat:save', async (event, chatId: string, messages: Array<{ role: 'user' | 'assistant'; content: string }>) => {
+    try {
       if (!chatStorage) throw new Error('Chat storage not initialized');
-      if (!chatId || typeof chatId !== 'string') throw new Error('chatId is required');
-      if (!Array.isArray(messages)) throw new Error('messages must be an array');
       chatStorage.saveTranscript(chatId, messages);
       return { success: true };
-    });
-    ipcMain.handle('chat:delete', async (_event: any, chatId: string) => {
+    } catch (error) {
+      logger.error('Error saving chat:', error);
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  });
+
+  ipcMain.handle('chat:delete', async (event, chatId: string) => {
+    try {
       if (!chatStorage) throw new Error('Chat storage not initialized');
-      if (!chatId || typeof chatId !== 'string') throw new Error('chatId is required');
       chatStorage.deleteChat(chatId);
       return { success: true };
-    });
-    ipcMain.handle('chat:reset', async () => {
+    } catch (error) {
+      logger.error('Error deleting chat:', error);
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  });
+
+  ipcMain.handle('chat:reset', async () => {
+    try {
       if (!chatStorage) throw new Error('Chat storage not initialized');
       chatStorage.resetAll();
       return { success: true };
-    });
+    } catch (error) {
+      logger.error('Error resetting chats:', error);
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  });
 
+  try {
     // MCP IPC handlers for stdio communication
     ipcMain.handle('mcp:tools/list', async () => {
       try {

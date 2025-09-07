@@ -61,7 +61,7 @@ export class AISettingsAdapter {
     const applied: string[] = [];
 
     // Fix missing or invalid provider
-    if (!appSettings.llmProvider || !['google', 'custom'].includes(appSettings.llmProvider)) {
+    if (!appSettings.llmProvider || !['google', 'lmstudio'].includes(appSettings.llmProvider)) {
       fixes.llmProvider = 'google';
       applied.push('Set provider to Google');
     }
@@ -72,8 +72,8 @@ export class AISettingsAdapter {
         fixes.llmModel = 'gemini-2.5-flash';
         applied.push('Set model to Gemini 2.5 Flash');
       } else {
-        fixes.llmModel = 'llama-3.1-8b-instruct';
-        applied.push('Set model to Llama 3.1 8B');
+        fixes.llmModel = 'llama-3.3-70b-instruct';
+        applied.push('Set model to Llama 3.3 70B Instruct');
       }
     }
 
@@ -83,16 +83,22 @@ export class AISettingsAdapter {
       applied.push('Set default system prompt');
     }
 
-    // Fix custom provider without base URL
-    if (appSettings.llmProvider === 'custom' && !appSettings.llmBaseUrl) {
+    // Fix LM Studio provider without base URL
+    if (appSettings.llmProvider === 'lmstudio' && !appSettings.llmBaseUrl) {
       fixes.llmBaseUrl = 'http://localhost:1234/v1';
       applied.push('Set default LM Studio URL');
+    }
+
+    // Set default API key for LM Studio
+    if (appSettings.llmProvider === 'lmstudio' && !appSettings.llmApiKey) {
+      fixes.llmApiKey = 'lm-studio';
+      applied.push('Set LM Studio API key');
     }
 
     return { fixed: fixes, applied };
   }
 
-  private normalizeProvider(provider?: string): 'google' | 'custom' {
+  private normalizeProvider(provider?: string): 'google' | 'lmstudio' {
     if (!provider) return 'google';
     
     const normalized = provider.toLowerCase();
@@ -102,10 +108,10 @@ export class AISettingsAdapter {
       return 'google'; // Migrate from OpenAI to Google
     }
     
-    if (['lmstudio', 'lm-studio', 'local'].includes(normalized)) {
-      return 'custom';
+    if (['lmstudio', 'lm-studio', 'local', 'custom'].includes(normalized)) {
+      return 'lmstudio';
     }
     
-    return ['google', 'custom'].includes(normalized) ? normalized as 'google' | 'custom' : 'google';
+    return ['google', 'lmstudio'].includes(normalized) ? normalized as 'google' | 'lmstudio' : 'google';
   }
 }

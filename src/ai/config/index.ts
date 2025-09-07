@@ -1,5 +1,5 @@
 import type { AIConfig, AIProvider } from '../types';
-import { GoogleAIProvider, CustomAIProvider } from '../providers';
+import { GoogleAIProvider, LMStudioProvider } from '../providers';
 
 export const DEFAULT_AI_CONFIG: AIConfig = {
   provider: 'google',
@@ -26,11 +26,11 @@ export function createAIProvider(config: AIConfig): AIProvider {
   switch (config.provider) {
     case 'google':
       return new GoogleAIProvider(config.apiKey);
-    case 'custom':
+    case 'lmstudio':
       if (!config.baseUrl) {
-        throw new Error('Custom provider requires baseUrl');
+        throw new Error('LM Studio provider requires baseUrl');
       }
-      return new CustomAIProvider({
+      return new LMStudioProvider({
         baseUrl: config.baseUrl,
         apiKey: config.apiKey,
         modelId: config.model
@@ -44,8 +44,8 @@ export function validateModel(provider: string, model: string): string {
   switch (provider) {
     case 'google':
       return SUPPORTED_GOOGLE_MODELS.includes(model as any) ? model : 'gemini-2.5-flash';
-    case 'custom':
-      return model; // Custom providers can use any model
+    case 'lmstudio':
+      return model; // LM Studio providers can use any model
     default:
       return 'gemini-2.5-flash';
   }

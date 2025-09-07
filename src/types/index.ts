@@ -106,6 +106,7 @@ export interface ElectronAPI {
   exportTasks: () => Promise<any>;
   importTasks: (importData: any) => Promise<any[]>;
   executeTask: (id: string, options?: { agent?: 'claude' | 'gemini' }) => Promise<any>;
+  
   // Chat transcript persistence
   createChat: (title?: string) => Promise<string>;
   listChats: (limit?: number) => Promise<Array<{ id: string; title: string | null; createdAt: string; updatedAt: string }>>;

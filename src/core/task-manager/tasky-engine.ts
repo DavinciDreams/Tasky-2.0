@@ -169,7 +169,6 @@ export class TaskyEngine {
           executionPath: input.executionPath
         },
         status: TaskStatus.PENDING,
-        humanApproved: false,
         reminderEnabled: input.reminderEnabled || false,
         reminderTime: input.reminderTime,
         metadata: {
@@ -232,8 +231,7 @@ export class TaskyEngine {
         'status',
         'reminderEnabled',
         'reminderTime',
-        'result',
-        'humanApproved'
+        'result'
       ]);
 
       const schemaUpdates: Partial<TaskyTaskSchema> = {};

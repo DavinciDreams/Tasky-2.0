@@ -85,12 +85,15 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
       }));
     }
     
-    // For custom providers, provide some common models
+    // For LM Studio providers, provide common models
     return [
-      { value: 'llama-3.1-70b', label: 'Llama 3.1 70B' },
-      { value: 'llama-3.1-8b', label: 'Llama 3.1 8B' },
-      { value: 'mistral-7b', label: 'Mistral 7B' },
-      { value: 'codellama-13b', label: 'CodeLlama 13B' },
+      { value: 'llama-3.3-70b-instruct', label: 'Llama 3.3 70B Instruct' },
+      { value: 'llama-3.1-8b-instruct', label: 'Llama 3.1 8B Instruct' },
+      { value: 'llama-3.1-70b-instruct', label: 'Llama 3.1 70B Instruct' },
+      { value: 'qwen2.5-7b-instruct', label: 'Qwen2.5 7B Instruct' },
+      { value: 'qwen2.5-14b-instruct', label: 'Qwen2.5 14B Instruct' },
+      { value: 'deepseek-r1-distill-qwen-7b', label: 'DeepSeek R1 Distill' },
+      { value: 'custom-model', label: 'Your Model' },
     ];
   };
 

@@ -54,8 +54,8 @@ export class GoogleAIProvider implements AIProvider {
   }
 }
 
-export class CustomAIProvider implements AIProvider {
-  name = 'custom';
+export class LMStudioProvider implements AIProvider {
+  name = 'lmstudio';
   client: any;
   models: string[] = [];
   supportsStreaming = true;
@@ -63,7 +63,7 @@ export class CustomAIProvider implements AIProvider {
 
   constructor(config: { baseUrl: string; apiKey?: string; modelId?: string }) {
     this.client = createOpenAICompatible({
-      name: 'custom',
+      name: 'lmstudio',
       baseURL: config.baseUrl,
       apiKey: config.apiKey || 'not-needed-for-local'
     });
@@ -78,6 +78,6 @@ export class CustomAIProvider implements AIProvider {
   }
 
   validateModel(modelId: string): string {
-    return modelId; // Pass through as-is for custom providers
+    return modelId; // Pass through as-is for LM Studio
   }
 }

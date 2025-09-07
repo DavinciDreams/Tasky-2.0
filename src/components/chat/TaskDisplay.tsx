@@ -1,6 +1,6 @@
 import React from 'react';
 import { Task, TaskTrigger, TaskContent, TaskItem, TaskItemFile } from '@/components/ai-elements';
-import { Clock, Calendar, Tag, CheckCircle, Clock as ClockIcon, AlertCircle } from 'lucide-react';
+import { Clock, Calendar, Tag, CheckCircle, Clock as ClockIcon, AlertCircle, Users, FolderOpen, Link, Bell, BellOff, User, FileText, CheckSquare } from 'lucide-react';
 
 interface TaskDisplayProps {
   tasks: any[];
@@ -55,6 +55,15 @@ export const TaskDisplay: React.FC<TaskDisplayProps> = ({ tasks }) => {
         const taskTags = task?.schema?.tags || task?.tags;
         const taskFiles = task?.schema?.affectedFiles || task?.affectedFiles;
         const estimatedDuration = task?.schema?.estimatedDuration || task?.estimatedDuration;
+        const dependencies = task?.schema?.dependencies || task?.dependencies;
+        const assignedAgent = task?.schema?.assignedAgent || task?.assignedAgent;
+        const executionPath = task?.schema?.executionPath || task?.executionPath;
+        const reminderEnabled = task?.reminderEnabled || task?.schema?.reminderEnabled;
+        const reminderTime = task?.reminderTime || task?.schema?.reminderTime;
+        const result = task?.result;
+        const completedAt = task?.completedAt;
+        const createdAt = task?.schema?.createdAt || task?.createdAt;
+        const updatedAt = task?.schema?.updatedAt || task?.updatedAt;
 
         return (
           <Task key={idx} defaultOpen={false}>
@@ -69,6 +78,7 @@ export const TaskDisplay: React.FC<TaskDisplayProps> = ({ tasks }) => {
                 </TaskItem>
               )}
               
+              {/* Timing Information */}
               {taskDueDate && (
                 <TaskItem>
                   <Calendar className="h-3 w-3" />
@@ -83,6 +93,51 @@ export const TaskDisplay: React.FC<TaskDisplayProps> = ({ tasks }) => {
                 </TaskItem>
               )}
               
+              {createdAt && (
+                <TaskItem>
+                  <Clock className="h-3 w-3" />
+                  <span>Created: {new Date(createdAt).toLocaleString()}</span>
+                </TaskItem>
+              )}
+              
+              {updatedAt && (
+                <TaskItem>
+                  <Clock className="h-3 w-3" />
+                  <span>Updated: {new Date(updatedAt).toLocaleString()}</span>
+                </TaskItem>
+              )}
+              
+              {completedAt && (
+                <TaskItem>
+                  <CheckCircle className="h-3 w-3 text-green-500" />
+                  <span>Completed: {new Date(completedAt).toLocaleString()}</span>
+                </TaskItem>
+              )}
+              
+              {/* Assignment and Execution */}
+              {assignedAgent && (
+                <TaskItem>
+                  <User className="h-3 w-3" />
+                  <span>Assigned Agent: {assignedAgent}</span>
+                </TaskItem>
+              )}
+              
+              {executionPath && (
+                <TaskItem>
+                  <FolderOpen className="h-3 w-3" />
+                  <span>Execution Path: {executionPath}</span>
+                </TaskItem>
+              )}
+              
+              {/* Dependencies and Relations */}
+              {Array.isArray(dependencies) && dependencies.length > 0 && (
+                <TaskItem>
+                  <Link className="h-3 w-3" />
+                  <span>Dependencies: {dependencies.join(', ')}</span>
+                </TaskItem>
+              )}
+              
+              {/* Tags and Files */}
               {Array.isArray(taskTags) && taskTags.length > 0 && (
                 <TaskItem>
                   <Tag className="h-3 w-3" />
@@ -97,6 +152,25 @@ export const TaskDisplay: React.FC<TaskDisplayProps> = ({ tasks }) => {
                       {file}
                     </TaskItemFile>
                   ))}
+                </TaskItem>
+              )}
+              
+              {/* Reminders */}
+              {typeof reminderEnabled === 'boolean' && (
+                <TaskItem>
+                  {reminderEnabled ? <Bell className="h-3 w-3" /> : <BellOff className="h-3 w-3" />}
+                  <span>
+                    Reminders: {reminderEnabled ? 'Enabled' : 'Disabled'}
+                    {reminderEnabled && reminderTime && ` (${reminderTime})`}
+                  </span>
+                </TaskItem>
+              )}
+              
+              {/* Result */}
+              {result && (
+                <TaskItem>
+                  <FileText className="h-3 w-3" />
+                  <span>Result: {result}</span>
                 </TaskItem>
               )}
             </TaskContent>

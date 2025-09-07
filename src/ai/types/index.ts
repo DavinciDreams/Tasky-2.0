@@ -7,7 +7,7 @@ export interface AIProvider {
 }
 
 export interface AIConfig {
-  provider: 'google' | 'custom';
+  provider: 'google' | 'lmstudio';
   apiKey?: string;
   baseUrl?: string;
   model: string;

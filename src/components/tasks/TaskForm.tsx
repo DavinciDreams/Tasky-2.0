@@ -24,7 +24,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ onCreateTask, initial, submi
   const [formData, setFormData] = useState({
     title: (initial?.title as string) || '',
     description: (initial?.description as string) || '',
-    assignedAgent: (initial?.assignedAgent as string) || '',
+    assignedAgent: (initial?.assignedAgent as string) || 'claude',
     affectedFiles: Array.isArray(initial?.affectedFiles) ? (initial!.affectedFiles as string[]).join('\n') : '',
     executionPath: (initial?.executionPath as string) || ''
   });
@@ -42,10 +42,10 @@ export const TaskForm: React.FC<TaskFormProps> = ({ onCreateTask, initial, submi
       .map(s => s.trim())
       .filter(Boolean);
 
-    // Validate assignedAgent
+    // Validate assignedAgent - default to claude if not specified or invalid
     const normalizedAgent = formData.assignedAgent && ['gemini', 'claude'].includes(formData.assignedAgent as any)
       ? (formData.assignedAgent as 'gemini' | 'claude')
-      : undefined;
+      : 'claude';
 
     const taskData: Omit<TaskyTaskSchema, 'id' | 'createdAt'> = {
       title: formData.title.trim(),
@@ -66,7 +66,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ onCreateTask, initial, submi
     setFormData({
       title: '',
       description: '',
-      assignedAgent: '',
+      assignedAgent: 'claude',
       affectedFiles: '',
       executionPath: ''
     });

@@ -27,7 +27,6 @@ export class SqliteTaskStorage implements ITaskStorage {
           created_at TEXT NOT NULL,
           updated_at TEXT NOT NULL,
           due_date TEXT,
-          human_approved INTEGER NOT NULL DEFAULT 0,
           reminder_enabled INTEGER NOT NULL DEFAULT 0,
           result TEXT,
           completed_at TEXT,
@@ -76,7 +75,6 @@ export class SqliteTaskStorage implements ITaskStorage {
           executionPath: r.execution_path || undefined
         },
         status: r.status,
-        humanApproved: !!r.human_approved,
         reminderEnabled: !!r.reminder_enabled,
         result: r.result || undefined,
         completedAt: r.completed_at ? new Date(r.completed_at) : undefined,
@@ -93,8 +91,8 @@ export class SqliteTaskStorage implements ITaskStorage {
       if (!this.db) throw new Error('DB not initialized');
       const t = this.db.transaction(() => {
         this.db!.prepare(`
-          INSERT INTO tasks (id,title,description,status,created_at,updated_at,due_date,human_approved,reminder_enabled,result,completed_at,assigned_agent,execution_path,metadata)
-          VALUES (@id,@title,@description,@status,@created_at,@updated_at,@due_date,@human_approved,@reminder_enabled,@result,@completed_at,@assigned_agent,@execution_path,@metadata)
+          INSERT INTO tasks (id,title,description,status,created_at,updated_at,due_date,reminder_enabled,result,completed_at,assigned_agent,execution_path,metadata)
+          VALUES (@id,@title,@description,@status,@created_at,@updated_at,@due_date,@reminder_enabled,@result,@completed_at,@assigned_agent,@execution_path,@metadata)
           ON CONFLICT(id) DO UPDATE SET
             title=excluded.title,
             description=excluded.description,
@@ -102,7 +100,6 @@ export class SqliteTaskStorage implements ITaskStorage {
             created_at=excluded.created_at,
             updated_at=excluded.updated_at,
             due_date=excluded.due_date,
-            human_approved=excluded.human_approved,
             reminder_enabled=excluded.reminder_enabled,
             result=excluded.result,
             completed_at=excluded.completed_at,
@@ -115,9 +112,8 @@ export class SqliteTaskStorage implements ITaskStorage {
           description: task.schema.description || null,
           status: task.status,
           created_at: task.schema.createdAt.toISOString(),
-          updated_at: task.schema.updatedAt.toISOString(),
+          updated_at: task.schema.updatedAt?.toISOString() || new Date().toISOString(),
           due_date: task.schema.dueDate ? task.schema.dueDate.toISOString() : null,
-          human_approved: task.humanApproved ? 1 : 0,
           reminder_enabled: task.reminderEnabled ? 1 : 0,
           result: task.result || null,
           completed_at: task.completedAt ? task.completedAt.toISOString() : null,

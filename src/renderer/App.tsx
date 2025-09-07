@@ -228,7 +228,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
       }));
     }
     
-    // For custom providers, return empty array (user will input manually)
+    // For LM Studio providers, return empty array (user will input manually)
     return [];
   };
 
@@ -281,7 +281,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
         }
       }
     } catch (e: any) {
-      setLlmTestStatus({ ok: false, message: provider === 'google' ? 'Google AI' : 'Custom' });
+      setLlmTestStatus({ ok: false, message: provider === 'google' ? 'Google AI' : 'LM Studio' });
     } finally {
       setLlmTesting(false);
     }
@@ -432,14 +432,14 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
                 value={settings.llmProvider || 'google'}
                 options={[
                   { value: 'google', label: 'Google AI' },
-                  { value: 'custom', label: 'Custom' },
+                  { value: 'lmstudio', label: 'LM Studio' },
                 ]}
                 onChange={(val) => {
                   onSettingChange('llmProvider', val);
                 }}
               />
 
-              {/* Model selector: use select for Google; free text for Custom */}
+              {/* Model selector: use select for Google; show LM Studio models for LM Studio */}
               {['google'].includes(String(settings.llmProvider || 'google').toLowerCase()) ? (
                 <div className="md:col-span-2">
                   <SettingItem
@@ -466,22 +466,63 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
                     onChange={(val) => onSettingChange('llmModel', val)}
                   />
                 </div>
+              ) : settings.llmProvider === 'lmstudio' ? (
+                <div className="md:col-span-2">
+                  <SettingItem
+                    icon="🧠"
+                    title="Model"
+                    description="Choose a model for LM Studio (must be loaded in LM Studio)"
+                    type="select"
+                    value={settings.llmModel || 'llama-3.3-70b-instruct'}
+                    options={(() => {
+                      const availableModels = getAvailableModels('lmstudio');
+                      return availableModels.length > 0 ? availableModels : [
+                        { value: 'llama-3.3-70b-instruct', label: 'Llama 3.3 70B Instruct' },
+                        { value: 'llama-3.1-8b-instruct', label: 'Llama 3.1 8B Instruct' },
+                        { value: 'qwen2.5-7b-instruct', label: 'Qwen2.5 7B Instruct' },
+                        { value: 'custom-model', label: 'Your Model' },
+                      ];
+                    })()}
+                    onChange={(val) => onSettingChange('llmModel', val)}
+                  />
+                </div>
               ) : (
                 null
               )}
 
+              {/* LM Studio specific fields */}
+              {settings.llmProvider === 'lmstudio' && (
+                <div className="flex flex-col gap-2 py-2 px-4 rounded-xl hover:bg-muted/30 transition-colors duration-200">
+                  <Label className="text-sm">LM Studio Server URL</Label>
+                  <Input
+                    type="text"
+                    placeholder="http://localhost:1234/v1"
+                    value={settings.llmBaseUrl || ''}
+                    onChange={(e) => onSettingChange('llmBaseUrl', e.target.value)}
+                  />
+                  <span className="text-[11px] text-muted-foreground">
+                    Default LM Studio server URL. Make sure LM Studio server is running.
+                  </span>
+                </div>
+              )}
+
               <div className="flex flex-col gap-2 py-2 px-4 rounded-xl hover:bg-muted/30 transition-colors duration-200">
-                <Label className="text-sm">API Key</Label>
+                <Label className="text-sm">
+                  {settings.llmProvider === 'lmstudio' ? 'API Key (usually "lm-studio")' : 'API Key'}
+                </Label>
                 <Input
                   type="password"
-                  placeholder={'Enter API key'}
+                  placeholder={settings.llmProvider === 'lmstudio' ? 'lm-studio' : 'Enter API key'}
                   value={settings.llmApiKey || ''}
                   onChange={(e) => onSettingChange('llmApiKey', e.target.value)}
                 />
-                <span className="text-[11px] text-muted-foreground">Stored locally.</span>
+                <span className="text-[11px] text-muted-foreground">
+                  {settings.llmProvider === 'lmstudio' 
+                    ? 'LM Studio typically uses "lm-studio" as the API key. Stored locally.' 
+                    : 'Stored locally.'
+                  }
+                </span>
               </div>
-
-              {false && null}
 
               <div className="md:col-span-2 flex items-center gap-3 py-2 px-4 rounded-xl hover:bg-muted/30 transition-colors duration-200">
                 <Button onClick={testAIProvider} disabled={llmTesting} className="rounded-xl bg-white text-gray-900 hover:bg-gray-100">
@@ -506,30 +547,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
                 )}
               </div>
 
-              {/* System Prompt Settings */}
-              <div className="md:col-span-2 space-y-3">
-                <div className="flex flex-col gap-2 py-2 px-4 rounded-xl hover:bg-muted/30 transition-colors duration-200">
-                  <Label className="text-sm">System Prompt</Label>
-                  <textarea
-                    className="w-full min-h-[120px] bg-background text-foreground border border-border/30 rounded-xl px-3 py-2 text-sm placeholder:text-muted-foreground hover:border-border/60 focus:border-primary/50 transition-colors resize-none"
-                    value={settings.llmSystemPrompt || ''}
-                    onChange={(e) => onSettingChange('llmSystemPrompt', e.target.value)}
-                    placeholder="Enter your custom system prompt..."
-                  />
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id="useCustomPrompt"
-                      checked={!!settings.llmUseCustomPrompt}
-                      onChange={(e) => onSettingChange('llmUseCustomPrompt', e.target.checked)}
-                      className="rounded"
-                    />
-                    <Label htmlFor="useCustomPrompt" className="text-xs text-muted-foreground cursor-pointer">
-                      Use custom prompt (otherwise uses Tasky default)
-                    </Label>
-                  </div>
-                </div>
-              </div>
+              {false && null}
             </div>
           </SettingSection>
           

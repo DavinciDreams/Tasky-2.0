@@ -32,7 +32,6 @@ export interface TaskyTaskSchema {
 export interface TaskyTask {
   schema: TaskyTaskSchema;
   status: TaskStatus;
-  humanApproved: boolean;
   result?: string;
   completedAt?: Date;
   

@@ -156,7 +156,7 @@ export const ToolInput: React.FC<ToolInputProps> = ({ input, className, ...props
   return (
     <div className={cn('px-3 py-2 border-b border-border/50', className)} {...props}>
       <div className="text-xs font-medium text-muted-foreground mb-1">Input</div>
-      <pre className="text-xs bg-muted/50 p-2 rounded font-mono overflow-x-auto">
+      <pre className="text-xs bg-muted/50 p-2 rounded font-mono overflow-auto max-h-32 scrollbar-thin">
         {formatInput(input)}
       </pre>
     </div>
@@ -189,7 +189,7 @@ export const ToolOutput: React.FC<ToolOutputProps> = ({
       <div className="text-xs font-medium text-muted-foreground mb-1">Output</div>
       <div className="text-sm">
         {typeof output === 'string' ? (
-          <pre className="bg-muted/50 p-2 rounded font-mono text-xs overflow-x-auto whitespace-pre-wrap">
+          <pre className="bg-muted/50 p-2 rounded font-mono text-xs overflow-auto whitespace-pre-wrap max-h-64 scrollbar-thin">
             {output}
           </pre>
         ) : (
