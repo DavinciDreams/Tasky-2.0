@@ -53,7 +53,9 @@ export class ReminderBridge {
    */
   private async notifyReminderCreated(message: string, time: string, days: string[]): Promise<void> {
     // With stdio protocol, main app handles notifications when it receives MCP responses
-    console.log('[ReminderBridge] Reminder created:', message, `at ${time}`, `on ${days.join(', ')}`);
+    // Use Buffer to ensure proper UTF-8 encoding for console output
+    const logMessage = `[ReminderBridge] Reminder created: ${message} at ${time} on ${days.join(', ')}`;
+    process.stdout.write(Buffer.from(logMessage + '\n', 'utf8'));
   }
 
   async createReminder(args: any): Promise<CallToolResult> {
@@ -95,10 +97,14 @@ export class ReminderBridge {
       await this.notifyReminderCreated(message, time, days);
     } catch (error) {
       // Don't fail the reminder creation if notification fails
-      console.warn('Failed to send reminder creation notification:', error);
+      process.stderr.write(Buffer.from(`Failed to send reminder creation notification: ${error}\n`, 'utf8'));
     }
     
-    return { content: [{ type: 'text', text: JSON.stringify({ success: true }) }] };
+    return { 
+      content: [
+        { type: 'text', text: `Reminder "${message}" created successfully for ${time} on ${days.join(', ')}` }
+      ] 
+    };
   }
 
   async updateReminder(args: any): Promise<CallToolResult> {
@@ -139,7 +145,12 @@ export class ReminderBridge {
     
     const info = this.db.prepare('DELETE FROM reminders WHERE id = ?').run(current.id);
     if (!info.changes) return { content: [{ type: 'text', text: 'Reminder not found' }], isError: true };
-    return { content: [{ type: 'text', text: JSON.stringify({ success: true, deleted: current.message }) }] };
+    
+    return { 
+      content: [
+        { type: 'text', text: `Reminder "${current.message}" deleted successfully` }
+      ] 
+    };
   }
 
   async getReminder(args: any): Promise<CallToolResult> {

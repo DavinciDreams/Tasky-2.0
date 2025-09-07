@@ -31,12 +31,14 @@ const MCP_TOOLS: McpTool[] = [
     description: 'Create a new task',
     icon: Plus,
     category: 'tasks',
-    template: `Create a task: "{{title}}" with description "{{description}}" due {{dueDate}}`,
-    helpText: 'Creates a new task with title, description, and optional due date, tags, and other properties.',
+    template: `Create a task: "{{title}}" with description "{{description}}" due {{dueDate}} with tags {{tags}} estimated duration {{estimatedDuration}} minutes assigned to {{assignedAgent}} with reminder {{reminderEnabled}} at {{reminderTime}}`,
+    helpText: 'Creates a new task with title, description, due date, tags, estimated duration, dependencies, assigned agent, reminders, and execution path.',
     examples: [
-      'Create a task: "Review project proposal" due tomorrow',
-      'Create a task: "Buy groceries" with description "milk, bread, eggs" due today',
-      'Create a task: "Prepare presentation" with tags "work, urgent"'
+      'Create a task: "Review project proposal" due tomorrow with tags "review, urgent" estimated duration 60 minutes',
+      'Create a task: "Buy groceries" with description "milk, bread, eggs" due today with reminder true at 14:00',
+      'Create a task: "Fix login bug" with tags "bug, authentication" assigned to claude estimated duration 120 minutes',
+      'Create a task: "Prepare presentation" with description "Q3 results" due 2025-09-08T17:00:00Z with tags "work, presentation"',
+      'Create a task: "Code review" with files "/src/auth.ts, /src/login.tsx" estimated duration 45 minutes assigned to gemini'
     ]
   },
   {
@@ -44,13 +46,14 @@ const MCP_TOOLS: McpTool[] = [
     description: 'List existing tasks',
     icon: List,
     category: 'tasks',
-    template: `List all tasks with status {{status}}`,
-    helpText: 'Lists all tasks with optional filtering by status, tags, due date, or search terms.',
+    template: `List tasks with status {{status}} tag {{tag}} search {{search}} limit {{limit}} dueDateFrom {{dueDateFrom}} dueDateTo {{dueDateTo}} offset {{offset}}`,
+    helpText: 'Lists all tasks with optional filtering by status, tag, search terms, due date range, and pagination support.',
     examples: [
       'List all tasks',
       'List tasks with status "pending"',
-      'List tasks due today',
-      'List tasks with tag "work"'
+      'List tasks with tag "bug"',
+      'List tasks with search "login" limit 10',
+      'List tasks dueDateFrom "2025-09-01" dueDateTo "2025-09-30"'
     ]
   },
   {
@@ -58,12 +61,13 @@ const MCP_TOOLS: McpTool[] = [
     description: 'Update an existing task',
     icon: Edit3,
     category: 'tasks',
-    template: `Update task "{{title}}" to status {{status}}`,
-    helpText: 'Updates an existing task\'s properties like status, title, description, or due date.',
+    template: `Update task {{id}} with title "{{title}}" description "{{description}}" status {{status}} dueDate {{dueDate}} tags {{tags}} estimatedDuration {{estimatedDuration}} assignedAgent {{assignedAgent}} reminderEnabled {{reminderEnabled}} reminderTime {{reminderTime}}`,
+    helpText: 'Updates an existing task with new properties, status changes, or metadata modifications. Supports partial updates - only specified fields are modified.',
     examples: [
-      'Update task "Review project" to status "completed"',
-      'Mark task "Buy groceries" as in progress',
-      'Change task "Meeting prep" due date to tomorrow'
+      'Update task "task_123" with status "completed"',
+      'Update task "task_456" with title "Fix critical bug" status "in_progress"',
+      'Update task "task_789" with dueDate "2025-09-10T17:00:00Z" tags ["urgent", "bug"]',
+      'Update task "task_abc" with assignedAgent "claude" estimatedDuration 120'
     ]
   },
   {
@@ -71,11 +75,12 @@ const MCP_TOOLS: McpTool[] = [
     description: 'Delete a task',
     icon: Trash2,
     category: 'tasks',
-    template: `Delete task "{{title}}"`,
-    helpText: 'Permanently removes a task from the system.',
+    template: `Delete task {{id}}`,
+    helpText: 'Permanently deletes a task by ID, removing all associated data including tags and references. This is a destructive operation that cannot be undone.',
     examples: [
-      'Delete task "Old project notes"',
-      'Remove task "Outdated meeting"'
+      'Delete task "task_123"',
+      'Delete task "old_project_456"',
+      'Remove task "task_abc"'
     ]
   },
   {
@@ -83,12 +88,13 @@ const MCP_TOOLS: McpTool[] = [
     description: 'Execute/start a task',
     icon: Play,
     category: 'tasks',
-    template: `Execute task "{{title}}"`,
-    helpText: 'Marks a task as in progress or completed, depending on the current status.',
+    template: `Execute task {{id}} with status {{status}}`,
+    helpText: 'Executes a task by updating status to IN_PROGRESS or COMPLETED, with optional integration to the main Tasky application for automated execution.',
     examples: [
-      'Execute task "Write report"',
-      'Start task "Code review"',
-      'Complete task "Send email"'
+      'Execute task "task_123"',
+      'Execute task "task_456" with status "IN_PROGRESS"',
+      'Execute task "task_789" with status "COMPLETED"',
+      'Start task "task_abc"'
     ]
   },
   // Reminder Tools
@@ -97,12 +103,14 @@ const MCP_TOOLS: McpTool[] = [
     description: 'Create a new reminder',
     icon: Bell,
     category: 'reminders',
-    template: `Create reminder "{{message}}" at {{time}} on {{days}}`,
-    helpText: 'Creates a new recurring reminder with message, time, and specific days of the week.',
+    template: `Create reminder "{{message}}" at {{time}} on {{days}} with enabled {{enabled}} and oneTime {{oneTime}}`,
+    helpText: 'Creates a new recurring or one-time reminder with message, time, specific days of the week, enabled status, and one-time option. Supports relative times like "in 5 minutes".',
     examples: [
-      'Create reminder "Stand-up meeting" at 9:00 AM on Monday, Wednesday, Friday',
-      'Create reminder "Take medication" at 8:00 PM daily',
-      'Create reminder "Water plants" at 6:00 PM on Sunday'
+      'Create reminder "Stand-up meeting" at 09:00 on Monday, Wednesday, Friday with enabled true',
+      'Create reminder "Take medication" at 20:00 on Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday',
+      'Create reminder "Water plants" at 18:00 on Sunday with enabled true',
+      'Create reminder "Take a break" at "in 25 minutes" on [] with oneTime true',
+      'Create reminder "Check emails" at 09:00 on Monday, Tuesday, Wednesday, Thursday, Friday with enabled true and oneTime false'
     ]
   },
   {
@@ -110,13 +118,14 @@ const MCP_TOOLS: McpTool[] = [
     description: 'List existing reminders',
     icon: Clock,
     category: 'reminders',
-    template: `List all reminders`,
-    helpText: 'Lists all reminders with optional filtering by enabled status or day of the week.',
+    template: `List reminders with enabled {{enabled}}`,
+    helpText: 'Lists all reminders with optional filtering by enabled status. Provides comprehensive reminder visibility with schedule details.',
     examples: [
       'List all reminders',
-      'List enabled reminders',
-      'List reminders for Monday',
-      'Show active reminders'
+      'List reminders with enabled true',
+      'List reminders with enabled false',
+      'Show active reminders',
+      'Show disabled reminders'
     ]
   },
   {
@@ -124,12 +133,13 @@ const MCP_TOOLS: McpTool[] = [
     description: 'Update a reminder',
     icon: Edit3,
     category: 'reminders',
-    template: `Update reminder "{{message}}" to time {{time}}`,
-    helpText: 'Updates an existing reminder\'s message, time, days, or enabled status.',
+    template: `Update reminder {{id}} with message "{{message}}" time {{time}} days {{days}} enabled {{enabled}}`,
+    helpText: 'Updates an existing reminder with new message, time, schedule days, or enabled status. Supports partial updates - only specified fields are modified.',
     examples: [
-      'Update reminder "Meeting" to 10:00 AM',
-      'Change reminder "Lunch" to Tuesday and Thursday',
-      'Disable reminder "Old notification"'
+      'Update reminder "reminder_123" with time "10:00"',
+      'Update reminder "reminder_456" with enabled false',
+      'Update reminder "reminder_789" with message "New reminder text" days ["monday", "friday"]',
+      'Update reminder "reminder_abc" with time "14:30" enabled true'
     ]
   },
   {
@@ -137,11 +147,12 @@ const MCP_TOOLS: McpTool[] = [
     description: 'Delete a reminder',
     icon: Trash2,
     category: 'reminders',
-    template: `Delete reminder "{{message}}"`,
-    helpText: 'Permanently removes a reminder from the system.',
+    template: `Delete reminder {{id}}`,
+    helpText: 'Permanently deletes a reminder by ID, removing all associated schedule data and references. This is a destructive operation that cannot be undone.',
     examples: [
-      'Delete reminder "Old meeting"',
-      'Remove reminder "Outdated notification"'
+      'Delete reminder "reminder_123"',
+      'Delete reminder "old_meeting_456"',
+      'Remove reminder "reminder_abc"'
     ]
   }
 ];
@@ -227,7 +238,7 @@ export const McpToolsHelper: React.FC<McpToolsHelperProps> = ({
           transition={{ duration: 0.15 }}
           className="absolute bottom-full left-0 right-0 mb-2 z-50"
         >
-          <div className="bg-background border border-border rounded-xl shadow-lg overflow-hidden">
+          <div className="bg-background border border-border rounded-xl shadow-lg overflow-hidden opacity-100" style={{ backgroundColor: 'hsl(var(--background))' }}>
             {/* Header */}
             <div className="p-3 border-b border-border">
               <div className="flex items-center justify-between">
@@ -313,14 +324,15 @@ export const McpToolsHelper: React.FC<McpToolsHelperProps> = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/20 flex items-center justify-center z-[100] p-4"
+            className="fixed inset-0 bg-background/95 flex items-center justify-center z-[100] p-4"
             onClick={() => setSelectedTool(null)}
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-card border border-border rounded-xl shadow-xl max-w-md w-full max-h-[80vh] overflow-y-auto"
+              className="bg-background border border-border rounded-xl shadow-xl max-w-md w-full max-h-[80vh] overflow-y-auto opacity-100"
+              style={{ backgroundColor: 'hsl(var(--background))' }}
               onClick={(e) => e.stopPropagation()}
             >
               <div className="p-4 border-b border-border">

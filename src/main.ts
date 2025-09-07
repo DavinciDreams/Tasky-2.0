@@ -66,22 +66,27 @@ const startMcpServer = (): Promise<void> => {
       stdio: ['pipe', 'pipe', 'pipe'],
       env: {
         ...process.env,
-        TASKY_DB_PATH: path.join(process.cwd(), 'data', 'tasky.db')
+        TASKY_DB_PATH: path.join(process.cwd(), 'data', 'tasky.db'),
+        CHCP: '65001' // Set UTF-8 encoding for Windows
       },
       shell: true // Use shell on Windows
     });
 
     let serverStarted = false;
 
+    // Set encoding for streams
+    if (mcpServerProcess.stdout) mcpServerProcess.stdout.setEncoding('utf8');
+    if (mcpServerProcess.stderr) mcpServerProcess.stderr.setEncoding('utf8');
+
     mcpServerProcess.stdout?.on('data', (data) => {
-      const output = data.toString();
+      const output = data.toString('utf8');
       logger.debug('MCP Server stdout:', output.trim());
       
       // Handle MCP protocol messages here if needed
     });
 
     mcpServerProcess.stderr?.on('data', (data) => {
-      const error = data.toString();
+      const error = data.toString('utf8');
       logger.info('MCP Server stderr:', error.trim());
       
       // Check if server has started (stdio transport doesn't bind to ports)

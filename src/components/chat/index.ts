@@ -9,6 +9,7 @@ export { ToolCallFlow } from './ToolCallFlow';
 export { ChatComposer } from './ChatComposer';
 export { ConfirmOverlay } from './ConfirmOverlay';
 export { McpToolsHelper } from './McpToolsHelper';
+export { InlineConfirmation } from './InlineConfirmation';
 
 // Hooks
 export { useMcpTools } from './hooks/useMcpTools';

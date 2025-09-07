@@ -623,6 +623,7 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT
               pendingConfirm={pendingConfirm}
               isStreaming={busy}
               streamingContent={streamingAssistantMessage}
+              onConfirm={handleConfirmWithChatDelete}
             />
 
             {/* Jump to latest button */}
@@ -642,12 +643,14 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT
           </div>
         </div>
 
-        {/* Confirmation overlay */}
-        <ConfirmOverlay
-          pendingConfirm={pendingConfirm}
-          onConfirm={handleConfirmWithChatDelete}
-          rootRef={rootRef}
-        />
+        {/* Confirmation overlay - Hidden when using inline confirmations */}
+        {false && pendingConfirm && (
+          <ConfirmOverlay
+            pendingConfirm={pendingConfirm}
+            onConfirm={handleConfirmWithChatDelete}
+            rootRef={rootRef}
+          />
+        )}
       </div>
 
       {/* Composer with proper spacing */}

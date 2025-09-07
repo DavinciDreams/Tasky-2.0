@@ -1,6 +1,7 @@
 import React from 'react';
 import { Tool, ToolHeader, ToolContent, ToolOutput } from '@/components/ai-elements';
 import { TaskDisplay, ReminderDisplay } from './TaskDisplay';
+import { InlineConfirmation } from './InlineConfirmation';
 import type { AdaptiveCard } from './types';
 
 interface AdaptiveCardRendererProps {
@@ -37,17 +38,18 @@ export const AdaptiveCardRenderer: React.FC<AdaptiveCardRendererProps> = ({ card
   };
 
   if (kind === 'confirm') {
+    // For stored confirmations, show a simple completed state
     return (
       <Tool defaultOpen={true}>
-        <ToolHeader type={`tool-${name}`} state="input-available" />
+        <ToolHeader type={`tool-${name}`} state="output-available" />
         <ToolContent>
           <div className="p-3">
             <div className="text-xs font-medium text-muted-foreground mb-2">
-              Confirm: {String(name)}
+              Confirmation: {String(name)}
             </div>
-            <pre className="text-xs whitespace-pre-wrap break-words text-foreground bg-muted/50 p-2 rounded">
-              {JSON.stringify(args, null, 2)}
-            </pre>
+            <div className="text-sm text-foreground opacity-70">
+              This confirmation has been processed.
+            </div>
           </div>
         </ToolContent>
       </Tool>
@@ -137,7 +139,7 @@ export const AdaptiveCardRenderer: React.FC<AdaptiveCardRendererProps> = ({ card
           <ToolContent>
             <div className="p-3">
               <div className="text-sm text-green-600 bg-green-50 border border-green-200 rounded-lg p-3">
-                ✅ {nameLower.includes('delete_task') ? 'Task' : 'Reminder'} deleted successfully
+                {nameLower.includes('delete_task') ? 'Task' : 'Reminder'} deleted successfully
               </div>
               {outputStr && outputStr !== 'undefined' && (
                 <div className="mt-2 text-xs text-muted-foreground">

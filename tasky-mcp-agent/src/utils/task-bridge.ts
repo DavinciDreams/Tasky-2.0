@@ -94,7 +94,9 @@ export class TaskBridge {
    */
   private async notifyTaskCreated(title: string, description?: string): Promise<void> {
     // With stdio protocol, main app handles notifications when it receives MCP responses
-    console.log('[TaskBridge] Task created:', title, description ? `- ${description}` : '');
+    // Use Buffer to ensure proper UTF-8 encoding for console output
+    const message = `[TASK-CREATED] Task created: ${title}${description ? ` - ${description}` : ''}`;
+    process.stdout.write(Buffer.from(message + '\n', 'utf8'));
   }
 
   async createTask(args: any): Promise<CallToolResult> {
@@ -136,7 +138,7 @@ export class TaskBridge {
       await this.notifyTaskCreated(args.title, args.description);
     } catch (error) {
       // Don't fail the task creation if notification fails
-      console.warn('Failed to send task creation notification:', error);
+      process.stderr.write(Buffer.from(`Failed to send task creation notification: ${error}\n`, 'utf8'));
     }
     
     const created = await this.getTask({ id });
@@ -212,12 +214,22 @@ export class TaskBridge {
   async deleteTask(args: any): Promise<CallToolResult> {
     const { id } = args || {};
     if (!id) return { content: [{ type: 'text', text: 'id is required' }], isError: true };
+    
+    // Get task info before deleting for the response
+    const task: any = this.db.prepare('SELECT title FROM tasks WHERE id = ?').get(id);
+    if (!task) return { content: [{ type: 'text', text: 'Task not found' }], isError: true };
+    
     const t = this.db.transaction(() => {
       this.db.prepare('DELETE FROM task_tags WHERE task_id = ?').run(id);
       this.db.prepare('DELETE FROM tasks WHERE id = ?').run(id);
     });
     t();
-    return { content: [{ type: 'text', text: JSON.stringify({ success: true }) }] };
+    
+    return { 
+      content: [
+        { type: 'text', text: `Task "${task.title}" deleted successfully` }
+      ] 
+    };
   }
 
   async getTask(args: any): Promise<CallToolResult> {
@@ -322,8 +334,7 @@ export class TaskBridge {
       }
       
       return { content: [
-        { type: 'text', text: `Task marked as ${executionStatus.toLowerCase()}` },
-        { type: 'text', text: JSON.stringify({ success: true, status: executionStatus }) }
+        { type: 'text', text: `Task marked as ${executionStatus.toLowerCase()}` }
       ] };
       
     } catch (error) {

@@ -102,21 +102,10 @@ export const useMcpTools = (chatId: string | null) => {
     } catch {}
   }, [pendingConfirm]);
 
-  // Create snapshot messages for persistence
+  // Create snapshot messages for persistence (only for results, not confirmations)
   const createConfirmSnapshot = useCallback((): ChatMessage | null => {
-    if (!pendingConfirm) return null;
-    const snapshot = {
-      __taskyCard: {
-        kind: 'confirm',
-        id: pendingConfirm.id,
-        name: pendingConfirm.name,
-        args: pendingConfirm.args,
-      }
-    };
-    return {
-      role: 'assistant',
-      content: JSON.stringify(snapshot),
-    };
+    // Don't create confirm snapshots since they're now handled inline
+    return null;
   }, [pendingConfirm]);
 
   const createResultSnapshot = useCallback((): ChatMessage | null => {

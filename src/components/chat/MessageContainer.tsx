@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { MessageBubble } from './MessageBubble';
 import { MessageSkeleton } from './MessageSkeleton';
 import { AdaptiveCardRenderer } from './AdaptiveCardRenderer';
+import { InlineConfirmation } from './InlineConfirmation';
 import { ToolCallDisplay } from './ToolCallDisplay';
 import type { ChatMessage, ToolEvent } from './types';
 
@@ -21,6 +22,7 @@ interface MessageContainerProps {
   pendingConfirm: { id: string; name: string; args: any } | null;
   isStreaming: boolean;
   streamingContent?: string;
+  onConfirm?: (accepted: boolean) => void;
 }
 
 export const MessageContainer: React.FC<MessageContainerProps> = ({
@@ -28,7 +30,8 @@ export const MessageContainer: React.FC<MessageContainerProps> = ({
   toolEvents,
   pendingConfirm,
   isStreaming,
-  streamingContent
+  streamingContent,
+  onConfirm,
 }) => {
   // Combine and order all items chronologically
   const items = useMemo(() => {
@@ -124,6 +127,11 @@ export const MessageContainer: React.FC<MessageContainerProps> = ({
             case 'message':
               if (!item.content) return null;
               
+              // Skip empty messages (these are placeholders for streaming that never got content)
+              if (!item.content.content || item.content.content.trim() === '') {
+                return null;
+              }
+              
               // Check if this is the last assistant message and we're streaming
               const isLastAssistant = 
                 item.content.role === 'assistant' &&
@@ -176,7 +184,7 @@ export const MessageContainer: React.FC<MessageContainerProps> = ({
               );
 
             case 'tool-confirm':
-              if (!item.toolEvent) return null;
+              if (!item.toolEvent || !onConfirm) return null;
               return (
                 <motion.div
                   key={item.id}
@@ -186,8 +194,11 @@ export const MessageContainer: React.FC<MessageContainerProps> = ({
                   exit={{ opacity: 0, scale: 0.95 }}
                   transition={{ duration: 0.2 }}
                 >
-                  <ToolCallDisplay
-                    toolEvent={item.toolEvent}
+                  <InlineConfirmation
+                    id={item.toolEvent.id}
+                    name={item.toolEvent.name}
+                    args={item.toolEvent.args}
+                    onConfirm={onConfirm}
                   />
                 </motion.div>
               );
