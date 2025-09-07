@@ -70,6 +70,8 @@ export class ReminderBridge {
       reminderDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
     }
     
+    console.log('Creating reminder with:', { message, time, reminderDays, enabled, oneTime });
+    
     const nowIso = new Date().toISOString();
     const reminderId = this.genId();
     
@@ -85,19 +87,24 @@ export class ReminderBridge {
       // Column already exists, ignore
     }
     
-    this.db.prepare(`
-      INSERT INTO reminders (id,message,time,days,enabled,one_time,created_at,updated_at)
-      VALUES (@id,@message,@time,@days,@enabled,@one_time,@created_at,@updated_at)
-    `).run({
-      id: reminderId,
-      message: String(message),
-      time: String(time),
-      days: JSON.stringify(reminderDays.map((d: any) => String(d))),
-      enabled: enabled !== false ? 1 : 0,
-      one_time: oneTime === true ? 1 : 0,
-      created_at: nowIso,
-      updated_at: nowIso
-    });
+    try {
+      this.db.prepare(`
+        INSERT INTO reminders (id,message,time,days,enabled,one_time,created_at,updated_at)
+        VALUES (@id,@message,@time,@days,@enabled,@one_time,@created_at,@updated_at)
+      `).run({
+        id: reminderId,
+        message: String(message),
+        time: String(time),
+        days: JSON.stringify(reminderDays.map((d: any) => String(d))),
+        enabled: enabled !== false ? 1 : 0,
+        one_time: oneTime === true ? 1 : 0,
+        created_at: nowIso,
+        updated_at: nowIso
+      });
+    } catch (error) {
+      console.error('Database error creating reminder:', error);
+      return { content: [{ type: 'text', text: `Database error: ${error}` }], isError: true };
+    }
     
     // Notify the main application about the created reminder
     try {
