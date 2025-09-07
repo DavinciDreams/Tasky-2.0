@@ -3,19 +3,18 @@ import { z } from 'zod';
 
 /**
  * MCP Call Tool - Single tool that handles all MCP operations
- * Defined with AI SDK tool() helper and Zod schema so it compiles
- * to a valid JSON Schema for the OpenAI Responses API.
+ * Temporarily using plain object to avoid tool() function type issues
  */
-export const mcpCall = tool({
+export const mcpCall = {
   description: 'Call MCP tools for task and reminder management',
   parameters: z.object({
     name: z.string().describe('Tool name'),
-    args: z.object({}).describe('Tool arguments'),
+    args: z.record(z.any()).optional().describe('Tool arguments'),
   }),
-  execute: async ({ name, args }) => {
+  execute: async ({ name, args = {} }: { name: string; args?: Record<string, any> }) => {
     return executeMcpTool(name, args, `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, undefined);
   },
-});
+};
 
 // Programmatic invocation from UI when model outputs inline tool JSON
 export async function callMcpTool(
