@@ -30,7 +30,14 @@ export const ChatComposer: React.FC<ChatComposerProps> = ({
     const el = e.target as HTMLTextAreaElement;
     el.style.height = 'auto';
     const lineHeight = 24;
-    const maxHeight = lineHeight * 5;
+    
+    // Calculate max height based on available space in the app window
+    // Ensure textarea doesn't grow beyond what's visible in the app
+    const windowHeight = window.innerHeight;
+    const composerRect = el.closest('.relative')?.getBoundingClientRect();
+    const availableHeight = composerRect ? windowHeight - composerRect.top - 100 : 120; // 100px buffer for UI elements
+    const maxHeight = Math.min(lineHeight * 5, availableHeight); // Max 5 lines or available space
+    
     el.style.height = Math.min(el.scrollHeight, maxHeight) + 'px';
   };
 

@@ -588,7 +588,7 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT
             <Button
               size="sm"
               variant="outline"
-              className="rounded-xl text-sm h-8 px-3 flex items-center gap-2 border-border bg-card hover:bg-muted text-foreground focus:ring-0 focus:border-border"
+              className="rounded-xl text-sm h-8 px-3 flex items-center gap-2 border-border bg-card hover:bg-muted text-foreground focus:ring-0 focus:border-border focus:outline-none focus:ring-offset-0 focus:shadow-none"
               disabled={busy}
               onClick={resetChat}
             >
@@ -605,11 +605,11 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT
         )}
 
         {/* Message container with simplified background */}
-        <div className="flex-1 w-full rounded-2xl border border-border/30 p-2 flex flex-col min-h-0 relative overflow-hidden bg-background">
+        <div className="flex-1 w-full rounded-2xl border border-border/30 p-2 flex flex-col min-h-[calc(100vh-280px)] max-h-[calc(100vh-280px)] relative overflow-hidden bg-background">
 
           <div
             ref={scrollRef}
-            className="flex-1 min-h-0 overflow-y-auto no-scrollbar p-2 w-full relative"
+            className="flex-1 min-h-[calc(100vh-280px)] max-h-[calc(100vh-280px)] overflow-y-auto no-scrollbar p-2 w-full relative"
             onScroll={handleScroll}
           >
             {/* Use the new MessageContainer for proper ordering */}

@@ -18,8 +18,8 @@ export class AISettingsManager {
       model: 'gemini-2.5-flash',
       temperature: 1.0,
       maxTokens: 4096,
-      systemPrompt: '',
-      useCustomPrompt: false
+      systemPrompt: this.getDefaultSystemPrompt(),
+      useCustomPrompt: true // Always use the default prompt
     };
   }
 
@@ -198,6 +198,13 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT
   }
 
   private getLMStudioModels(): AIModelInfo[] {
+    // Return empty array for LM Studio - models will be fetched dynamically
+    // This is because LM Studio models are loaded dynamically and we need to
+    // query the API to get the actual available models
+    return [];
+  }
+
+  async getLMStudioModelsFromAPI(baseUrl: string = 'http://127.0.0.1:1234', apiKey?: string): Promise<AIModelInfo[]> {
     const lmstudioCapabilities: AIProviderCapabilities = {
       supportsStreaming: true,
       supportsTools: true, // LM Studio supports tools through OpenAI compatibility
@@ -208,52 +215,49 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT
       maxContextLength: 8192 // Varies by model
     };
 
-    return [
-      {
-        id: 'llama-3.3-70b-instruct',
-        name: 'Llama 3.3 70B Instruct',
-        description: 'Latest and most capable Llama model',
-        capabilities: { ...lmstudioCapabilities, maxContextLength: 32768 },
-        isDefault: true,
-        isRecommended: true
-      },
-      {
-        id: 'llama-3.1-8b-instruct',
-        name: 'Llama 3.1 8B Instruct',
-        description: 'Fast and efficient model for most tasks',
-        capabilities: lmstudioCapabilities
-      },
-      {
-        id: 'llama-3.1-70b-instruct',
-        name: 'Llama 3.1 70B Instruct',
-        description: 'Larger model with better performance',
-        capabilities: { ...lmstudioCapabilities, maxContextLength: 16384 }
-      },
-      {
-        id: 'qwen2.5-7b-instruct',
-        name: 'Qwen2.5 7B Instruct',
-        description: 'Efficient Chinese and English model',
-        capabilities: { ...lmstudioCapabilities, maxContextLength: 32768 }
-      },
-      {
-        id: 'qwen2.5-14b-instruct',
-        name: 'Qwen2.5 14B Instruct',
-        description: 'Balanced performance and efficiency',
-        capabilities: { ...lmstudioCapabilities, maxContextLength: 32768 }
-      },
-      {
-        id: 'deepseek-r1-distill-qwen-7b',
-        name: 'DeepSeek R1 Distill Qwen 7B',
-        description: 'Reasoning-focused model',
-        capabilities: { ...lmstudioCapabilities, maxContextLength: 32768 }
-      },
-      {
-        id: 'custom-model',
-        name: 'Your Model',
-        description: 'Use any model loaded in LM Studio',
-        capabilities: lmstudioCapabilities
+    try {
+      const response = await fetch(`${baseUrl}/v1/models`, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(apiKey && { 'Authorization': `Bearer ${apiKey}` })
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const models = data?.data || [];
+        
+        return models.map((model: any, index: number) => ({
+          id: model.id,
+          name: this.formatModelName(model.id),
+          description: `Model loaded in LM Studio: ${model.id}`,
+          capabilities: lmstudioCapabilities,
+          isDefault: index === 0, // First model is default
+          isRecommended: index === 0
+        }));
+      } else {
+        console.warn('Failed to fetch LM Studio models:', response.status);
+        return [];
       }
-    ];
+    } catch (error) {
+      console.warn('Error fetching LM Studio models:', error);
+      return [];
+    }
+  }
+
+  private formatModelName(modelId: string): string {
+    // Convert model ID to a user-friendly name
+    // e.g., "llama-3.2-1b-instruct" -> "Llama 3.2 1B Instruct"
+    return modelId
+      .split('-')
+      .map(part => {
+        // Capitalize first letter of each part
+        if (part.match(/^\d+(\.\d+)?$/)) return part; // Keep numbers as-is
+        if (part === 'instruct') return 'Instruct';
+        if (part === 'chat') return 'Chat';
+        return part.charAt(0).toUpperCase() + part.slice(1);
+      })
+      .join(' ');
   }
 
   getProviderCapabilities(provider: string, model?: string): AIProviderCapabilities {
@@ -283,8 +287,8 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT
       temperature: Math.max(0, Math.min(2, settings.temperature ?? defaults.temperature)),
       maxTokens: Math.max(1, Math.min(32000, settings.maxTokens ?? defaults.maxTokens)),
       baseUrl: settings.baseUrl || defaults.baseUrl,
-      systemPrompt: settings.systemPrompt || defaults.systemPrompt,
-      useCustomPrompt: settings.useCustomPrompt ?? defaults.useCustomPrompt
+      systemPrompt: this.getDefaultSystemPrompt(), // Always use default prompt
+      useCustomPrompt: true // Always true since we always use the default prompt
     };
   }
 

@@ -213,7 +213,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
   const [llmTesting, setLlmTesting] = useState(false);
   const [llmTestStatus, setLlmTestStatus] = useState<null | { ok: boolean; message: string }>(null);
 
-  // Get available models for the current provider
+  // Get available models for the current provider (only used for Google now)
   const getAvailableModels = (provider: string) => {
     const normalizedProvider = provider.toLowerCase();
     
@@ -228,7 +228,6 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
       }));
     }
     
-    // For LM Studio providers, return empty array (user will input manually)
     return [];
   };
 
@@ -467,62 +466,52 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
                   />
                 </div>
               ) : settings.llmProvider === 'lmstudio' ? (
-                <div className="md:col-span-2">
-                  <SettingItem
-                    icon="🧠"
-                    title="Model"
-                    description="Choose a model for LM Studio (must be loaded in LM Studio)"
-                    type="select"
-                    value={settings.llmModel || 'llama-3.3-70b-instruct'}
-                    options={(() => {
-                      const availableModels = getAvailableModels('lmstudio');
-                      return availableModels.length > 0 ? availableModels : [
-                        { value: 'llama-3.3-70b-instruct', label: 'Llama 3.3 70B Instruct' },
-                        { value: 'llama-3.1-8b-instruct', label: 'Llama 3.1 8B Instruct' },
-                        { value: 'qwen2.5-7b-instruct', label: 'Qwen2.5 7B Instruct' },
-                        { value: 'custom-model', label: 'Your Model' },
-                      ];
-                    })()}
-                    onChange={(val) => onSettingChange('llmModel', val)}
-                  />
+                <div className="md:col-span-2 space-y-4">
+                  <div className="flex flex-col gap-2 py-2 px-4 rounded-xl hover:bg-muted/30 transition-colors duration-200">
+                    <Label className="text-sm">API Identifier</Label>
+                    <Input
+                      type="text"
+                      placeholder="llama-3.2-1b-instruct"
+                      value={settings.llmModel || ''}
+                      onChange={(e) => onSettingChange('llmModel', e.target.value)}
+                    />
+                    <span className="text-[11px] text-muted-foreground">
+                      The exact model identifier shown in LM Studio (e.g., llama-3.2-1b-instruct)
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col gap-2 py-2 px-4 rounded-xl hover:bg-muted/30 transition-colors duration-200">
+                    <Label className="text-sm">Local Server</Label>
+                    <Input
+                      type="text"
+                      placeholder="http://127.0.0.1:1234"
+                      value={settings.llmBaseUrl || ''}
+                      onChange={(e) => onSettingChange('llmBaseUrl', e.target.value)}
+                    />
+                    <span className="text-[11px] text-muted-foreground">
+                      LM Studio server address (default: http://127.0.0.1:1234)
+                    </span>
+                  </div>
                 </div>
               ) : (
                 null
               )}
 
-              {/* LM Studio specific fields */}
-              {settings.llmProvider === 'lmstudio' && (
+              {/* API Key for Google only */}
+              {settings.llmProvider === 'google' && (
                 <div className="flex flex-col gap-2 py-2 px-4 rounded-xl hover:bg-muted/30 transition-colors duration-200">
-                  <Label className="text-sm">LM Studio Server URL</Label>
+                  <Label className="text-sm">API Key</Label>
                   <Input
-                    type="text"
-                    placeholder="http://localhost:1234/v1"
-                    value={settings.llmBaseUrl || ''}
-                    onChange={(e) => onSettingChange('llmBaseUrl', e.target.value)}
+                    type="password"
+                    placeholder="Enter API key"
+                    value={settings.llmApiKey || ''}
+                    onChange={(e) => onSettingChange('llmApiKey', e.target.value)}
                   />
                   <span className="text-[11px] text-muted-foreground">
-                    Default LM Studio server URL. Make sure LM Studio server is running.
+                    Stored locally.
                   </span>
                 </div>
               )}
-
-              <div className="flex flex-col gap-2 py-2 px-4 rounded-xl hover:bg-muted/30 transition-colors duration-200">
-                <Label className="text-sm">
-                  {settings.llmProvider === 'lmstudio' ? 'API Key (usually "lm-studio")' : 'API Key'}
-                </Label>
-                <Input
-                  type="password"
-                  placeholder={settings.llmProvider === 'lmstudio' ? 'lm-studio' : 'Enter API key'}
-                  value={settings.llmApiKey || ''}
-                  onChange={(e) => onSettingChange('llmApiKey', e.target.value)}
-                />
-                <span className="text-[11px] text-muted-foreground">
-                  {settings.llmProvider === 'lmstudio' 
-                    ? 'LM Studio typically uses "lm-studio" as the API key. Stored locally.' 
-                    : 'Stored locally.'
-                  }
-                </span>
-              </div>
 
               <div className="md:col-span-2 flex items-center gap-3 py-2 px-4 rounded-xl hover:bg-muted/30 transition-colors duration-200">
                 <Button onClick={testAIProvider} disabled={llmTesting} className="rounded-xl bg-white text-gray-900 hover:bg-gray-100">
