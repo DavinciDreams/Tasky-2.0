@@ -200,7 +200,7 @@ server.tool(
   {
     message: z.string().describe('Reminder message'),
     time: z.string().describe('Time in HH:MM format or relative time like "in 5 minutes"'),
-    days: z.array(z.enum(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'])).describe('Days of the week'),
+    days: z.array(z.enum(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'])).optional().describe('Days of the week (defaults to all days if not provided)'),
     enabled: z.boolean().optional().describe('Whether reminder is enabled').default(true),
     oneTime: z.boolean().optional().describe('Whether this is a one-time reminder').default(false),
   },

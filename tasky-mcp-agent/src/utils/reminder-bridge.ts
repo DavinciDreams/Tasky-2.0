@@ -60,9 +60,16 @@ export class ReminderBridge {
 
   async createReminder(args: any): Promise<CallToolResult> {
     const { message, time, days, enabled, oneTime } = args;
-    if (!message || !time || !Array.isArray(days) || days.length === 0) {
-      return { content: [{ type: 'text', text: 'Invalid reminder: require message, time, days[]' }], isError: true };
+    if (!message || !time) {
+      return { content: [{ type: 'text', text: 'Invalid reminder: require message and time' }], isError: true };
     }
+    
+    // If no days provided or empty array, default to all days (daily reminder)
+    let reminderDays = days;
+    if (!Array.isArray(days) || days.length === 0) {
+      reminderDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    }
+    
     const nowIso = new Date().toISOString();
     const reminderId = this.genId();
     
@@ -85,7 +92,7 @@ export class ReminderBridge {
       id: reminderId,
       message: String(message),
       time: String(time),
-      days: JSON.stringify(days.map((d: any) => String(d))),
+      days: JSON.stringify(reminderDays.map((d: any) => String(d))),
       enabled: enabled !== false ? 1 : 0,
       one_time: oneTime === true ? 1 : 0,
       created_at: nowIso,
@@ -94,7 +101,7 @@ export class ReminderBridge {
     
     // Notify the main application about the created reminder
     try {
-      await this.notifyReminderCreated(message, time, days);
+      await this.notifyReminderCreated(message, time, reminderDays);
     } catch (error) {
       // Don't fail the reminder creation if notification fails
       process.stderr.write(Buffer.from(`Failed to send reminder creation notification: ${error}\n`, 'utf8'));
@@ -102,7 +109,7 @@ export class ReminderBridge {
     
     return { 
       content: [
-        { type: 'text', text: `Reminder "${message}" created successfully for ${time} on ${days.join(', ')}` }
+        { type: 'text', text: `Reminder "${message}" created successfully for ${time} on ${reminderDays.join(', ')}` }
       ] 
     };
   }

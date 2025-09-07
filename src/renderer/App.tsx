@@ -243,13 +243,26 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
           throw new Error('Enter an API key first.');
         }
         
-        // Force a valid Google AI model if an incompatible one is selected
+        // Use the actual selected model from settings
         let modelId = String(settings.llmModel || 'gemini-1.5-flash');
         
-        // Check if the current model is a Google/Gemini model
-        if (!modelId.includes('gemini')) {
-          console.warn(`Model "${modelId}" is not compatible with Google AI. Using gemini-1.5-flash instead.`);
-          modelId = 'gemini-1.5-flash';
+        // Define available Google models (matching the dropdown)
+        const availableGoogleModels = [
+          'gemini-1.5-flash',
+          'gemini-2.0-flash-exp', 
+          'gemini-2.5-pro',
+          'gemini-1.5-flash-latest'
+        ];
+        
+        // Check if current model is available, if not, force update to first available model
+        if (!availableGoogleModels.includes(modelId)) {
+          const firstModel = availableGoogleModels[0];
+          console.warn(`Model "${modelId}" is no longer available. Switching to ${firstModel}.`);
+          modelId = firstModel;
+          // Update the settings to the new model
+          if (onSettingChange) {
+            onSettingChange('llmModel', modelId);
+          }
         }
         
         console.log('Testing Google AI with model:', modelId);
