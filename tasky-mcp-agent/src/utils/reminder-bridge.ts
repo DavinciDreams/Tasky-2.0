@@ -52,10 +52,8 @@ export class ReminderBridge {
    * Log reminder creation (notification now handled by main app via IPC)
    */
   private async notifyReminderCreated(message: string, time: string, days: string[]): Promise<void> {
-    // With stdio protocol, main app handles notifications when it receives MCP responses
-    // Use Buffer to ensure proper UTF-8 encoding for console output
-    const logMessage = `[ReminderBridge] Reminder created: ${message} at ${time} on ${days.join(', ')}`;
-    process.stdout.write(Buffer.from(logMessage + '\n', 'utf8'));
+    // Simple synchronous logging to avoid timeout issues
+    console.log(`[ReminderBridge] Reminder created: ${message} at ${time} on ${days.join(', ')}`);
   }
 
   async createReminder(args: any): Promise<CallToolResult> {

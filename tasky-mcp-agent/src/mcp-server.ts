@@ -196,19 +196,36 @@ server.tool(
 // Reminder Management Tools
 server.tool(
   'tasky_create_reminder',
-  'Create a new Tasky reminder',
+  'Create a new Tasky reminder. Use this tool immediately when user mentions creating reminders. Do not ask for additional details - make reasonable defaults.',
   {
-    message: z.string().describe('Reminder message'),
-    time: z.string().describe('Time in HH:MM format or relative time like "in 5 minutes"'),
-    days: z.array(z.enum(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'])).optional().describe('Days of the week (defaults to all days if not provided)'),
+    message: z.string().describe('Reminder message (extract from user request)'),
+    time: z.string().describe('Time in HH:MM format. Common defaults: morning=09:00, afternoon=14:00, evening=18:00. Parse "10am"→"10:00", "2pm"→"14:00"'),
+    days: z.array(z.enum(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'])).optional().describe('Days of week. If user says "weekdays"→["monday","tuesday","wednesday","thursday","friday"]. If no days specified→defaults to daily (all 7 days)'),
     enabled: z.boolean().optional().describe('Whether reminder is enabled').default(true),
     oneTime: z.boolean().optional().describe('Whether this is a one-time reminder').default(false),
   },
   async (args) => {
     try {
-      // Parse relative time if needed
+      // Parse and normalize time format
       let finalTime = args.time;
       let isOneTime = args.oneTime || false;
+      
+      // Convert common time formats to HH:MM
+      const timeStr = args.time.toLowerCase().trim();
+      if (timeStr.includes('am') || timeStr.includes('pm')) {
+        // Parse "10am" → "10:00", "2pm" → "14:00", "10:30am" → "10:30"
+        const match = timeStr.match(/(\d{1,2})(:?\d{2})?\s*(am|pm)/);
+        if (match) {
+          let hours = parseInt(match[1]);
+          const minutes = match[2] ? match[2].replace(':', '') : '00';
+          const period = match[3];
+          
+          if (period === 'pm' && hours !== 12) hours += 12;
+          if (period === 'am' && hours === 12) hours = 0;
+          
+          finalTime = `${hours.toString().padStart(2, '0')}:${minutes.padStart(2, '0')}`;
+        }
+      }
       
       // Check if it's a relative time (contains "in" or "from now")
       if (args.time.toLowerCase().includes('in ') || args.time.toLowerCase().includes('from now')) {
