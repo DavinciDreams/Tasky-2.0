@@ -1703,6 +1703,15 @@ const App: React.FC = () => {
           root.style.setProperty('--popover-foreground', fgHsl);
           root.style.setProperty('--primary', buttonHsl); // Use button color for primary
           root.style.setProperty('--primary-foreground', buttonTextHsl); // Use proper contrast color
+          
+          // Debug logging
+          console.log('App theme applied:', {
+            buttonColor,
+            buttonHsl,
+            buttonTextColor,
+            buttonTextHsl
+          });
+          
           root.style.setProperty('--secondary', borderHsl);
           root.style.setProperty('--secondary-foreground', fgHsl);
         } catch (error) {

@@ -172,7 +172,7 @@ const LocationDateTime: React.FC<LocationDateTimeProps> = ({
               {formatTime(currentTime, effectiveTimezone)}
             </div>
             <div className="text-xs text-muted-foreground text-right leading-tight">
-              {loading ? 'UTC' : effectiveTimezone.split('/')[1]?.replace('_', ' ') || 'Local'}
+              {timeFormat === '12h' ? 'AM/PM' : '24h'}
             </div>
           </div>
           <div className="w-4 h-4 rounded bg-primary/10 flex items-center justify-center">

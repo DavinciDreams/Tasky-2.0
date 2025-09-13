@@ -136,6 +136,14 @@ export const ThemeSettings: React.FC<ThemeSettingsProps> = ({ settings, onSettin
       root.style.setProperty('--primary', buttonHsl);
       root.style.setProperty('--primary-foreground', buttonTextHsl);
       
+      // Debug logging
+      console.log('Theme applied:', {
+        buttonColor: validatedColors.button,
+        buttonHsl,
+        buttonTextColor,
+        buttonTextHsl
+      });
+      
       // Secondary colors
       root.style.setProperty('--secondary', borderHsl);
       root.style.setProperty('--secondary-foreground', fgHsl);
