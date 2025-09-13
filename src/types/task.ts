@@ -101,7 +101,7 @@ export interface TaskAnalytics {
   };
 }
 
-// Task observation (simplified from OODA loop)
+// Task observation 
 export interface TaskObservation {
   totalTasks: number;
   pendingTasks: number;
@@ -111,7 +111,7 @@ export interface TaskObservation {
   nextDueTask?: TaskyTask;
 }
 
-// Task strategy (simplified from OODA loop)
+// Task strategy 
 export interface TaskStrategy {
   focusTask?: TaskyTask;
   suggestedActions: TaskSuggestion[];

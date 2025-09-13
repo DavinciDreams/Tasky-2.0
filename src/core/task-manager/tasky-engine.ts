@@ -29,7 +29,7 @@ import { format } from 'date-fns';
  * Core task management engine responsible for:
  * - Loading/saving tasks via TaskStorage (with date serialization)
  * - CRUD operations with validation and schema/top-level separation
- * - Filtering, analytics, and simple OODA (observe/orient/decide/act)
+ * - Filtering, analytics, and simple and automated execution.
  * - Emitting typed events for creation/update/completion
  */
 export class TaskyEngine {
@@ -66,7 +66,7 @@ export class TaskyEngine {
   }
 
   /**
-   * Observe - Monitor current task state (simplified OODA loop)
+   * Observe - Monitor current task state with automated execution.
    */
   async observe(): Promise<TaskObservation> {
     await this.loadTasks();

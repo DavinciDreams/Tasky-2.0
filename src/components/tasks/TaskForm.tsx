@@ -163,7 +163,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ onCreateTask, initial, submi
                 className="mt-1 w-full rounded-2xl"
               />
               <div>
-                <Button type="button" size="sm" className="bg-white text-gray-900 hover:bg-gray-100 rounded-xl border border-gray-300" onClick={async () => {
+                <Button type="button" size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl border border-border" onClick={async () => {
                   const dir = await window.electronAPI.invoke('select-directory');
                   if (dir) setFormData(prev => ({ ...prev, executionPath: dir }));
                 }}>
@@ -189,7 +189,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ onCreateTask, initial, submi
                 rows={4}
               />
               <div>
-                <Button type="button" size="sm" className="bg-white text-gray-900 hover:bg-gray-100 rounded-xl border border-gray-300" onClick={async () => {
+                <Button type="button" size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl border border-border" onClick={async () => {
                   const files: string[] = await window.electronAPI.invoke('select-files');
                   if (files && files.length) {
                     const merged = [formData.affectedFiles, ...files].filter(Boolean).join('\n');
@@ -204,7 +204,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ onCreateTask, initial, submi
 
           {/* Action Buttons */}
           <div className="flex gap-3 pt-2">
-            <Button type="submit" className="w-full rounded-2xl shadow-xl bg-white text-gray-900 hover:bg-gray-100 border border-gray-300">
+            <Button type="submit" className="w-full rounded-2xl shadow-xl bg-primary text-primary-foreground hover:bg-primary/90 border border-border">
               <Plus className="h-4 w-4 mr-2" />
               {submitLabel || 'Create Task'}
             </Button>

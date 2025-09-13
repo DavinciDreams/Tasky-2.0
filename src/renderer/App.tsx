@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 const EmojiPicker = React.lazy(() => import('@emoji-mart/react'));
 import { SettingSection } from '../components/SettingSection';
 import { SettingItem } from '../components/SettingItem';
+import { ThemeSettings } from '../components/theme/ThemeSettings';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -551,7 +552,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
               )}
 
               <div className="md:col-span-2 flex items-center gap-3 py-2 px-4 rounded-xl hover:bg-muted/30 transition-colors duration-200">
-                <Button onClick={testAIProvider} disabled={llmTesting} className="rounded-xl bg-white text-gray-900 hover:bg-gray-100">
+                <Button onClick={testAIProvider} disabled={llmTesting} className="rounded-xl bg-primary text-primary-foreground hover:bg-primary/90">
                   {llmTesting ? 'Testing…' : 'Test Connection'}
                 </Button>
                 {llmTestStatus && (
@@ -576,10 +577,16 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
               {false && null}
             </div>
           </SettingSection>
+
+          {/* Dynamic Theme Settings */}
+          <ThemeSettings 
+            settings={settings}
+            onSettingChange={onSettingChange}
+          />
           
           <div className="pt-6 border-t border-border/30">
             <Button 
-              className="w-full bg-white hover:bg-gray-100 text-gray-900 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] rounded-2xl py-3 font-semibold"
+              className="w-full bg-primary text-primary-foreground hover:bg-primary/90 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] rounded-2xl py-3 font-semibold"
               onClick={onTestNotification}
             >
               <Bell size={18} className="mr-3" />
@@ -780,7 +787,7 @@ const AvatarTab: React.FC<AvatarTabProps> = ({ selectedAvatar, onAvatarChange })
                 <div className="py-4">
                   <Button
                     onClick={handleCustomAvatarUpload}
-                    className="bg-white hover:bg-gray-100 text-gray-900 shadow-md hover:shadow-lg transition-all duration-300 rounded-2xl px-4 py-2 text-sm font-semibold border border-border/30"
+                    className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-md hover:shadow-lg transition-all duration-300 rounded-2xl px-4 py-2 text-sm font-semibold border border-border/30"
                   >
                     Upload Avatar
                   </Button>
@@ -790,7 +797,7 @@ const AvatarTab: React.FC<AvatarTabProps> = ({ selectedAvatar, onAvatarChange })
                   <div className="flex justify-end mb-4">
                     <Button
                       onClick={handleCustomAvatarUpload}
-                      className="bg-white hover:bg-gray-100 text-gray-900 shadow-md hover:shadow-lg transition-all duration-300 rounded-2xl px-4 py-2 text-sm font-semibold border border-border/30"
+                      className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-md hover:shadow-lg transition-all duration-300 rounded-2xl px-4 py-2 text-sm font-semibold border border-border/30"
                     >
                       <Plus size={14} className="mr-2" />
                       Add More
@@ -1575,6 +1582,10 @@ const App: React.FC = () => {
       const llmSystemPrompt = await window.electronAPI.getSetting('llmSystemPrompt');
       const llmUseCustomPrompt = await window.electronAPI.getSetting('llmUseCustomPrompt');
       
+      // Load theme settings
+      const themeMode = await window.electronAPI.getSetting('themeMode');
+      const customTheme = await window.electronAPI.getSetting('customTheme');
+      
       setSettings({
         enableSound: enableSound !== undefined ? enableSound : true,
         enableAssistant: enableAssistant !== undefined ? enableAssistant : true,
@@ -1595,7 +1606,127 @@ const App: React.FC = () => {
         llmBaseUrl: llmBaseUrl || '',
         llmSystemPrompt: llmSystemPrompt || '',
         llmUseCustomPrompt: llmUseCustomPrompt || false,
+        // Theme settings
+        themeMode: themeMode || 'perano-purple',
+        customTheme: customTheme || {
+          primary: '237 83% 70%',
+          secondary: '237 90% 75%',
+          background: '237 83% 70%',
+          foreground: '240 100% 98%',
+          accent: '240 100% 98%',
+          muted: '237 70% 60%',
+          border: '237 90% 80%',
+          card: '237 76% 65%',
+          destructive: '0 72% 45%',
+          success: '120 70% 40%',
+          warning: '45 93% 48%',
+          info: '240 100% 98%'
+        },
       });
+      
+      // Apply the loaded theme with simplified approach
+      const applySimpleTheme = (colors: { background: string; foreground: string; border: string; button?: string }) => {
+        const hexToHsl = (hex: string): string => {
+          // Validate hex input
+          if (!hex || typeof hex !== 'string' || !hex.startsWith('#') || hex.length !== 7) {
+            console.warn('Invalid hex color in App.tsx:', hex);
+            return '0 0% 50%'; // Return a default gray color
+          }
+
+          try {
+            const r = parseInt(hex.slice(1, 3), 16) / 255;
+            const g = parseInt(hex.slice(3, 5), 16) / 255;
+            const b = parseInt(hex.slice(5, 7), 16) / 255;
+
+            const max = Math.max(r, g, b);
+            const min = Math.min(r, g, b);
+            let h = 0, s = 0, l = (max + min) / 2;
+
+            if (max !== min) {
+              const d = max - min;
+              s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+              switch (max) {
+                case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+                case g: h = (b - r) / d + 2; break;
+                case b: h = (r - g) / d + 4; break;
+              }
+              h /= 6;
+            }
+
+            return `${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
+          } catch (error) {
+            console.error('Error converting hex to HSL in App.tsx:', error, 'for hex:', hex);
+            return '0 0% 50%'; // Return a default gray color
+          }
+        };
+
+        // Helper function to calculate contrast color
+        const getContrastColor = (hexColor: string): string => {
+          try {
+            // Convert hex to RGB
+            const r = parseInt(hexColor.slice(1, 3), 16);
+            const g = parseInt(hexColor.slice(3, 5), 16);
+            const b = parseInt(hexColor.slice(5, 7), 16);
+            
+            // Calculate relative luminance
+            const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+            
+            // Return white for dark colors, dark for light colors
+            return luminance > 0.5 ? '#1F2937' : '#FFFFFF';
+          } catch (error) {
+            console.error('Error calculating contrast color:', error);
+            return '#FFFFFF'; // Default to white
+          }
+        };
+
+        try {
+          const root = document.documentElement;
+          root.style.setProperty('--background', hexToHsl(colors.background));
+          root.style.setProperty('--foreground', hexToHsl(colors.foreground));
+          root.style.setProperty('--border', hexToHsl(colors.border));
+          
+          // Set related colors
+          const bgHsl = hexToHsl(colors.background);
+          const fgHsl = hexToHsl(colors.foreground);
+          const borderHsl = hexToHsl(colors.border);
+          const buttonColor = colors.button || '#3B82F6'; // Use button color if available, fallback to default blue
+          const buttonHsl = hexToHsl(buttonColor);
+          
+          // Calculate contrasting text color for button
+          const buttonTextColor = getContrastColor(buttonColor);
+          const buttonTextHsl = hexToHsl(buttonTextColor);
+          
+          root.style.setProperty('--card', bgHsl);
+          root.style.setProperty('--card-foreground', fgHsl);
+          root.style.setProperty('--input', borderHsl);
+          root.style.setProperty('--popover', bgHsl);
+          root.style.setProperty('--popover-foreground', fgHsl);
+          root.style.setProperty('--primary', buttonHsl); // Use button color for primary
+          root.style.setProperty('--primary-foreground', buttonTextHsl); // Use proper contrast color
+          root.style.setProperty('--secondary', borderHsl);
+          root.style.setProperty('--secondary-foreground', fgHsl);
+        } catch (error) {
+          console.error('Error applying theme in App.tsx:', error);
+        }
+      };
+
+      // Apply default grey theme or custom theme
+      try {
+        if (customTheme) {
+          applySimpleTheme(customTheme);
+        } else {
+          // Apply default grey theme
+          const defaultColors = {
+            background: '#F3F4F6', // Default grey background
+            foreground: '#1F2937',  // Dark grey text
+            border: '#D1D5DB',      // Light grey border
+            button: '#3B82F6'       // Default blue button
+          };
+          applySimpleTheme(defaultColors);
+        }
+      } catch (error) {
+        console.error('Error applying theme in loadSettings:', error);
+      }
     } catch (error) {
       console.error('Failed to load settings:', error);
     }

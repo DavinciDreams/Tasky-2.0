@@ -954,6 +954,10 @@ ipcMain.on('set-setting', (event, key, value) => {
             assistant.setNotificationTextColor(value);
           }
           break;
+        case 'themeMode':
+        case 'customTheme':
+          // Theme changes are handled in the renderer, no main process action needed
+          break;
       }
     }
   }

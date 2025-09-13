@@ -269,7 +269,15 @@ export class Storage {
         taskNotifications: true,
         autoArchiveCompleted: false,
         taskSortBy: 'dueDate',
-        showTaskStats: true
+        showTaskStats: true,
+        // Default theme settings
+        themeMode: 'custom',
+        customTheme: {
+          background: '#F3F4F6',  // Default grey background
+          foreground: '#1F2937',  // Dark grey text
+          border: '#D1D5DB',      // Light grey border
+          button: '#3B82F6'       // Default blue button
+        }
       };
     }
   }

@@ -44,6 +44,14 @@ export interface Settings {
   // Prompt engineering
   llmSystemPrompt?: string;
   llmUseCustomPrompt?: boolean;
+  // Dynamic theme settings
+  themeMode: 'auto' | 'light' | 'dark' | 'custom' | 'perano-purple' | 'ocean-blue' | 'forest-green' | 'sunset-orange' | 'midnight-dark' | 'rose-gold';
+  customTheme?: {
+    background: string;
+    foreground: string;
+    border: string;
+    button: string;
+  };
 }
 
 export interface CustomAvatar {
