@@ -30,7 +30,7 @@ interface TimerState {
 
 
 const SESSION_COLORS = {
-  work: 'hsl(var(--pomodoro))', // Use pomodoro theme color
+  work: 'hsl(var(--warning))', // Use warning theme color for work sessions
   shortBreak: 'hsl(var(--accent))', // Use accent theme color  
   longBreak: 'hsl(var(--success))', // Use success theme color
 };

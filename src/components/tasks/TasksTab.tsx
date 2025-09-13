@@ -71,10 +71,17 @@ export const TasksTab: React.FC<TasksTabProps> = ({
         <div className="mt-4 flex items-center justify-center gap-3">
           <Button 
             onClick={() => setShowCreateModal(true)}
-            className="bg-checkbox text-checkbox-foreground hover:bg-checkbox/90 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] rounded-2xl px-4 py-2 font-semibold flex items-center gap-2"
+            className="shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] rounded-2xl px-4 py-2 font-semibold flex items-center gap-2"
             style={{
               backgroundColor: `hsl(var(--checkbox))`,
-              color: `hsl(var(--checkbox-foreground))`
+              color: `hsl(var(--checkbox-foreground))`,
+              border: 'none'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = `hsl(var(--checkbox) / 0.9)`;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = `hsl(var(--checkbox))`;
             }}
           >
             <Plus className="h-4 w-4" />
@@ -83,7 +90,18 @@ export const TasksTab: React.FC<TasksTabProps> = ({
           <Button 
             variant="outline"
             onClick={handleImport}
-            className="border-border/40 hover:bg-secondary/20 rounded-xl px-4 py-2 flex items-center gap-2"
+            className="rounded-xl px-4 py-2 flex items-center gap-2"
+            style={{
+              borderColor: `hsl(var(--checkbox))`,
+              color: `hsl(var(--checkbox))`,
+              backgroundColor: 'transparent'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = `hsl(var(--checkbox) / 0.1)`;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }}
           >
             <Upload className="h-4 w-4" />
             <span className="font-semibold">Import</span>

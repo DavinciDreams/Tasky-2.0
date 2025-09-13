@@ -30,9 +30,7 @@ export const ThemeSettings: React.FC<ThemeSettingsProps> = ({ settings, onSettin
     accent: '#5B57D9',      // Same purple for accents/progress
     success: '#10B981',     // Green for success/completed
     warning: '#F59E0B',     // Orange for warning/pending
-    checkbox: '#5B57D9',    // Purple for checkboxes
-    weekday: '#EC4899',     // Pink for weekday highlights
-    pomodoro: '#EF4444'     // Red for Pomodoro timer
+    checkbox: '#5B57D9',    // Purple for switches
   });
 
   const validateColors = (colors: any): SimpleThemeColors => {
@@ -59,10 +57,6 @@ export const ThemeSettings: React.FC<ThemeSettingsProps> = ({ settings, onSettin
         ? colors.warning : defaults.warning,
       checkbox: (colors.checkbox && typeof colors.checkbox === 'string' && colors.checkbox.startsWith('#')) 
         ? colors.checkbox : defaults.checkbox,
-      weekday: (colors.weekday && typeof colors.weekday === 'string' && colors.weekday.startsWith('#')) 
-        ? colors.weekday : defaults.weekday,
-      pomodoro: (colors.pomodoro && typeof colors.pomodoro === 'string' && colors.pomodoro.startsWith('#')) 
-        ? colors.pomodoro : defaults.pomodoro,
     };
   };
 
@@ -169,10 +163,6 @@ export const ThemeSettings: React.FC<ThemeSettingsProps> = ({ settings, onSettin
       root.style.setProperty('--warning-foreground', hexToHsl(getContrastColor(validatedColors.warning)));
       root.style.setProperty('--checkbox', hexToHsl(validatedColors.checkbox));
       root.style.setProperty('--checkbox-foreground', hexToHsl(getContrastColor(validatedColors.checkbox)));
-      root.style.setProperty('--weekday', hexToHsl(validatedColors.weekday));
-      root.style.setProperty('--weekday-foreground', hexToHsl(getContrastColor(validatedColors.weekday)));
-      root.style.setProperty('--pomodoro', hexToHsl(validatedColors.pomodoro));
-      root.style.setProperty('--pomodoro-foreground', hexToHsl(getContrastColor(validatedColors.pomodoro)));
       
       // Debug logging
       console.log('Theme applied:', {
@@ -249,12 +239,24 @@ export const ThemeSettings: React.FC<ThemeSettingsProps> = ({ settings, onSettin
   };
 
   const resetToDefault = () => {
-    const defaultColors = getDefaultColors();
-    
-    setCustomColors(defaultColors);
-    onSettingChange('customTheme', defaultColors);
-    onSettingChange('themeMode', 'custom');
-    applyTheme(defaultColors);
+    try {
+      const defaultColors = getDefaultColors();
+      
+      // Update local state
+      setCustomColors(defaultColors);
+      
+      // Save to settings
+      onSettingChange('customTheme', defaultColors);
+      onSettingChange('themeMode', 'custom');
+      
+      // Apply theme immediately
+      applyTheme(defaultColors);
+      
+      // Optional: Show feedback to user
+      console.log('Theme reset to default colors');
+    } catch (error) {
+      console.error('Error resetting theme to default:', error);
+    }
   };
 
   return (
@@ -266,7 +268,8 @@ export const ThemeSettings: React.FC<ThemeSettingsProps> = ({ settings, onSettin
           <h4 className="text-sm font-medium text-foreground">Custom Colors</h4>
           <button
             onClick={resetToDefault}
-            className="text-xs px-3 py-1 bg-muted/50 hover:bg-muted/70 rounded-lg transition-colors text-muted-foreground border border-border"
+            className="text-xs px-4 py-2 bg-destructive/10 hover:bg-destructive/20 text-destructive border border-destructive/30 rounded-lg transition-all duration-200 hover:scale-105 font-medium"
+            title="Reset all colors to default values"
           >
             🔄 Reset to Default
           </button>
@@ -431,56 +434,14 @@ export const ThemeSettings: React.FC<ThemeSettingsProps> = ({ settings, onSettin
                     ☑
                   </div>
                   <div>
-                    <label className="text-xs font-medium">Checkbox</label>
-                    <p className="text-xs text-muted-foreground">Checkboxes, toggles, selections</p>
+                    <label className="text-xs font-medium">Switches</label>
+                    <p className="text-xs text-muted-foreground">checkboxes, switches, toggles, selections</p>
                   </div>
                 </div>
                 <input
                   type="color"
                   value={customColors.checkbox}
                   onChange={(e) => handleColorChange('checkbox', e.target.value)}
-                  className="w-10 h-6 rounded border border-border cursor-pointer"
-                />
-              </div>
-
-              <div className="flex items-center justify-between p-3 bg-card/20 rounded-lg border border-border">
-                <div className="flex items-center gap-3">
-                  <div 
-                    className="w-6 h-6 rounded-md border flex items-center justify-center text-xs font-bold"
-                    style={{ backgroundColor: customColors.weekday, color: getContrastColor(customColors.weekday), borderColor: customColors.border }}
-                  >
-                    M
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium">Weekday</label>
-                    <p className="text-xs text-muted-foreground">Days of the week highlights</p>
-                  </div>
-                </div>
-                <input
-                  type="color"
-                  value={customColors.weekday}
-                  onChange={(e) => handleColorChange('weekday', e.target.value)}
-                  className="w-10 h-6 rounded border border-border cursor-pointer"
-                />
-              </div>
-
-              <div className="flex items-center justify-between p-3 bg-card/20 rounded-lg border border-border">
-                <div className="flex items-center gap-3">
-                  <div 
-                    className="w-6 h-6 rounded-md border flex items-center justify-center text-xs font-bold"
-                    style={{ backgroundColor: customColors.pomodoro, color: getContrastColor(customColors.pomodoro), borderColor: customColors.border }}
-                  >
-                    🍅
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium">Pomodoro</label>
-                    <p className="text-xs text-muted-foreground">Pomodoro timer elements</p>
-                  </div>
-                </div>
-                <input
-                  type="color"
-                  value={customColors.pomodoro}
-                  onChange={(e) => handleColorChange('pomodoro', e.target.value)}
                   className="w-10 h-6 rounded border border-border cursor-pointer"
                 />
               </div>

@@ -124,7 +124,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onUpdateTask, onDeleteTask, t
                 };
                 onUpdateTask(task.schema.id, updates);
               }}
-              className="data-[state=checked]:bg-success data-[state=checked]:border-success"
+              className="checked:bg-success checked:border-success"
             />
           </div>
 

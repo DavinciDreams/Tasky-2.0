@@ -73,14 +73,6 @@ export default {
           DEFAULT: "hsl(var(--checkbox))",
           foreground: "hsl(var(--checkbox-foreground))",
         },
-        weekday: {
-          DEFAULT: "hsl(var(--weekday))",
-          foreground: "hsl(var(--weekday-foreground))",
-        },
-        pomodoro: {
-          DEFAULT: "hsl(var(--pomodoro))",
-          foreground: "hsl(var(--pomodoro-foreground))",
-        },
       },
       borderRadius: {
         'xl': '1rem',
