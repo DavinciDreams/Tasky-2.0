@@ -37,30 +37,30 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onUpdateTask, onDeleteTask, t
   const getStatusIcon = (status: TaskStatus) => {
     switch (status) {
       case TaskStatus.COMPLETED:
-        return <CheckCircle2 className="h-5 w-5 text-green-500" />;
+        return <CheckCircle2 className="h-5 w-5" style={{ color: 'hsl(var(--success))' }} />;
       case TaskStatus.IN_PROGRESS:
-        return <Circle className="h-5 w-5 text-blue-500" />;
+        return <Circle className="h-5 w-5" style={{ color: 'hsl(var(--accent))' }} />;
       case TaskStatus.NEEDS_REVIEW:
-        return <Circle className="h-5 w-5 text-purple-500" />;
+        return <Circle className="h-5 w-5" style={{ color: 'hsl(var(--warning))' }} />;
       case TaskStatus.ARCHIVED:
         return <Archive className="h-5 w-5 text-gray-500" />;
       default:
-        return <Circle className="h-5 w-5 text-gray-400" />;
+        return <Circle className="h-5 w-5" style={{ color: 'hsl(var(--warning))' }} />;
     }
   };
 
   const getStatusColor = (status: TaskStatus) => {
     switch (status) {
       case TaskStatus.COMPLETED:
-        return 'bg-green-500/15 text-green-400 border-green-500/30';
+        return 'border border-success/30' + ' ' + 'text-success-foreground' + ' ' + 'bg-success/15';
       case TaskStatus.IN_PROGRESS:
-        return 'bg-blue-500/15 text-blue-400 border-blue-500/30';
+        return 'border border-accent/30' + ' ' + 'text-accent-foreground' + ' ' + 'bg-accent/15';
       case TaskStatus.NEEDS_REVIEW:
-        return 'bg-purple-500/15 text-purple-400 border-purple-500/30';
+        return 'border border-warning/30' + ' ' + 'text-warning-foreground' + ' ' + 'bg-warning/15';
       case TaskStatus.ARCHIVED:
         return 'bg-neutral-500/15 text-neutral-300 border-neutral-500/30';
       default:
-        return 'bg-yellow-500/15 text-yellow-300 border-yellow-500/30';
+        return 'border border-warning/30' + ' ' + 'text-warning-foreground' + ' ' + 'bg-warning/15';
     }
   };
 
@@ -124,7 +124,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onUpdateTask, onDeleteTask, t
                 };
                 onUpdateTask(task.schema.id, updates);
               }}
-              className="data-[state=checked]:bg-green-500 data-[state=checked]:border-green-500"
+              className="data-[state=checked]:bg-success data-[state=checked]:border-success"
             />
           </div>
 

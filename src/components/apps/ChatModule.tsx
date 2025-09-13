@@ -588,7 +588,7 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT
             <Button
               size="sm"
               variant="outline"
-              className="rounded-xl text-sm h-8 px-3 flex items-center gap-2 border-border bg-card hover:bg-muted text-foreground focus:ring-0 focus:border-border focus:outline-none focus:ring-offset-0 focus:shadow-none"
+              className="rounded-xl text-sm h-7 px-3 py-1 flex items-center gap-2 border-border bg-card hover:bg-muted text-foreground focus:ring-0 focus:border-border focus:outline-none focus:ring-offset-0 focus:shadow-none"
               disabled={busy}
               onClick={resetChat}
             >

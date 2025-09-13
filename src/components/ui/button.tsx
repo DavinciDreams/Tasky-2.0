@@ -26,6 +26,12 @@ export function Button({ children, variant = "default", size = "default", classN
   
   const classes = `${baseClasses} ${variants[variant]} ${sizes[size]} ${className}`;
   
+  // Add debugging for theme variables
+  React.useEffect(() => {
+    const primaryColor = getComputedStyle(document.documentElement).getPropertyValue('--primary');
+    console.log('Button component: --primary CSS variable =', primaryColor);
+  }, []);
+  
   return (
     <button className={classes} {...props}>
       {children}

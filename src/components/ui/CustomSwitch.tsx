@@ -12,8 +12,8 @@ export default function CustomSwitch({ checked, onChange, ...props }: CustomSwit
       role="switch"
       aria-checked={checked}
       onClick={() => onChange(!checked)}
-      className={`relative flex-shrink-0 inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-green-500/20 ${
-        checked ? 'bg-green-500' : 'bg-gray-400'
+      className={`relative flex-shrink-0 inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-checkbox/20 ${
+        checked ? 'bg-checkbox' : 'bg-muted'
       }`}
       {...props}
     >

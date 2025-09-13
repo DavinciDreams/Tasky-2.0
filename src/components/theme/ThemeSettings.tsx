@@ -12,15 +12,27 @@ interface SimpleThemeColors {
   foreground: string;
   border: string;
   button: string;
+  // Special UI element colors
+  accent: string;
+  success: string;
+  warning: string;
+  checkbox: string;
 }
 
 export const ThemeSettings: React.FC<ThemeSettingsProps> = ({ settings, onSettingChange }) => {
   // Validate and sanitize theme colors
   const getDefaultColors = (): SimpleThemeColors => ({
-    background: '#F3F4F6', // Default grey background
-    foreground: '#1F2937',  // Dark grey text
-    border: '#D1D5DB',      // Light grey border
-    button: '#3B82F6'       // Default blue button
+    background: '#1F1F23', // Dark background matching the image
+    foreground: '#FFFFFF',  // White text for good contrast
+    border: '#2F2F35',      // Slightly lighter dark border
+    button: '#5B57D9',      // Purple/indigo button color from image
+    // Special UI element colors
+    accent: '#5B57D9',      // Same purple for accents/progress
+    success: '#10B981',     // Green for success/completed
+    warning: '#F59E0B',     // Orange for warning/pending
+    checkbox: '#5B57D9',    // Purple for checkboxes
+    weekday: '#EC4899',     // Pink for weekday highlights
+    pomodoro: '#EF4444'     // Red for Pomodoro timer
   });
 
   const validateColors = (colors: any): SimpleThemeColors => {
@@ -39,6 +51,18 @@ export const ThemeSettings: React.FC<ThemeSettingsProps> = ({ settings, onSettin
         ? colors.border : defaults.border,
       button: (colors.button && typeof colors.button === 'string' && colors.button.startsWith('#')) 
         ? colors.button : defaults.button,
+      accent: (colors.accent && typeof colors.accent === 'string' && colors.accent.startsWith('#')) 
+        ? colors.accent : defaults.accent,
+      success: (colors.success && typeof colors.success === 'string' && colors.success.startsWith('#')) 
+        ? colors.success : defaults.success,
+      warning: (colors.warning && typeof colors.warning === 'string' && colors.warning.startsWith('#')) 
+        ? colors.warning : defaults.warning,
+      checkbox: (colors.checkbox && typeof colors.checkbox === 'string' && colors.checkbox.startsWith('#')) 
+        ? colors.checkbox : defaults.checkbox,
+      weekday: (colors.weekday && typeof colors.weekday === 'string' && colors.weekday.startsWith('#')) 
+        ? colors.weekday : defaults.weekday,
+      pomodoro: (colors.pomodoro && typeof colors.pomodoro === 'string' && colors.pomodoro.startsWith('#')) 
+        ? colors.pomodoro : defaults.pomodoro,
     };
   };
 
@@ -135,6 +159,20 @@ export const ThemeSettings: React.FC<ThemeSettingsProps> = ({ settings, onSettin
       // Button colors using the custom button color with proper contrast
       root.style.setProperty('--primary', buttonHsl);
       root.style.setProperty('--primary-foreground', buttonTextHsl);
+      
+      // Special UI element colors
+      root.style.setProperty('--accent', hexToHsl(validatedColors.accent));
+      root.style.setProperty('--accent-foreground', hexToHsl(getContrastColor(validatedColors.accent)));
+      root.style.setProperty('--success', hexToHsl(validatedColors.success));
+      root.style.setProperty('--success-foreground', hexToHsl(getContrastColor(validatedColors.success)));
+      root.style.setProperty('--warning', hexToHsl(validatedColors.warning));
+      root.style.setProperty('--warning-foreground', hexToHsl(getContrastColor(validatedColors.warning)));
+      root.style.setProperty('--checkbox', hexToHsl(validatedColors.checkbox));
+      root.style.setProperty('--checkbox-foreground', hexToHsl(getContrastColor(validatedColors.checkbox)));
+      root.style.setProperty('--weekday', hexToHsl(validatedColors.weekday));
+      root.style.setProperty('--weekday-foreground', hexToHsl(getContrastColor(validatedColors.weekday)));
+      root.style.setProperty('--pomodoro', hexToHsl(validatedColors.pomodoro));
+      root.style.setProperty('--pomodoro-foreground', hexToHsl(getContrastColor(validatedColors.pomodoro)));
       
       // Debug logging
       console.log('Theme applied:', {
@@ -314,6 +352,139 @@ export const ThemeSettings: React.FC<ThemeSettingsProps> = ({ settings, onSettin
               onChange={(e) => handleColorChange('button', e.target.value)}
               className="w-12 h-8 rounded-md border border-border cursor-pointer"
             />
+          </div>
+
+          {/* Special UI Element Colors */}
+          <div className="border-t border-border/30 pt-4 mt-4">
+            <h5 className="text-sm font-medium text-foreground mb-3">Special Elements</h5>
+            
+            <div className="space-y-3">
+              <div className="flex items-center justify-between p-3 bg-card/20 rounded-lg border border-border">
+                <div className="flex items-center gap-3">
+                  <div 
+                    className="w-6 h-6 rounded-md border flex items-center justify-center text-xs font-bold"
+                    style={{ backgroundColor: customColors.accent, color: getContrastColor(customColors.accent), borderColor: customColors.border }}
+                  >
+                    ★
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium">Accent</label>
+                    <p className="text-xs text-muted-foreground">Progress indicators, active states</p>
+                  </div>
+                </div>
+                <input
+                  type="color"
+                  value={customColors.accent}
+                  onChange={(e) => handleColorChange('accent', e.target.value)}
+                  className="w-10 h-6 rounded border border-border cursor-pointer"
+                />
+              </div>
+
+              <div className="flex items-center justify-between p-3 bg-card/20 rounded-lg border border-border">
+                <div className="flex items-center gap-3">
+                  <div 
+                    className="w-6 h-6 rounded-md border flex items-center justify-center text-xs font-bold"
+                    style={{ backgroundColor: customColors.success, color: getContrastColor(customColors.success), borderColor: customColors.border }}
+                  >
+                    ✓
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium">Success</label>
+                    <p className="text-xs text-muted-foreground">Completed states, success indicators</p>
+                  </div>
+                </div>
+                <input
+                  type="color"
+                  value={customColors.success}
+                  onChange={(e) => handleColorChange('success', e.target.value)}
+                  className="w-10 h-6 rounded border border-border cursor-pointer"
+                />
+              </div>
+
+              <div className="flex items-center justify-between p-3 bg-card/20 rounded-lg border border-border">
+                <div className="flex items-center gap-3">
+                  <div 
+                    className="w-6 h-6 rounded-md border flex items-center justify-center text-xs font-bold"
+                    style={{ backgroundColor: customColors.warning, color: getContrastColor(customColors.warning), borderColor: customColors.border }}
+                  >
+                    !
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium">Warning</label>
+                    <p className="text-xs text-muted-foreground">Pending states, warnings</p>
+                  </div>
+                </div>
+                <input
+                  type="color"
+                  value={customColors.warning}
+                  onChange={(e) => handleColorChange('warning', e.target.value)}
+                  className="w-10 h-6 rounded border border-border cursor-pointer"
+                />
+              </div>
+
+              <div className="flex items-center justify-between p-3 bg-card/20 rounded-lg border border-border">
+                <div className="flex items-center gap-3">
+                  <div 
+                    className="w-6 h-6 rounded border flex items-center justify-center text-xs font-bold"
+                    style={{ backgroundColor: customColors.checkbox, color: getContrastColor(customColors.checkbox), borderColor: customColors.border }}
+                  >
+                    ☑
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium">Checkbox</label>
+                    <p className="text-xs text-muted-foreground">Checkboxes, toggles, selections</p>
+                  </div>
+                </div>
+                <input
+                  type="color"
+                  value={customColors.checkbox}
+                  onChange={(e) => handleColorChange('checkbox', e.target.value)}
+                  className="w-10 h-6 rounded border border-border cursor-pointer"
+                />
+              </div>
+
+              <div className="flex items-center justify-between p-3 bg-card/20 rounded-lg border border-border">
+                <div className="flex items-center gap-3">
+                  <div 
+                    className="w-6 h-6 rounded-md border flex items-center justify-center text-xs font-bold"
+                    style={{ backgroundColor: customColors.weekday, color: getContrastColor(customColors.weekday), borderColor: customColors.border }}
+                  >
+                    M
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium">Weekday</label>
+                    <p className="text-xs text-muted-foreground">Days of the week highlights</p>
+                  </div>
+                </div>
+                <input
+                  type="color"
+                  value={customColors.weekday}
+                  onChange={(e) => handleColorChange('weekday', e.target.value)}
+                  className="w-10 h-6 rounded border border-border cursor-pointer"
+                />
+              </div>
+
+              <div className="flex items-center justify-between p-3 bg-card/20 rounded-lg border border-border">
+                <div className="flex items-center gap-3">
+                  <div 
+                    className="w-6 h-6 rounded-md border flex items-center justify-center text-xs font-bold"
+                    style={{ backgroundColor: customColors.pomodoro, color: getContrastColor(customColors.pomodoro), borderColor: customColors.border }}
+                  >
+                    🍅
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium">Pomodoro</label>
+                    <p className="text-xs text-muted-foreground">Pomodoro timer elements</p>
+                  </div>
+                </div>
+                <input
+                  type="color"
+                  value={customColors.pomodoro}
+                  onChange={(e) => handleColorChange('pomodoro', e.target.value)}
+                  className="w-10 h-6 rounded border border-border cursor-pointer"
+                />
+              </div>
+            </div>
           </div>
         </div>
       </div>

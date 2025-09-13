@@ -51,6 +51,13 @@ export interface Settings {
     foreground: string;
     border: string;
     button: string;
+    // Special UI element colors
+    accent: string;        // For progress indicators, active states
+    success: string;       // For completed/success states  
+    warning: string;       // For pending/warning states
+    checkbox: string;      // For checkboxes and toggle elements
+    weekday: string;       // For days of the week highlights
+    pomodoro: string;      // For Pomodoro timer elements
   };
 }
 

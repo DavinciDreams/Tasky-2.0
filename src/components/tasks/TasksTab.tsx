@@ -71,7 +71,11 @@ export const TasksTab: React.FC<TasksTabProps> = ({
         <div className="mt-4 flex items-center justify-center gap-3">
           <Button 
             onClick={() => setShowCreateModal(true)}
-            className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-xl rounded-xl px-4 py-2 flex items-center gap-2"
+            className="bg-checkbox text-checkbox-foreground hover:bg-checkbox/90 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] rounded-2xl px-4 py-2 font-semibold flex items-center gap-2"
+            style={{
+              backgroundColor: `hsl(var(--checkbox))`,
+              color: `hsl(var(--checkbox-foreground))`
+            }}
           >
             <Plus className="h-4 w-4" />
             <span className="font-semibold">New Task</span>

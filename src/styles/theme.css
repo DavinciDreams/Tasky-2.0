@@ -97,16 +97,16 @@
   .border-perano-600 { border-color: var(--color-perano-600); }
   .border-perano-700 { border-color: var(--color-perano-700); }
   
-  /* Enhanced status colors for vibrant Perano-400 background */
+  /* Enhanced status colors using special element colors */
   .status-pending { 
-    background-color: hsl(var(--status-pending-bg, 240 100% 98%));
-    color: hsl(var(--status-pending-fg, 240 40% 25%));
-    border: 1px solid hsl(var(--border));
+    background-color: hsl(var(--warning));
+    color: hsl(var(--warning-foreground));
+    border: 1px solid hsl(var(--warning));
   }
   .status-in-progress { 
-    background-color: hsl(var(--status-in-progress-bg, var(--secondary)));
-    color: hsl(var(--status-in-progress-fg, var(--secondary-foreground)));
-    border: 1px solid hsl(var(--border));
+    background-color: hsl(var(--accent));
+    color: hsl(var(--accent-foreground));
+    border: 1px solid hsl(var(--accent));
   }
   .status-completed { 
     background-color: hsl(var(--success));

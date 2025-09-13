@@ -270,13 +270,19 @@ export class Storage {
         autoArchiveCompleted: false,
         taskSortBy: 'dueDate',
         showTaskStats: true,
-        // Default theme settings
+        // Default theme settings - Dark theme to match UI
         themeMode: 'custom',
         customTheme: {
-          background: '#F3F4F6',  // Default grey background
-          foreground: '#1F2937',  // Dark grey text
-          border: '#D1D5DB',      // Light grey border
-          button: '#3B82F6'       // Default blue button
+          background: '#1F1F23',  // Dark background matching the image
+          foreground: '#FFFFFF',  // White text for good contrast
+          border: '#2F2F35',      // Slightly lighter dark border
+          button: '#5B57D9',      // Purple/indigo button color from image
+          accent: '#5B57D9',      // Same purple for accents/progress
+          success: '#10B981',     // Green for success/completed
+          warning: '#F59E0B',     // Orange for warning/pending
+          checkbox: '#5B57D9',    // Purple for checkboxes
+          weekday: '#EC4899',     // Pink for weekday highlights
+          pomodoro: '#EF4444'     // Red for Pomodoro timer
         }
       };
     }

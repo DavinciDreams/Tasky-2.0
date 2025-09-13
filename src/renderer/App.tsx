@@ -588,6 +588,10 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
             <Button 
               className="w-full bg-primary text-primary-foreground hover:bg-primary/90 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] rounded-2xl py-3 font-semibold"
               onClick={onTestNotification}
+              style={{
+                backgroundColor: `hsl(var(--primary))`,
+                color: `hsl(var(--primary-foreground))`
+              }}
             >
               <Bell size={18} className="mr-3" />
               Test Notification
@@ -787,7 +791,11 @@ const AvatarTab: React.FC<AvatarTabProps> = ({ selectedAvatar, onAvatarChange })
                 <div className="py-4">
                   <Button
                     onClick={handleCustomAvatarUpload}
-                    className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-md hover:shadow-lg transition-all duration-300 rounded-2xl px-4 py-2 text-sm font-semibold border border-border/30"
+                    className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] rounded-2xl px-4 py-2 text-sm font-semibold"
+                    style={{
+                      backgroundColor: `hsl(var(--primary))`,
+                      color: `hsl(var(--primary-foreground))`
+                    }}
                   >
                     Upload Avatar
                   </Button>
@@ -797,7 +805,11 @@ const AvatarTab: React.FC<AvatarTabProps> = ({ selectedAvatar, onAvatarChange })
                   <div className="flex justify-end mb-4">
                     <Button
                       onClick={handleCustomAvatarUpload}
-                      className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-md hover:shadow-lg transition-all duration-300 rounded-2xl px-4 py-2 text-sm font-semibold border border-border/30"
+                      className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] rounded-2xl px-4 py-2 text-sm font-semibold"
+                      style={{
+                        backgroundColor: `hsl(var(--primary))`,
+                        color: `hsl(var(--primary-foreground))`
+                      }}
                     >
                       <Plus size={14} className="mr-2" />
                       Add More
@@ -1297,7 +1309,11 @@ const ReminderForm: React.FC<ReminderFormProps> = ({ onAddReminder, onEditRemind
 
       <Button 
         type="submit" 
-        className="w-full bg-white hover:bg-gray-100 text-gray-900 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] rounded-2xl py-3 font-semibold"
+        className="w-full bg-primary text-primary-foreground hover:bg-primary/90 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] rounded-2xl py-3 font-semibold"
+        style={{
+          backgroundColor: `hsl(var(--primary))`,
+          color: `hsl(var(--primary-foreground))`
+        }}
       >
         <Plus size={18} className="mr-3" />
         {editingReminder ? "Update Reminder" : "Add Reminder"}
@@ -1625,7 +1641,7 @@ const App: React.FC = () => {
       });
       
       // Apply the loaded theme with simplified approach
-      const applySimpleTheme = (colors: { background: string; foreground: string; border: string; button?: string }) => {
+      const applySimpleTheme = (colors: { background: string; foreground: string; border: string; button?: string; accent?: string; success?: string; warning?: string; checkbox?: string; weekday?: string; pomodoro?: string }) => {
         const hexToHsl = (hex: string): string => {
           // Validate hex input
           if (!hex || typeof hex !== 'string' || !hex.startsWith('#') || hex.length !== 7) {
@@ -1704,13 +1720,41 @@ const App: React.FC = () => {
           root.style.setProperty('--primary', buttonHsl); // Use button color for primary
           root.style.setProperty('--primary-foreground', buttonTextHsl); // Use proper contrast color
           
-          // Debug logging
+          // Special UI element colors with fallbacks
+          const accentColor = colors.accent || '#8B5CF6';
+          const successColor = colors.success || '#10B981';
+          const warningColor = colors.warning || '#F59E0B';
+          const checkboxColor = colors.checkbox || '#6366F1';
+          const weekdayColor = colors.weekday || '#EC4899';
+          const pomodoroColor = colors.pomodoro || '#EF4444';
+          
+          root.style.setProperty('--accent', hexToHsl(accentColor));
+          root.style.setProperty('--accent-foreground', hexToHsl(getContrastColor(accentColor)));
+          root.style.setProperty('--success', hexToHsl(successColor));
+          root.style.setProperty('--success-foreground', hexToHsl(getContrastColor(successColor)));
+          root.style.setProperty('--warning', hexToHsl(warningColor));
+          root.style.setProperty('--warning-foreground', hexToHsl(getContrastColor(warningColor)));
+          root.style.setProperty('--checkbox', hexToHsl(checkboxColor));
+          root.style.setProperty('--checkbox-foreground', hexToHsl(getContrastColor(checkboxColor)));
+          root.style.setProperty('--weekday', hexToHsl(weekdayColor));
+          root.style.setProperty('--weekday-foreground', hexToHsl(getContrastColor(weekdayColor)));
+          root.style.setProperty('--pomodoro', hexToHsl(pomodoroColor));
+          root.style.setProperty('--pomodoro-foreground', hexToHsl(getContrastColor(pomodoroColor)));
+          
+          // Debug logging - more detailed
           console.log('App theme applied:', {
             buttonColor,
             buttonHsl,
             buttonTextColor,
-            buttonTextHsl
+            buttonTextHsl,
+            primaryVar: root.style.getPropertyValue('--primary'),
+            primaryForegroundVar: root.style.getPropertyValue('--primary-foreground')
           });
+          
+          // Force a style recalculation
+          document.body.style.display = 'none';
+          document.body.offsetHeight; // trigger reflow
+          document.body.style.display = '';
           
           root.style.setProperty('--secondary', borderHsl);
           root.style.setProperty('--secondary-foreground', fgHsl);
@@ -1724,12 +1768,18 @@ const App: React.FC = () => {
         if (customTheme) {
           applySimpleTheme(customTheme);
         } else {
-          // Apply default grey theme
+          // Apply default dark theme to match UI
           const defaultColors = {
-            background: '#F3F4F6', // Default grey background
-            foreground: '#1F2937',  // Dark grey text
-            border: '#D1D5DB',      // Light grey border
-            button: '#3B82F6'       // Default blue button
+            background: '#1F1F23', // Dark background matching the image
+            foreground: '#FFFFFF',  // White text for good contrast
+            border: '#2F2F35',      // Slightly lighter dark border
+            button: '#5B57D9',      // Purple/indigo button color from image
+            accent: '#5B57D9',      // Same purple for accents/progress
+            success: '#10B981',     // Green for success/completed
+            warning: '#F59E0B',     // Orange for warning/pending
+            checkbox: '#5B57D9',    // Purple for checkboxes
+            weekday: '#EC4899',     // Pink for weekday highlights
+            pomodoro: '#EF4444'     // Red for Pomodoro timer
           };
           applySimpleTheme(defaultColors);
         }
@@ -1962,9 +2012,13 @@ const App: React.FC = () => {
                     }}
                     className={`group flex items-center px-4 py-1.5 text-sm font-semibold rounded-xl transition-all duration-200 top-nav-btn ${
                       activeTab === tab.id
-                        ? 'bg-white text-gray-900 shadow-md active'
+                        ? 'shadow-md active'
                         : 'text-muted-foreground hover:text-foreground hover:bg-secondary/30 hover:scale-102'
                     }`}
+                    style={activeTab === tab.id ? {
+                      backgroundColor: `hsl(var(--primary))`,
+                      color: `hsl(var(--primary-foreground))`
+                    } : {}}
                   >
                     <tab.icon size={14} className={`mr-2 transition-transform duration-200 ${
                       activeTab === tab.id ? 'scale-100' : 'group-hover:scale-105'
@@ -1972,7 +2026,8 @@ const App: React.FC = () => {
                     <span className="font-medium">{tab.id === 'applications' && activeAppView !== 'home' ? '← Back' : tab.label}</span>
                     {activeTab === tab.id && (
                       <motion.div
-                        className="ml-2 w-1 h-1 rounded-full bg-gray-900"
+                        className="ml-2 w-1 h-1 rounded-full"
+                        style={{ backgroundColor: `hsl(var(--primary-foreground))` }}
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}
                         transition={{ duration: 0.2 }}

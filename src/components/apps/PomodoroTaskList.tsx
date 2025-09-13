@@ -260,7 +260,7 @@ export const PomodoroTaskList: React.FC<PomodoroTaskListProps> = ({
                           <div
                             key={i}
                             className={`w-2 h-2 rounded-full ${
-                              i < task.completedPomodoros ? 'bg-green-500' : 'bg-muted-foreground/30'
+                              i < task.completedPomodoros ? 'bg-success' : 'bg-muted-foreground/30'
                             }`}
                           />
                         ))}
@@ -311,7 +311,7 @@ export const PomodoroTaskList: React.FC<PomodoroTaskListProps> = ({
                         onClick={() => handleCompleteTask(task.id)}
                         variant="ghost"
                         size="sm"
-                        className="w-7 h-7 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                        className="w-7 h-7 p-0 text-success hover:text-success/80 hover:bg-success/10"
                         title="Mark Complete"
                       >
                         <CheckCircle size={12} />
@@ -320,7 +320,7 @@ export const PomodoroTaskList: React.FC<PomodoroTaskListProps> = ({
                         onClick={() => handleDeleteTask(task)}
                         variant="ghost"
                         size="sm"
-                        className="w-7 h-7 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                        className="w-7 h-7 p-0 text-destructive hover:text-destructive/80 hover:bg-destructive/10"
                         title="Delete Task"
                       >
                         <Trash2 size={12} />
@@ -612,6 +612,11 @@ export const PomodoroTaskList: React.FC<PomodoroTaskListProps> = ({
             <Button
               onClick={handleEditTask}
               disabled={!formData.name.trim()}
+              className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] rounded-2xl py-3 font-semibold"
+              style={{
+                backgroundColor: `hsl(var(--primary))`,
+                color: `hsl(var(--primary-foreground))`
+              }}
             >
               Save Changes
             </Button>

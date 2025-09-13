@@ -39,11 +39,11 @@ const getStatusColor = (status: TaskTriggerProps['status']) => {
     case 'pending':
       return 'border-muted-foreground/20 bg-muted/10';
     case 'in_progress':
-      return 'border-yellow-500/20 bg-yellow-500/10';
+      return 'border-warning/20 bg-warning/10';
     case 'completed':
-      return 'border-green-500/20 bg-green-500/10';
+      return 'border-success/20 bg-success/10';
     case 'error':
-      return 'border-red-500/20 bg-red-500/10';
+      return 'border-destructive/20 bg-destructive/10';
     default:
       return 'border-border bg-card';
   }

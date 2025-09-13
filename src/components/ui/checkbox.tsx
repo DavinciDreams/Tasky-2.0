@@ -17,7 +17,7 @@ export function Checkbox({ checked, onChange, onCheckedChange, className = "", .
   return (
     <input
       type="checkbox"
-      className={`h-4 w-4 rounded border-2 border-border bg-background text-gray-900 focus:ring-2 focus:ring-gray-500 focus:ring-offset-0 dark:text-white ${className}`}
+      className={`h-4 w-4 rounded border-2 border-border bg-background text-checkbox focus:ring-2 focus:ring-checkbox/50 focus:ring-offset-0 ${className}`}
       checked={checked}
       onChange={handleChange}
       {...props}

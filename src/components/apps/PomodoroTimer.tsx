@@ -30,9 +30,9 @@ interface TimerState {
 
 
 const SESSION_COLORS = {
-  work: '#ef4444', // red
-  shortBreak: '#3b82f6', // blue
-  longBreak: '#10b981', // green
+  work: 'hsl(var(--pomodoro))', // Use pomodoro theme color
+  shortBreak: 'hsl(var(--accent))', // Use accent theme color  
+  longBreak: 'hsl(var(--success))', // Use success theme color
 };
 
 export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({

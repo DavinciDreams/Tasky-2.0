@@ -7,17 +7,8 @@
   --default-transition-duration: 200ms;
   --default-transition-timing-function: ease-in-out;
   
-  --color-background: #333334;
-  --color-foreground: #ffffff;
-  --color-card: #464647;
-  --color-card-foreground: #ffffff;
-  --color-primary: #ffffff;
-  --color-primary-foreground: #333334;
-  --color-muted: #5a5a5b;
-  --color-muted-foreground: #b3b3b3;
-  --color-border: #404041;
-  --color-destructive: oklch(60.2% 0.84 0);
-  --color-destructive-foreground: oklch(98% 0 0);
+  /* Theme color variables are now dynamically set by the theme system */
+  /* These hardcoded values have been removed to allow proper theme customization */
   
   --radius: 0.75rem;
 }
@@ -56,8 +47,8 @@ html, body {
 
 /* Button styles */
 .btn-primary {
-  background: linear-gradient(to right, #111827, #000000) !important;
-  color: white !important;
+  background: hsl(var(--primary)) !important;
+  color: hsl(var(--primary-foreground)) !important;
   padding: 0.5rem 1rem !important;
   border-radius: 0.5rem !important;
   border: none !important;
@@ -66,7 +57,7 @@ html, body {
 }
 
 .btn-primary:hover {
-  background: linear-gradient(to right, #000000, #111827) !important;
+  background: hsl(var(--primary) / 0.9) !important;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
 }
 
@@ -83,17 +74,17 @@ html, body {
   transition: all 0.2s ease-in-out !important;
   font-size: 0.875rem !important;
   font-weight: 500 !important;
-  color: #9ca3af !important;
+  color: hsl(var(--muted-foreground)) !important;
   cursor: pointer !important;
 }
 
 .nav-btn:hover {
-  background: rgba(255, 255, 255, 0.1) !important;
-  color: white !important;
+  background: hsl(var(--muted) / 0.1) !important;
+  color: hsl(var(--foreground)) !important;
 }
 
 .nav-btn.active {
-  background: white !important;
-  color: #111827 !important;
+  background: hsl(var(--primary)) !important;
+  color: hsl(var(--primary-foreground)) !important;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
 }

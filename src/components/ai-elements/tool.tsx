@@ -54,19 +54,19 @@ const getStateBadge = (state: ToolState) => {
       );
     case 'input-available':
       return (
-        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-yellow-100 text-yellow-800">
+        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-warning/15 text-warning-foreground">
           Running
         </span>
       );
     case 'output-available':
       return (
-        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">
+        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-success/15 text-success-foreground">
           Completed
         </span>
       );
     case 'output-error':
       return (
-        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-red-100 text-red-800">
+        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-destructive/15 text-destructive-foreground">
           Error
         </span>
       );
@@ -172,8 +172,8 @@ export const ToolOutput: React.FC<ToolOutputProps> = ({
   if (errorText) {
     return (
       <div className={cn('px-3 py-2', className)} {...props}>
-        <div className="text-xs font-medium text-red-600 mb-1">Error</div>
-        <div className="text-sm text-red-600 bg-red-50 border border-red-200 p-2 rounded">
+        <div className="text-xs font-medium text-destructive mb-1">Error</div>
+        <div className="text-sm text-destructive bg-destructive/10 border border-destructive/30 p-2 rounded">
           {errorText}
         </div>
       </div>

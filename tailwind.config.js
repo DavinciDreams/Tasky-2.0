@@ -60,6 +60,27 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        // Special UI element colors
+        success: {
+          DEFAULT: "hsl(var(--success))",
+          foreground: "hsl(var(--success-foreground))",
+        },
+        warning: {
+          DEFAULT: "hsl(var(--warning))",
+          foreground: "hsl(var(--warning-foreground))",
+        },
+        checkbox: {
+          DEFAULT: "hsl(var(--checkbox))",
+          foreground: "hsl(var(--checkbox-foreground))",
+        },
+        weekday: {
+          DEFAULT: "hsl(var(--weekday))",
+          foreground: "hsl(var(--weekday-foreground))",
+        },
+        pomodoro: {
+          DEFAULT: "hsl(var(--pomodoro))",
+          foreground: "hsl(var(--pomodoro-foreground))",
+        },
       },
       borderRadius: {
         'xl': '1rem',
