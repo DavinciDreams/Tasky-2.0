@@ -106,6 +106,7 @@ function showBubble(text: string) {
   console.log('  Background Color:', notificationColor);
   console.log('  Text Color:', notificationTextColor);
   console.log('  Font:', notificationFont);
+  console.log('  Bubble Side:', bubbleSide);
   
   bubble.textContent = text;
   bubble.style.background = notificationColor;
@@ -261,8 +262,10 @@ ipcRenderer.on('tasky-set-custom-avatar', (event: any, dataUrl: string) => {
 });
 
 ipcRenderer.on('tasky-set-bubble-side', (event: any, side: 'left' | 'right') => {
+  console.log('🔄 Bubble side updated to:', side);
   bubbleSide = side;
   if (bubbleVisible) {
+    console.log('📍 Repositioning visible bubble to', side, 'side');
     positionBubble();
   }
 });

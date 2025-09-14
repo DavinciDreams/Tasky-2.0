@@ -580,15 +580,15 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT
     <div ref={rootRef} className="flex-1 min-h-0 flex flex-col relative">
       <div className="flex-1 min-h-0 flex flex-col relative w-full">
         {/* Simple header with reset button */}
-        <div className="flex-shrink-0 flex items-center justify-between mb-2 px-1">
+        <div className="flex-shrink-0 flex items-center justify-between mb-2 px-1 pt-1">
           <div className="flex items-center gap-2">
             <h2 className="text-lg font-semibold text-foreground">Tasky Chat</h2>
           </div>
           <div className="flex items-center gap-2">
             <Button
               size="sm"
-              variant="outline"
-              className="rounded-xl text-sm h-7 px-3 py-1 flex items-center gap-2 border-border bg-card hover:bg-muted text-foreground focus:ring-0 focus:border-border focus:outline-none focus:ring-offset-0 focus:shadow-none"
+              className="rounded-xl text-sm h-7 px-3 py-1 flex items-center gap-2 text-button-foreground hover:opacity-90 transition-opacity"
+              style={{ backgroundColor: 'hsl(var(--button))' }}
               disabled={busy}
               onClick={resetChat}
             >

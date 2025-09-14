@@ -517,7 +517,12 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
               )}
 
               <div className="md:col-span-2 flex items-center gap-3 py-2 px-4 rounded-xl hover:bg-muted/30 transition-colors duration-200">
-                <Button onClick={testAIProvider} disabled={llmTesting} className="rounded-xl bg-primary text-primary-foreground hover:bg-primary/90">
+                <Button 
+                  onClick={testAIProvider} 
+                  disabled={llmTesting} 
+                  className="rounded-xl text-button-foreground hover:opacity-90 transition-opacity"
+                  style={{ backgroundColor: 'hsl(var(--button))' }}
+                >
                   {llmTesting ? 'Testing…' : 'Test Connection'}
                 </Button>
                 {llmTestStatus && (
@@ -756,10 +761,10 @@ const AvatarTab: React.FC<AvatarTabProps> = ({ selectedAvatar, onAvatarChange })
                 <div className="py-4">
                   <Button
                     onClick={handleCustomAvatarUpload}
-                    className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] rounded-2xl px-4 py-2 text-sm font-semibold"
+                    className="text-button-foreground hover:opacity-90 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] rounded-2xl px-4 py-2 text-sm font-semibold"
                     style={{
-                      backgroundColor: `hsl(var(--primary))`,
-                      color: `hsl(var(--primary-foreground))`
+                      backgroundColor: `hsl(var(--button))`,
+                      color: `hsl(var(--button-foreground))`
                     }}
                   >
                     Upload Avatar
@@ -1819,6 +1824,7 @@ const App: React.FC = () => {
     }
     
     if (key === 'bubbleSide') {
+      console.log('🔄 Setting bubble side to:', value);
       window.electronAPI.setBubbleSide(value);
     }
   };
