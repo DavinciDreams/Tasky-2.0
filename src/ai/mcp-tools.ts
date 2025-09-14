@@ -3,13 +3,25 @@ import { z } from 'zod';
 
 /**
  * MCP Call Tool - Single tool that handles all MCP operations
- * Temporarily using plain object to avoid tool() function type issues
+ * Using plain object with proper OBJECT schema for Google AI compatibility
  */
 export const mcpCall = {
   description: 'Call MCP tools for task and reminder management',
   parameters: z.object({
     name: z.string().describe('Tool name'),
-    args: z.record(z.any()).optional().describe('Tool arguments'),
+    args: z.object({
+      title: z.string().optional(),
+      description: z.string().optional(),
+      id: z.string().optional(),
+      message: z.string().optional(),
+      time: z.string().optional(),
+      days: z.array(z.string()).optional(),
+      enabled: z.boolean().optional(),
+      status: z.string().optional(),
+      dueDate: z.string().optional(),
+      tags: z.array(z.string()).optional(),
+      oneTime: z.boolean().optional(),
+    }).optional().describe('Tool arguments as a structured object'),
   }),
   execute: async ({ name, args = {} }: { name: string; args?: Record<string, any> }) => {
     return executeMcpTool(name, args, `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, undefined);

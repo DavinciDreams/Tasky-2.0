@@ -463,8 +463,8 @@ export const ThemeSettings: React.FC<ThemeSettingsProps> = ({ settings, onSettin
                   <div 
                     className="w-6 h-6 rounded-md border flex items-center justify-center text-xs font-bold"
                     style={{ 
-                      backgroundColor: settings.notificationColor || customColors.button, // Use button color as default
-                      color: getContrastColor(settings.notificationColor || customColors.button), 
+                      backgroundColor: settings.notificationColor || '#ffffff', // Default to white
+                      color: getContrastColor(settings.notificationColor || '#ffffff'), 
                       borderColor: customColors.border 
                     }}
                   >
@@ -477,7 +477,7 @@ export const ThemeSettings: React.FC<ThemeSettingsProps> = ({ settings, onSettin
                 </div>
                 <input
                   type="color"
-                  value={settings.notificationColor || customColors.button} // Use button color as default
+                  value={settings.notificationColor || '#ffffff'} // Default to white
                   onChange={(e) => onSettingChange('notificationColor', e.target.value)}
                   className="w-10 h-6 rounded border border-border cursor-pointer"
                 />
@@ -488,8 +488,8 @@ export const ThemeSettings: React.FC<ThemeSettingsProps> = ({ settings, onSettin
                   <div 
                     className="w-6 h-6 rounded-md border flex items-center justify-center text-xs font-bold"
                     style={{ 
-                      backgroundColor: settings.notificationTextColor || getContrastColor(customColors.button), // Use button contrast color as default
-                      color: getContrastColor(settings.notificationTextColor || getContrastColor(customColors.button)), 
+                      backgroundColor: settings.notificationTextColor || '#000000', // Default to black
+                      color: getContrastColor(settings.notificationTextColor || '#000000'), 
                       borderColor: customColors.border 
                     }}
                   >
@@ -502,7 +502,7 @@ export const ThemeSettings: React.FC<ThemeSettingsProps> = ({ settings, onSettin
                 </div>
                 <input
                   type="color"
-                  value={settings.notificationTextColor || getContrastColor(customColors.button)} // Use button contrast color as default
+                  value={settings.notificationTextColor || '#000000'} // Default to black
                   onChange={(e) => onSettingChange('notificationTextColor', e.target.value)}
                   className="w-10 h-6 rounded border border-border cursor-pointer"
                 />

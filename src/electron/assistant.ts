@@ -1,4 +1,4 @@
-/**
+ /**
  * TaskyAssistant (main process)
  *
  * Creates and manages the assistant BrowserWindow (transparent, always-on-top),
