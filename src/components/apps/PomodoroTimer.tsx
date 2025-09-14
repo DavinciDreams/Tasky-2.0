@@ -332,10 +332,11 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
 
               <Button
                 onClick={timerState.isRunning ? pauseTimer : startTimer}
-                className="w-16 h-16 rounded-full shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105 text-white font-bold"
+                className="w-16 h-16 rounded-full shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105 font-bold"
                 style={{
-                  backgroundColor: SESSION_COLORS[timerState.sessionType],
-                  border: `3px solid ${SESSION_COLORS[timerState.sessionType]}`,
+                  backgroundColor: `hsl(var(--button))`,
+                  color: `hsl(var(--button-foreground))`,
+                  border: `3px solid hsl(var(--button))`,
                 }}
               >
                 {timerState.isRunning ? (

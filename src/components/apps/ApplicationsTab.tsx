@@ -61,6 +61,22 @@ export const ApplicationsTab: React.FC<ApplicationsTabProps> = ({
         <div className="flex-1 p-4">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-stretch">
             <button
+              onClick={() => setActiveApp('chat')}
+              className="group relative overflow-hidden rounded-2xl bg-card border border-border/30 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-0.5 hover:scale-[1.01] text-left h-36"
+              aria-label="Open Chat"
+            >
+              <div className="p-5">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <MessageCircle className="text-primary" size={18} />
+                  </div>
+                  <div className="text-lg font-semibold">Chat</div>
+                </div>
+                <div className="text-sm text-muted-foreground">Conversational AI with MCP tools.</div>
+              </div>
+            </button>
+
+            <button
               onClick={() => setActiveApp('tasks')}
               className="group relative overflow-hidden rounded-2xl bg-card border border-border/30 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-0.5 hover:scale-[1.01] text-left h-36"
               aria-label="Open Tasks"
@@ -89,22 +105,6 @@ export const ApplicationsTab: React.FC<ApplicationsTabProps> = ({
                   <div className="text-lg font-semibold">Reminders</div>
                 </div>
                 <div className="text-sm text-muted-foreground">Create daily and one-time reminders with notifications.</div>
-              </div>
-            </button>
-
-            <button
-              onClick={() => setActiveApp('chat')}
-              className="group relative overflow-hidden rounded-2xl bg-card border border-border/30 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-0.5 hover:scale-[1.01] text-left h-36"
-              aria-label="Open Chat"
-            >
-              <div className="p-5">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                    <MessageCircle className="text-primary" size={18} />
-                  </div>
-                  <div className="text-lg font-semibold">Chat</div>
-                </div>
-                <div className="text-sm text-muted-foreground">Conversational AI with MCP tools.</div>
               </div>
             </button>
 

@@ -14,7 +14,8 @@ export default function CustomSwitch({ checked, onChange, ...props }: CustomSwit
       onClick={() => onChange(!checked)}
       className="relative flex-shrink-0 inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-checkbox/20"
       style={{
-        backgroundColor: checked ? `hsl(var(--checkbox))` : `hsl(var(--muted))`,
+        backgroundColor: checked ? `hsl(var(--checkbox))` : `hsl(var(--background))`,
+        border: `2px solid hsl(var(--border))`,
       }}
       {...props}
     >

@@ -638,7 +638,19 @@ class ReminderScheduler {
     }
     
     logger.debug('Calling triggerReminder with test data...');
-    this.triggerReminder(testReminder);
+    
+    // For test notifications, ensure the assistant is shown to display custom appearance
+    if (global.assistant) {
+      if (!global.assistant.isVisible) {
+        logger.debug('Showing assistant for test notification...');
+        global.assistant.show();
+      }
+      // Use assistant speak method to ensure custom appearance is applied
+      global.assistant.speak(testReminder.message);
+    } else {
+      // Fallback to regular trigger if assistant not available
+      this.triggerReminder(testReminder);
+    }
   }
 
   /**

@@ -43,7 +43,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onUpdateTask, onDeleteTask, t
       case TaskStatus.NEEDS_REVIEW:
         return <Circle className="h-5 w-5" style={{ color: 'hsl(var(--warning))' }} />;
       case TaskStatus.ARCHIVED:
-        return <Archive className="h-5 w-5 text-gray-500" />;
+        return <Archive className="h-5 w-5" style={{ color: 'hsl(var(--muted-foreground))' }} />;
       default:
         return <Circle className="h-5 w-5" style={{ color: 'hsl(var(--warning))' }} />;
     }
@@ -58,7 +58,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onUpdateTask, onDeleteTask, t
       case TaskStatus.NEEDS_REVIEW:
         return 'border border-warning/30' + ' ' + 'text-warning-foreground' + ' ' + 'bg-warning/15';
       case TaskStatus.ARCHIVED:
-        return 'bg-neutral-500/15 text-neutral-300 border-neutral-500/30';
+        return 'bg-muted/30 text-muted-foreground border-muted/50';
       default:
         return 'border border-warning/30' + ' ' + 'text-warning-foreground' + ' ' + 'bg-warning/15';
     }

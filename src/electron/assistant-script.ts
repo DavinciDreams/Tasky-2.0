@@ -101,6 +101,12 @@ function positionBubble() {
 function showBubble(text: string) {
   if (!bubble) return;
   
+  // Log current notification appearance settings
+  console.log('🎨 Notification Appearance Settings:');
+  console.log('  Background Color:', notificationColor);
+  console.log('  Text Color:', notificationTextColor);
+  console.log('  Font:', notificationFont);
+  
   bubble.textContent = text;
   bubble.style.background = notificationColor;
   bubble.style.color = notificationTextColor;
@@ -254,28 +260,31 @@ ipcRenderer.on('tasky-set-custom-avatar', (event: any, dataUrl: string) => {
   character.style.opacity = '1';
 });
 
-ipcRenderer.on('set-bubble-side', (event: any, side: 'left' | 'right') => {
+ipcRenderer.on('tasky-set-bubble-side', (event: any, side: 'left' | 'right') => {
   bubbleSide = side;
   if (bubbleVisible) {
     positionBubble();
   }
 });
 
-ipcRenderer.on('set-notification-color', (event: any, color: string) => {
+ipcRenderer.on('tasky-set-notification-color', (event: any, color: string) => {
+  console.log('🎨 Notification background color updated to:', color);
   notificationColor = color;
   if (bubbleVisible && bubble) {
     bubble.style.background = color;
   }
 });
 
-ipcRenderer.on('set-notification-font', (event: any, font: string) => {
+ipcRenderer.on('tasky-set-notification-font', (event: any, font: string) => {
+  console.log('🎨 Notification font updated to:', font);
   notificationFont = font;
   if (bubbleVisible && bubble) {
     bubble.style.fontFamily = font === 'system' ? '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' : font;
   }
 });
 
-ipcRenderer.on('set-notification-text-color', (event: any, color: string) => {
+ipcRenderer.on('tasky-set-notification-text-color', (event: any, color: string) => {
+  console.log('🎨 Notification text color updated to:', color);
   notificationTextColor = color;
   if (bubbleVisible && bubble) {
     bubble.style.color = color;

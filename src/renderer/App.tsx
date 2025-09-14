@@ -341,39 +341,12 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
               onChange={(checked) => onSettingChange('enableSound', checked)}
               />
               <SettingItem
-              icon="🎨"
-              title="Notification Color"
-              description="Choose the background color for popup notifications"
-              type="color"
-              value={settings.notificationColor || '#7f7f7c'}
-              onChange={(color) => onSettingChange('notificationColor', color)}
-              />
-              <SettingItem
-              icon="🔤"
-              title="Notification Font"
-              description="Select the font family for notification text"
-              type="select"
-              value={settings.notificationFont || 'system'}
-              options={[
-                { value: 'system', label: 'System Default', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' },
-                { value: 'Arial', label: 'Arial', fontFamily: 'Arial, sans-serif' },
-                { value: 'Times New Roman', label: 'Times New Roman', fontFamily: '"Times New Roman", serif' },
-                { value: 'Georgia', label: 'Georgia', fontFamily: 'Georgia, serif' },
-                { value: 'Verdana', label: 'Verdana', fontFamily: 'Verdana, sans-serif' },
-                { value: 'Helvetica', label: 'Helvetica', fontFamily: 'Helvetica, sans-serif' },
-                { value: 'Courier New', label: 'Courier New', fontFamily: '"Courier New", monospace' },
-                { value: 'Trebuchet MS', label: 'Trebuchet MS', fontFamily: '"Trebuchet MS", sans-serif' },
-                { value: 'Comic Sans MS', label: 'Comic Sans MS', fontFamily: '"Comic Sans MS", cursive' }
-              ]}
-              onChange={(font) => onSettingChange('notificationFont', font)}
-              />
-              <SettingItem
-              icon="🌈"
-              title="Notification Text Color"
-              description="Choose the text color for popup notifications"
-              type="color"
-              value={settings.notificationTextColor || '#ffffff'}
-              onChange={(color) => onSettingChange('notificationTextColor', color)}
+              icon="💬"
+              title="Notification Position"
+              description="Choose which side notification bubbles appear on"
+              type="switch"
+              value={settings.bubbleSide === 'right'}
+              onChange={(checked) => onSettingChange('bubbleSide', checked ? 'right' : 'left')}
               />
             </div>
           </SettingSection>
@@ -411,14 +384,6 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
               type="switch"
               value={settings.assistantLayer === 'below'}
               onChange={(checked) => onSettingChange('assistantLayer', checked ? 'below' : 'above')}
-              />
-              <SettingItem
-              icon="💬"
-              title="Notification Position"
-              description="Choose which side notification bubbles appear on"
-              type="switch"
-              value={settings.bubbleSide === 'right'}
-              onChange={(checked) => onSettingChange('bubbleSide', checked ? 'right' : 'left')}
               />
             </div>
           </SettingSection>
@@ -586,11 +551,11 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
           
           <div className="pt-6 border-t border-border/30">
             <Button 
-              className="w-full bg-primary text-primary-foreground hover:bg-primary/90 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] rounded-2xl py-3 font-semibold"
+              className="w-full bg-button text-button-foreground hover:bg-button/90 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] rounded-2xl py-3 font-semibold"
               onClick={onTestNotification}
               style={{
-                backgroundColor: `hsl(var(--primary))`,
-                color: `hsl(var(--primary-foreground))`
+                backgroundColor: `hsl(var(--button))`,
+                color: `hsl(var(--button-foreground))`
               }}
             >
               <Bell size={18} className="mr-3" />
@@ -1705,7 +1670,7 @@ const App: React.FC = () => {
           const bgHsl = hexToHsl(colors.background);
           const fgHsl = hexToHsl(colors.foreground);
           const borderHsl = hexToHsl(colors.border);
-          const buttonColor = colors.button || '#3B82F6'; // Use button color if available, fallback to default blue
+          const buttonColor = colors.button || '#FFFFFF'; // Use button color if available, fallback to white
           const buttonHsl = hexToHsl(buttonColor);
           
           // Calculate contrasting text color for button
@@ -1773,7 +1738,7 @@ const App: React.FC = () => {
             background: '#1F1F23', // Dark background matching the image
             foreground: '#FFFFFF',  // White text for good contrast
             border: '#2F2F35',      // Slightly lighter dark border
-            button: '#5B57D9',      // Purple/indigo button color from image
+            button: '#FFFFFF',      // White button color by default
             accent: '#5B57D9',      // Same purple for accents/progress
             success: '#10B981',     // Green for success/completed
             warning: '#F59E0B',     // Orange for warning/pending
@@ -1859,6 +1824,17 @@ const App: React.FC = () => {
   };
 
   const handleTestNotification = () => {
+    console.log('Test notification button clicked');
+    console.log('Notifications enabled:', settings.enableNotifications);
+    console.log('electronAPI available:', !!window.electronAPI);
+    console.log('testNotification method available:', !!window.electronAPI?.testNotification);
+    
+    if (!settings.enableNotifications) {
+      console.warn('Notifications are disabled in settings');
+      alert('Please enable notifications in settings first!');
+      return;
+    }
+    
     window.electronAPI.testNotification();
   };
 

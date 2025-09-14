@@ -25,7 +25,7 @@ export const ThemeSettings: React.FC<ThemeSettingsProps> = ({ settings, onSettin
     background: '#1F1F23', // Dark background matching the image
     foreground: '#FFFFFF',  // White text for good contrast
     border: '#2F2F35',      // Slightly lighter dark border
-    button: '#5B57D9',      // Purple/indigo button color from image
+    button: '#FFFFFF',      // White button color <3
     // Special UI element colors
     accent: '#5B57D9',      // Same purple for accents/progress
     success: '#10B981',     // Green for success/completed
@@ -151,6 +151,8 @@ export const ThemeSettings: React.FC<ThemeSettingsProps> = ({ settings, onSettin
       root.style.setProperty('--popover-foreground', fgHsl);
       
       // Button colors using the custom button color with proper contrast
+      root.style.setProperty('--button', buttonHsl);
+      root.style.setProperty('--button-foreground', buttonTextHsl);
       root.style.setProperty('--primary', buttonHsl);
       root.style.setProperty('--primary-foreground', buttonTextHsl);
       
@@ -444,6 +446,96 @@ export const ThemeSettings: React.FC<ThemeSettingsProps> = ({ settings, onSettin
                   onChange={(e) => handleColorChange('checkbox', e.target.value)}
                   className="w-10 h-6 rounded border border-border cursor-pointer"
                 />
+              </div>
+
+              {/* Notification Elements */}
+              <div className="border-t border-border/30 pt-4 mt-4">
+                <h5 className="text-sm font-medium text-foreground mb-3">Notification Elements</h5>
+              </div>
+
+              <div className="flex items-center justify-between p-3 bg-card/20 rounded-lg border border-border">
+                <div className="flex items-center gap-3">
+                  <div 
+                    className="w-6 h-6 rounded-md border flex items-center justify-center text-xs font-bold"
+                    style={{ 
+                      backgroundColor: settings.notificationColor || '#7f7f7c', 
+                      color: getContrastColor(settings.notificationColor || '#7f7f7c'), 
+                      borderColor: customColors.border 
+                    }}
+                  >
+                    🔔
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium">Notification Color</label>
+                    <p className="text-xs text-muted-foreground">Choose the background color for popup notifications</p>
+                  </div>
+                </div>
+                <input
+                  type="color"
+                  value={settings.notificationColor || '#7f7f7c'}
+                  onChange={(e) => onSettingChange('notificationColor', e.target.value)}
+                  className="w-10 h-6 rounded border border-border cursor-pointer"
+                />
+              </div>
+
+              <div className="flex items-center justify-between p-3 bg-card/20 rounded-lg border border-border">
+                <div className="flex items-center gap-3">
+                  <div 
+                    className="w-6 h-6 rounded-md border flex items-center justify-center text-xs font-bold"
+                    style={{ 
+                      backgroundColor: settings.notificationTextColor || '#ffffff', 
+                      color: getContrastColor(settings.notificationTextColor || '#ffffff'), 
+                      borderColor: customColors.border 
+                    }}
+                  >
+                    A
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium">Notification Text Color</label>
+                    <p className="text-xs text-muted-foreground">Choose the text color for popup notifications</p>
+                  </div>
+                </div>
+                <input
+                  type="color"
+                  value={settings.notificationTextColor || '#ffffff'}
+                  onChange={(e) => onSettingChange('notificationTextColor', e.target.value)}
+                  className="w-10 h-6 rounded border border-border cursor-pointer"
+                />
+              </div>
+
+              <div className="flex items-center justify-between p-3 bg-card/20 rounded-lg border border-border">
+                <div className="flex items-center gap-3">
+                  <div 
+                    className="w-6 h-6 rounded-md border flex items-center justify-center text-xs font-bold"
+                    style={{ 
+                      backgroundColor: customColors.background, 
+                      color: customColors.foreground, 
+                      borderColor: customColors.border,
+                      fontFamily: settings.notificationFont === 'system' ? 'system-ui' : settings.notificationFont || 'system-ui'
+                    }}
+                  >
+                    Aa
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium">Notification Font</label>
+                    <p className="text-xs text-muted-foreground">Select the font family for notification text</p>
+                  </div>
+                </div>
+                <select
+                  value={settings.notificationFont || 'system'}
+                  onChange={(e) => onSettingChange('notificationFont', e.target.value)}
+                  className="px-3 py-1 bg-background border border-border rounded text-foreground text-sm"
+                >
+                  <option value="system">System Default</option>
+                  <option value="Arial">Arial</option>
+                  <option value="Times New Roman">Times New Roman</option>
+                  <option value="Georgia">Georgia</option>
+                  <option value="Verdana">Verdana</option>
+                  <option value="Helvetica">Helvetica</option>
+                  <option value="Courier New">Courier New</option>
+                  <option value="Trebuchet MS">Trebuchet MS</option>
+                  <option value="Comic Sans MS">Comic Sans MS</option>
+                </select>
               </div>
             </div>
           </div>

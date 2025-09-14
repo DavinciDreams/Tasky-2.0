@@ -83,10 +83,10 @@ export const TaskForm: React.FC<TaskFormProps> = ({ onCreateTask, initial, submi
         <CardContent className="p-4">
           <Button
             onClick={() => setIsExpanded(true)}
-            className="w-full bg-primary text-primary-foreground hover:bg-primary/90 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] rounded-2xl py-3 font-semibold flex items-center justify-center gap-2"
+            className="w-full bg-button text-button-foreground hover:bg-button/90 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] rounded-2xl py-3 font-semibold flex items-center justify-center gap-2"
             style={{
-              backgroundColor: `hsl(var(--primary))`,
-              color: `hsl(var(--primary-foreground))`
+              backgroundColor: `hsl(var(--button))`,
+              color: `hsl(var(--button-foreground))`
             }}
           >
             <Plus className="h-4 w-4" />
@@ -166,7 +166,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ onCreateTask, initial, submi
                 className="mt-1 w-full rounded-2xl"
               />
               <div>
-                <Button type="button" size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl border border-border" onClick={async () => {
+                <Button type="button" size="sm" className="bg-button text-button-foreground hover:bg-button/90 rounded-xl border border-border" onClick={async () => {
                   const dir = await window.electronAPI.invoke('select-directory');
                   if (dir) setFormData(prev => ({ ...prev, executionPath: dir }));
                 }}>
@@ -192,7 +192,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ onCreateTask, initial, submi
                 rows={4}
               />
               <div>
-                <Button type="button" size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl border border-border" onClick={async () => {
+                <Button type="button" size="sm" className="bg-button text-button-foreground hover:bg-button/90 rounded-xl border border-border" onClick={async () => {
                   const files: string[] = await window.electronAPI.invoke('select-files');
                   if (files && files.length) {
                     const merged = [formData.affectedFiles, ...files].filter(Boolean).join('\n');
@@ -209,10 +209,10 @@ export const TaskForm: React.FC<TaskFormProps> = ({ onCreateTask, initial, submi
           <div className="flex gap-3 pt-2">
             <Button 
               type="submit" 
-              className="w-full bg-primary text-primary-foreground hover:bg-primary/90 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] rounded-2xl py-3 font-semibold"
+              className="w-full bg-button text-button-foreground hover:bg-button/90 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] rounded-2xl py-3 font-semibold"
               style={{
-                backgroundColor: `hsl(var(--primary))`,
-                color: `hsl(var(--primary-foreground))`
+                backgroundColor: `hsl(var(--button))`,
+                color: `hsl(var(--button-foreground))`
               }}
             >
               <Plus className="h-4 w-4 mr-2" />

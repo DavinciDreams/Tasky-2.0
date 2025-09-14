@@ -73,15 +73,15 @@ export const TasksTab: React.FC<TasksTabProps> = ({
             onClick={() => setShowCreateModal(true)}
             className="shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] rounded-2xl px-4 py-2 font-semibold flex items-center gap-2"
             style={{
-              backgroundColor: `hsl(var(--checkbox))`,
-              color: `hsl(var(--checkbox-foreground))`,
+              backgroundColor: `hsl(var(--button))`,
+              color: `hsl(var(--button-foreground))`,
               border: 'none'
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = `hsl(var(--checkbox) / 0.9)`;
+              e.currentTarget.style.backgroundColor = `hsl(var(--button) / 0.9)`;
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = `hsl(var(--checkbox))`;
+              e.currentTarget.style.backgroundColor = `hsl(var(--button))`;
             }}
           >
             <Plus className="h-4 w-4" />
@@ -92,12 +92,12 @@ export const TasksTab: React.FC<TasksTabProps> = ({
             onClick={handleImport}
             className="rounded-xl px-4 py-2 flex items-center gap-2"
             style={{
-              borderColor: `hsl(var(--checkbox))`,
-              color: `hsl(var(--checkbox))`,
+              borderColor: `hsl(var(--button))`,
+              color: `hsl(var(--button))`,
               backgroundColor: 'transparent'
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = `hsl(var(--checkbox) / 0.1)`;
+              e.currentTarget.style.backgroundColor = `hsl(var(--button) / 0.1)`;
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.backgroundColor = 'transparent';

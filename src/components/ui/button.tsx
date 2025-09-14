@@ -11,7 +11,7 @@ export function Button({ children, variant = "default", size = "default", classN
   const baseClasses = "inline-flex items-center justify-center rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none";
   
   const variants: Record<ButtonProps['variant'] & string, string> = {
-    default: "bg-primary text-primary-foreground hover:bg-primary/90 focus:ring-gray-500",
+    default: "bg-button text-button-foreground hover:bg-button/90 focus:ring-gray-500",
     destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90 focus:ring-red-500",
     outline: "border border-border bg-background hover:bg-muted text-foreground focus:ring-gray-500",
     ghost: "hover:bg-muted text-foreground focus:ring-gray-500",

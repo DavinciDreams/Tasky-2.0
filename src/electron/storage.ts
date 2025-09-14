@@ -276,7 +276,7 @@ export class Storage {
           background: '#1F1F23',  // Dark background matching the image
           foreground: '#FFFFFF',  // White text for good contrast
           border: '#2F2F35',      // Slightly lighter dark border
-          button: '#5B57D9',      // Purple/indigo button color from image
+          button: '#FFFFFF',      // White button color by default
           accent: '#5B57D9',      // Same purple for accents/progress
           success: '#10B981',     // Green for success/completed
           warning: '#F59E0B',     // Orange for warning/pending
