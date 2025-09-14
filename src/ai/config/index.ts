@@ -3,7 +3,7 @@ import { GoogleAIProvider, LMStudioProvider } from '../providers';
 
 export const DEFAULT_AI_CONFIG: AIConfig = {
   provider: 'google',
-  model: 'gemini-2.5-flash',
+  model: 'gemini-1.5-flash', // Use 1.5-flash as default
   temperature: 1.0,
   maxTokens: 4096
 };
@@ -41,10 +41,10 @@ export function createAIProvider(config: AIConfig): AIProvider {
 export function validateModel(provider: string, model: string): string {
   switch (provider) {
     case 'google':
-      return SUPPORTED_GOOGLE_MODELS.includes(model as any) ? model : 'gemini-2.5-flash';
+      return SUPPORTED_GOOGLE_MODELS.includes(model as any) ? model : 'gemini-1.5-flash'; // Use 1.5-flash as fallback
     case 'lmstudio':
       return model; // LM Studio providers can use any model
     default:
-      return 'gemini-2.5-flash';
+      return 'gemini-1.5-flash'; // Use 1.5-flash as default fallback
   }
 }

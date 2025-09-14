@@ -45,10 +45,10 @@ export class GoogleAIProvider implements AIProvider {
     if (requested.includes('1.5-flash-8b')) return 'gemini-1.5-flash-8b-latest';
     if (requested.includes('1.5-flash')) return 'gemini-1.5-flash-latest';
     if (requested.includes('flash-8b')) return 'gemini-1.5-flash-8b-latest';
-    if (requested.includes('flash')) return 'gemini-2.5-flash'; // Default to newest flash
+    if (requested.includes('flash')) return modelId; // Respect user's exact choice, don't force 2.5
     
-    // Default to 2.5-flash for best balance of speed/quality/features
-    return 'gemini-2.5-flash';
+    // If no match, return the original model ID to respect user choice
+    return modelId;
   }
 }
 

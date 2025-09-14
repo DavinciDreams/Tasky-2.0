@@ -247,15 +247,20 @@ export const ThemeSettings: React.FC<ThemeSettingsProps> = ({ settings, onSettin
       // Update local state
       setCustomColors(defaultColors);
       
-      // Save to settings
+      // Save to settings (theme colors)
       onSettingChange('customTheme', defaultColors);
       onSettingChange('themeMode', 'custom');
+      
+      // Reset notification settings to defaults
+      onSettingChange('notificationColor', '#7f7f7c');
+      onSettingChange('notificationTextColor', '#ffffff');
+      onSettingChange('notificationFont', 'system');
       
       // Apply theme immediately
       applyTheme(defaultColors);
       
       // Optional: Show feedback to user
-      console.log('Theme reset to default colors');
+      console.log('Theme reset to default colors and notification settings');
     } catch (error) {
       console.error('Error resetting theme to default:', error);
     }

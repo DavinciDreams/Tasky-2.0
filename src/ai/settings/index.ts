@@ -15,7 +15,7 @@ export class AISettingsManager {
     return {
       provider: 'google',
       apiKey: '',
-      model: 'gemini-2.5-flash',
+      model: 'gemini-1.5-flash', // Use 1.5-flash as default
       temperature: 1.0,
       maxTokens: 4096,
       systemPrompt: this.getDefaultSystemPrompt(),
@@ -159,10 +159,10 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT
       {
         id: 'gemini-2.5-flash',
         name: 'Gemini 2.5 Flash',
-        description: 'Fast and efficient for most tasks - recommended',
+        description: 'Fast and efficient for most tasks',
         capabilities: baseCapabilities,
-        isDefault: true,
-        isRecommended: true
+        isDefault: false,
+        isRecommended: false
       },
       {
         id: 'gemini-2.5-flash-lite',
@@ -179,8 +179,10 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT
       {
         id: 'gemini-1.5-flash-latest',
         name: 'Gemini 1.5 Flash Latest',
-        description: 'Latest 1.5 Flash model',
-        capabilities: baseCapabilities
+        description: 'Latest 1.5 Flash model - recommended',
+        capabilities: baseCapabilities,
+        isDefault: true,
+        isRecommended: true
       },
       {
         id: 'gemini-1.5-flash-8b-latest',

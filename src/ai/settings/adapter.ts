@@ -12,7 +12,7 @@ export class AISettingsAdapter {
     return {
       provider: this.normalizeProvider(appSettings.llmProvider),
       apiKey: appSettings.llmApiKey || '',
-      model: appSettings.llmModel || 'gemini-2.5-flash',
+      model: appSettings.llmModel || 'gemini-1.5-flash', // Respect user choice, use 1.5-flash as default
       temperature: 1.0, // Could add this to app settings later
       maxTokens: 4096, // Could add this to app settings later
       baseUrl: appSettings.llmBaseUrl,
@@ -69,8 +69,8 @@ export class AISettingsAdapter {
     // Fix missing model
     if (!appSettings.llmModel) {
       if ((appSettings.llmProvider || 'google') === 'google') {
-        fixes.llmModel = 'gemini-2.5-flash';
-        applied.push('Set model to Gemini 2.5 Flash');
+        fixes.llmModel = 'gemini-1.5-flash'; // Use 1.5-flash as default instead of 2.5-flash
+        applied.push('Set model to Gemini 1.5 Flash');
       } else {
         fixes.llmModel = 'llama-3.3-70b-instruct';
         applied.push('Set model to Llama 3.3 70B Instruct');

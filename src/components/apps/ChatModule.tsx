@@ -248,11 +248,11 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT
       return new AIService(config);
     } catch (error) {
       console.error('[Chat] Failed to create AI service:', error);
-      // Fallback to Google with default model
+      // Fallback to Google with user's preferred model or 1.5-flash
       return new AIService({
         provider: 'google',
         apiKey: settings.llmApiKey || '',
-        model: 'gemini-2.5-flash',
+        model: settings.llmModel || 'gemini-1.5-flash', // Respect user choice
         temperature: temperature
       });
     }
@@ -580,14 +580,14 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT
     <div ref={rootRef} className="flex-1 min-h-0 flex flex-col relative">
       <div className="flex-1 min-h-0 flex flex-col relative w-full">
         {/* Simple header with reset button */}
-        <div className="flex-shrink-0 flex items-center justify-between mb-2 px-1 pt-1">
+        <div className="flex-shrink-0 flex items-center justify-between mb-2 px-1">
           <div className="flex items-center gap-2">
             <h2 className="text-lg font-semibold text-foreground">Tasky Chat</h2>
           </div>
           <div className="flex items-center gap-2">
             <Button
               size="sm"
-              className="rounded-xl text-sm h-7 px-3 py-1 flex items-center gap-2 text-button-foreground hover:opacity-90 transition-opacity"
+              className="rounded-xl text-sm h-7 px-3 py-1 flex items-center gap-2 text-foreground hover:opacity-90 transition-opacity"
               style={{ backgroundColor: 'hsl(var(--button))' }}
               disabled={busy}
               onClick={resetChat}
