@@ -37,7 +37,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, index }) 
         type: "spring",
         stiffness: 100
       }}
-      className={`max-w-full ${isUser ? 'ml-auto' : ''} flex animate-message-slide-in`}
+      className={`chat-message-container max-w-full ${isUser ? 'ml-auto' : ''} flex animate-message-slide-in`}
     >
       <div
         className={`
@@ -45,7 +45,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, index }) 
             ? 'bg-primary text-primary-foreground' 
             : 'bg-card text-foreground border border-border/30'
           }
-          rounded-2xl px-4 py-3 w-full break-words
+          rounded-2xl px-4 py-3 w-full break-words chat-message-content
         `}
       >
         {isUser ? (

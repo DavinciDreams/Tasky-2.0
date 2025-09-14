@@ -37,9 +37,9 @@ When users want to create, list, update, delete, or execute tasks or reminders, 
 TASK TOOLS (use mcpCall tool with these names):
 - tasky_create_task: Create tasks with title, description, dueDate, tags, etc.
 - tasky_list_tasks: List existing tasks with optional filtering  
-- tasky_update_task: Update task status or properties
-- tasky_delete_task: Delete tasks by ID
-- tasky_execute_task: Execute a task (start or complete it)
+- tasky_update_task: Update task status or properties (requires id)
+- tasky_delete_task: Delete tasks by ID (requires id)
+- tasky_execute_task: Execute a task (requires id, optional status)
 
 REMINDER TOOLS (use mcpCall tool with these names):
 - tasky_create_reminder: Create reminders with message, time, days array, oneTime boolean
@@ -47,12 +47,26 @@ REMINDER TOOLS (use mcpCall tool with these names):
 - tasky_update_reminder: Update reminders (message, time, days, enabled)
 - tasky_delete_reminder: Delete reminders by ID or message
 
+CRITICAL - TASK ID USAGE:
+- When tasky_list_tasks returns tasks, extract the task ID from the "schema.id" field
+- For tasky_execute_task, ALWAYS use the exact task ID from previous list results
+- Never use task title for execution - only use the full task ID
+- Be context-aware: when user says "execute the task" after listing tasks, use the ID from the list
+
+EXAMPLE CORRECT FLOW:
+1. User: "list tasks" 
+2. Call: mcpCall with name="tasky_list_tasks", args={}
+3. Response includes: {"schema":{"id":"create_new_folder_20250914_164055_e6213ef4",...}}
+4. User: "execute the task"
+5. Call: mcpCall with name="tasky_execute_task", args={"id":"create_new_folder_20250914_164055_e6213ef4"}
+
 IMPORTANT: 
 - Always use the mcpCall tool function when users request task or reminder operations
 - Extract parameters properly from natural language requests
 - Show a brief "Plan:" before calling tools
 - Use tools only when intent is actionable
 - Map "start"→IN_PROGRESS, "finish"→COMPLETED
+- Remember task IDs from previous responses in the conversation
 
 For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT output text like "<mcpCall name=..." - use the actual function call.`;
 
@@ -373,7 +387,9 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT
       chatMessages = [
         { role: 'system', content: effectiveSys },
         ...next.map(m => ({ role: m.role, content: m.content }))
-      ];
+      ].filter(msg => msg.content && msg.content.trim().length > 0); // Filter out empty messages
+
+      console.log('[Chat] Final chat messages:', chatMessages);
 
       // Setup streaming with AI service
       controller = new AbortController();
@@ -470,7 +486,7 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT
       } catch (schemaErr: any) {
         // If tool schema errors (400) or invalid function schema, retry without tools
         const msg = schemaErr?.message || '';
-        if (msg.includes('Invalid schema') || msg.includes('400')) {
+        if (msg.includes('Invalid schema') || msg.includes('400') || msg.includes('functionDeclaration parameters schema should be of type OBJECT')) {
           console.warn('[Chat] Tool schema error, retrying without tools');
           // Already running without tools, so just throw the error
           throw schemaErr;
@@ -484,7 +500,7 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT
 
       // Fallback: if schema/400 errors, retry once without tools
       const errorMessage = e?.message || '';
-      const isSchemaOr400 = errorMessage.includes('Invalid schema') || errorMessage.includes('400');
+      const isSchemaOr400 = errorMessage.includes('Invalid schema') || errorMessage.includes('400') || errorMessage.includes('functionDeclaration parameters schema should be of type OBJECT');
       if (isSchemaOr400) {
         try {
           console.warn('[Chat] Retrying without tools due to schema/400 error');
@@ -543,12 +559,12 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT
       }
 
       let msg = 'Chat request failed';
-      if (errorMessage.includes('Invalid schema')) {
-        msg = 'Tool configuration error. Please check MCP server status.';
+      if (errorMessage.includes('Invalid schema') || errorMessage.includes('functionDeclaration parameters schema should be of type OBJECT')) {
+        msg = 'Tool configuration error. Please check MCP server status and restart the app.';
       } else if (errorMessage.includes('401')) {
         msg = 'Invalid API key. Please check your Google AI API key in settings.';
       } else if (errorMessage.includes('400')) {
-        msg = 'Bad request. Please check your provider settings.';
+        msg = 'Bad request. Please check your provider settings or try disabling tools.';
       } else if (errorMessage.includes('429')) {
         msg = 'Rate limit exceeded. Please try again later.';
       } else if (errorMessage.includes('insufficient_quota') || errorMessage.includes('quota')) {
@@ -577,8 +593,9 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT
   };
 
   return (
-    <div ref={rootRef} className="flex-1 min-h-0 flex flex-col relative">
-      <div className="flex-1 min-h-0 flex flex-col relative w-full">
+    <div ref={rootRef} className="h-full w-full flex flex-col relative">
+      {/* Content area that takes up available space minus input box */}
+      <div className="flex-1 min-h-0 flex flex-col relative w-full overflow-hidden">
         {/* Simple header with reset button */}
         <div className="flex-shrink-0 flex items-center justify-between mb-2 px-1">
           <div className="flex items-center gap-2">
@@ -604,12 +621,12 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT
           </div>
         )}
 
-        {/* Message container with simplified background */}
-        <div className="flex-1 w-full rounded-2xl border border-border/30 p-2 flex flex-col min-h-[calc(100vh-280px)] max-h-[calc(100vh-280px)] relative overflow-hidden bg-background">
+        {/* Message container with controlled height - extends to bottom */}
+        <div className="flex-1 w-full rounded-2xl border border-border/30 p-2 flex flex-col relative overflow-hidden bg-background min-h-0">
 
           <div
             ref={scrollRef}
-            className="flex-1 min-h-[calc(100vh-280px)] max-h-[calc(100vh-280px)] overflow-y-auto no-scrollbar p-2 w-full relative"
+            className="chat-scroll-container flex-1 overflow-y-auto no-scrollbar p-2 w-full relative min-h-0"
             onScroll={handleScroll}
           >
             {/* Use the new MessageContainer for proper ordering */}
@@ -634,8 +651,8 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT
         )}
       </div>
 
-      {/* Composer with proper spacing */}
-      <div className="px-3 pb-3 pt-2">
+      {/* Input box - fixed at bottom with stronger positioning */}
+      <div className="flex-shrink-0 w-full sticky bottom-0 bg-background border-t border-border/30 px-3 pb-3 pt-2 z-10">
         <ChatComposer
           input={input}
           setInput={setInput}

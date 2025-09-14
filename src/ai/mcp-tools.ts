@@ -3,11 +3,11 @@ import { z } from 'zod';
 
 /**
  * MCP Call Tool - Single tool that handles all MCP operations
- * Using plain object with proper OBJECT schema for Google AI compatibility
+ * Using AI SDK tool() function with proper schema and execute function
  */
-export const mcpCall = {
+export const mcpCall = tool({
   description: 'Call MCP tools for task and reminder management',
-  parameters: z.object({
+  inputSchema: z.object({
     name: z.string().describe('Tool name'),
     args: z.object({
       title: z.string().optional(),
@@ -23,10 +23,10 @@ export const mcpCall = {
       oneTime: z.boolean().optional(),
     }).optional().describe('Tool arguments as a structured object'),
   }),
-  execute: async ({ name, args = {} }: { name: string; args?: Record<string, any> }) => {
+  execute: async ({ name, args = {} }) => {
     return executeMcpTool(name, args, `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, undefined);
   },
-};
+});
 
 // Programmatic invocation from UI when model outputs inline tool JSON
 export async function callMcpTool(
@@ -57,6 +57,18 @@ async function executeMcpTool(
   console.log('[MCP] Executing tool:', name);
   console.log('[MCP] Parameters:', JSON.stringify(args, null, 2));
   
+  // Validate parameters for common issues
+  if (name === 'tasky_execute_task') {
+    if (args && args.title && !args.id) {
+      console.warn('[MCP] WARNING: tasky_execute_task called with title instead of id. This will likely fail.');
+      console.warn('[MCP] Expected: args.id, Got: args.title =', args.title);
+    }
+    if (!args || !args.id) {
+      console.error('[MCP] ERROR: tasky_execute_task requires an id parameter');
+      return 'Error: Task execution requires a task ID. Please list tasks first to get the task ID.';
+    }
+  }
+  
   // Handle test environments
   if (isTestEnvironment()) {
     return handleTestEnvironment(name);
@@ -76,6 +88,8 @@ async function executeMcpTool(
 
     // Make MCP call with abort signal support
     const result = await performMcpCall(name, args, abortSignal);
+    
+    console.log('[MCP] Tool execution completed, result:', result);
     
     emitToolEvent(id, 'done', name, args, result);
     return result;
@@ -113,10 +127,20 @@ function handleTestEnvironment(name: string): string {
 function shouldAutoConfirm(toolName: string, args?: any): boolean {
   try {
     const n = String(toolName || '').toLowerCase();
-    if (args && args.skipConfirm === true) return true;
+    console.log('[MCP] Checking auto-confirm for tool:', n);
+    
+    if (args && args.skipConfirm === true) {
+      console.log('[MCP] Auto-confirm via skipConfirm flag');
+      return true;
+    }
+    
     // Treat list/get operations as read-only
-    return n.includes('list_') || n.startsWith('list') || n.includes('get_') || n.startsWith('get');
+    const isReadOnly = n.includes('list_') || n.startsWith('list') || n.includes('get_') || n.startsWith('get') || n.includes('tasky_list');
+    console.log('[MCP] Auto-confirm result:', isReadOnly);
+    
+    return isReadOnly;
   } catch {
+    console.log('[MCP] Auto-confirm check failed, defaulting to false');
     return false;
   }
 }
@@ -198,6 +222,9 @@ async function performMcpCall(name: string, args: any, abortSignal?: AbortSignal
   // Use IPC to communicate with MCP server via main process
   const json = await window.electronAPI.mcpToolsCall(name, args || {});
   const content = json?.content ?? json;
+
+  console.log('[MCP] Raw response from MCP server:', JSON.stringify(json, null, 2));
+  console.log('[MCP] Processed content:', content);
 
   // Process MCP response content
   if (Array.isArray(content)) {

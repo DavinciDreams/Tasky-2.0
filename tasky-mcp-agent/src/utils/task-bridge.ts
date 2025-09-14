@@ -323,19 +323,89 @@ export class TaskBridge {
     if (!id) return { content: [{ type: 'text', text: 'id is required' }], isError: true };
     
     try {
-      // Since we removed HTTP server, just update task status to indicate execution
-      const executionStatus: TaskStatus = (status === 'COMPLETED' ? 'COMPLETED' : 'IN_PROGRESS');
-      const updates: any = { status: executionStatus };
-      
-      const result = await this.updateTask({ id, updates });
-      
-      if (result.isError) {
-        return result;
+      // First, get the task to check if it exists and get execution details
+      const taskResult = await this.getTask({ id });
+      if (taskResult.isError) {
+        return taskResult;
       }
       
-      return { content: [
-        { type: 'text', text: `Task marked as ${executionStatus.toLowerCase()}` }
-      ] };
+      // Parse task details from the result
+      const taskJsonStr = (taskResult.content as any)?.[1]?.text;
+      const task = taskJsonStr ? JSON.parse(taskJsonStr) : null;
+      
+      if (!task) {
+        return { content: [{ type: 'text', text: 'Failed to get task details for execution' }], isError: true };
+      }
+
+      // Try to delegate to main Tasky app for full execution (like clicking play button)
+      try {
+        const mainAppUrl = 'http://localhost:7844/execute-task';
+        const provider = (task.schema.assignedAgent || '').toLowerCase() === 'claude' ? 'claude' : 'gemini';
+        
+        // Use node fetch for HTTP call
+        const response = await fetch(mainAppUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            taskId: id,
+            agent: provider
+          }),
+          // 5 second timeout for main app response
+          signal: AbortSignal.timeout(5000)
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          
+          // Main app execution successful - return detailed results
+          return {
+            content: [
+              { type: 'text', text: `Task ${task.schema.title}` },
+              { type: 'text', text: JSON.stringify({
+                ...task,
+                schema: {
+                  ...task.schema,
+                  status: status === 'COMPLETED' ? 'COMPLETED' : 'IN_PROGRESS',
+                  updatedAt: new Date().toISOString()
+                }
+              }) },
+              { type: 'text', text: `Execution delegated to main Tasky application with ${provider} agent` }
+            ]
+          };
+        } else {
+          throw new Error(`Main app returned ${response.status}: ${response.statusText}`);
+        }
+        
+      } catch (httpError) {
+        // Main app not available - fallback to simple status update
+        console.warn('Main app execution failed, falling back to status update:', httpError);
+        
+        const executionStatus: TaskStatus = (status === 'COMPLETED' ? 'COMPLETED' : 'IN_PROGRESS');
+        const updates: any = { status: executionStatus };
+        
+        const result = await this.updateTask({ id, updates });
+        
+        if (result.isError) {
+          return result;
+        }
+        
+        return { 
+          content: [
+            { type: 'text', text: `Task ${task.schema.title}` },
+            { type: 'text', text: JSON.stringify({
+              ...task,
+              schema: {
+                ...task.schema,
+                status: executionStatus,
+                updatedAt: new Date().toISOString()
+              }
+            }) },
+            { type: 'text', text: `Note: Task execution requires main Tasky app to be running (Error: ${httpError instanceof Error ? httpError.message : String(httpError)})` }
+          ]
+        };
+      }
       
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);

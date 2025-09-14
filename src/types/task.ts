@@ -1,6 +1,4 @@
 // Tasky Task Management Types - Adapted from Agent System
-// Removed: category, priority fields as requested
-// Renamed: All "Looper" references to "TaskManager" or "Tasky"
 
 export type TaskId = string & { readonly brand: unique symbol };
 export type FilePath = string & { readonly brand: unique symbol };
