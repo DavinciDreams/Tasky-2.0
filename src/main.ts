@@ -406,7 +406,7 @@ app.whenReady().then(async () => {
   assistant.setBubbleSide(bubbleSide);
   
   // Apply notification color setting
-  const notificationColor = settings.notificationColor || '#7f7f7c';
+  const notificationColor = settings.notificationColor || '#ffffff'; // Default to white (button color)
   assistant.setNotificationColor(notificationColor);
   
   // Apply notification font setting
@@ -414,7 +414,7 @@ app.whenReady().then(async () => {
   assistant.setNotificationFont(notificationFont);
   
   // Apply notification text color setting
-  const notificationTextColor = settings.notificationTextColor || '#ffffff';
+  const notificationTextColor = settings.notificationTextColor || '#000000'; // Default to black (contrast of white)
   assistant.setNotificationTextColor(notificationTextColor);
   
   // Apply layer setting - defer until window is created

@@ -37,9 +37,9 @@ class TaskyAssistant {
     this.isDelivering = false; // Track if currently delivering notification
     this.selectedAvatar = 'Tasky'; // Default avatar
     this.bubbleSide = 'left'; // Default bubble side
-    this.notificationColor = '#7f7f7c'; // Default notification color
+    this.notificationColor = '#ffffff'; // Default notification color (white/button color)
     this.notificationFont = 'system'; // Default notification font
-    this.notificationTextColor = '#ffffff'; // Default notification text color
+    this.notificationTextColor = '#000000'; // Default notification text color (black/contrast of white)
   }
 
   create(): BrowserWindow {
