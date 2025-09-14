@@ -651,8 +651,8 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT
         )}
       </div>
 
-      {/* Input box - fixed at bottom with stronger positioning */}
-      <div className="flex-shrink-0 w-full sticky bottom-0 bg-background border-t border-border/30 px-3 pb-3 pt-2 z-10">
+      {/* Input box - positioned closer to message area */}
+      <div className="flex-shrink-0 w-full bg-background border-t border-border/30 px-3 pb-3 pt-2 mt-2">
         <ChatComposer
           input={input}
           setInput={setInput}
