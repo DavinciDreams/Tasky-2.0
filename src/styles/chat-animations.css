@@ -207,7 +207,3 @@
   background: linear-gradient(135deg, rgba(75, 85, 99, 0.8) 0%, rgba(55, 65, 81, 0.9) 100%) !important;
   border-color: rgba(75, 85, 99, 0.6) !important;
 }
-
-.composer-typing {
-  /* Removed glow animation */
-}

@@ -60,6 +60,21 @@ EXAMPLE CORRECT FLOW:
 4. User: "execute the task"
 5. Call: mcpCall with name="tasky_execute_task", args={"id":"create_new_folder_20250914_164055_e6213ef4"}
 
+TOOL RESULT DISPLAY REQUIREMENTS:
+- After calling ANY tool, you MUST display the results to the user
+- For list operations: Show the actual list of tasks/reminders in a clear format
+- For create operations: Confirm what was created with details
+- For update/delete operations: Confirm the action taken
+- Never just say "completed" without showing the actual data
+- Parse tool results and present them in user-friendly format
+
+EXAMPLE RESPONSES:
+User: "list tasks" → Tool returns data → You respond:
+"Here are your current tasks:
+1. Create new folder (ID: create_new_folder_...) - Status: PENDING
+2. Review documents (ID: review_docs_...) - Status: IN_PROGRESS
+..."
+
 IMPORTANT: 
 - Always use the mcpCall tool function when users request task or reminder operations
 - Extract parameters properly from natural language requests
@@ -67,8 +82,9 @@ IMPORTANT:
 - Use tools only when intent is actionable
 - Map "start"→IN_PROGRESS, "finish"→COMPLETED
 - Remember task IDs from previous responses in the conversation
+- ALWAYS display tool results - never hide them from the user
 
-For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT output text like "<mcpCall name=..." - use the actual function call.`;
+For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. After the tool executes, format and show the returned task data to the user.`;
 
   // State - Chat persistence
   const {
