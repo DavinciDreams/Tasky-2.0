@@ -12,6 +12,7 @@ interface SimpleThemeColors {
   foreground: string;
   border: string;
   button: string;
+  buttonText: string;
   // Special UI element colors
   accent: string;
   success: string;
@@ -26,6 +27,7 @@ export const ThemeSettings: React.FC<ThemeSettingsProps> = ({ settings, onSettin
     foreground: '#FFFFFF',  // White text for good contrast
     border: '#2F2F35',      // Slightly lighter dark border
     button: '#FFFFFF',      // White button color <3
+    buttonText: '#000000',  // Black text on white buttons
     // Special UI element colors
     accent: '#5B57D9',      // Same purple for accents/progress
     success: '#10B981',     // Green for success/completed
@@ -49,6 +51,8 @@ export const ThemeSettings: React.FC<ThemeSettingsProps> = ({ settings, onSettin
         ? colors.border : defaults.border,
       button: (colors.button && typeof colors.button === 'string' && colors.button.startsWith('#')) 
         ? colors.button : defaults.button,
+      buttonText: (colors.buttonText && typeof colors.buttonText === 'string' && colors.buttonText.startsWith('#')) 
+        ? colors.buttonText : defaults.buttonText,
       accent: (colors.accent && typeof colors.accent === 'string' && colors.accent.startsWith('#')) 
         ? colors.accent : defaults.accent,
       success: (colors.success && typeof colors.success === 'string' && colors.success.startsWith('#')) 
@@ -63,6 +67,10 @@ export const ThemeSettings: React.FC<ThemeSettingsProps> = ({ settings, onSettin
   const [customColors, setCustomColors] = useState<SimpleThemeColors>(
     validateColors(settings.customTheme)
   );
+
+  // Local state for notification colors to ensure immediate visual updates
+  const [notificationColor, setNotificationColor] = useState(settings.notificationColor || '#ffffff');
+  const [notificationTextColor, setNotificationTextColor] = useState(settings.notificationTextColor || '#000000');
 
   // Convert hex to HSL for CSS
   const hexToHsl = (hex: string): string => {
@@ -137,9 +145,8 @@ export const ThemeSettings: React.FC<ThemeSettingsProps> = ({ settings, onSettin
       const borderHsl = hexToHsl(validatedColors.border);
       const buttonHsl = hexToHsl(validatedColors.button);
       
-      // Calculate contrasting text color for button
-      const buttonTextColor = getContrastColor(validatedColors.button);
-      const buttonTextHsl = hexToHsl(buttonTextColor);
+      // Use custom button text color instead of auto-calculating
+      const buttonTextHsl = hexToHsl(validatedColors.buttonText);
       
       // Card colors slightly different from background
       root.style.setProperty('--card', bgHsl);
@@ -150,7 +157,7 @@ export const ThemeSettings: React.FC<ThemeSettingsProps> = ({ settings, onSettin
       root.style.setProperty('--popover', bgHsl);
       root.style.setProperty('--popover-foreground', fgHsl);
       
-      // Button colors using the custom button color with proper contrast
+      // Button colors using the custom button color with custom text color
       root.style.setProperty('--button', buttonHsl);
       root.style.setProperty('--button-foreground', buttonTextHsl);
       root.style.setProperty('--primary', buttonHsl);
@@ -170,7 +177,7 @@ export const ThemeSettings: React.FC<ThemeSettingsProps> = ({ settings, onSettin
       console.log('Theme applied:', {
         buttonColor: validatedColors.button,
         buttonHsl,
-        buttonTextColor,
+        buttonTextColor: validatedColors.buttonText,
         buttonTextHsl
       });
       
@@ -183,12 +190,11 @@ export const ThemeSettings: React.FC<ThemeSettingsProps> = ({ settings, onSettin
       const defaults = getDefaultColors();
       try {
         const root = document.documentElement;
-        const defaultButtonTextColor = getContrastColor(defaults.button);
         root.style.setProperty('--background', hexToHsl(defaults.background));
         root.style.setProperty('--foreground', hexToHsl(defaults.foreground));
         root.style.setProperty('--border', hexToHsl(defaults.border));
         root.style.setProperty('--primary', hexToHsl(defaults.button));
-        root.style.setProperty('--primary-foreground', hexToHsl(defaultButtonTextColor));
+        root.style.setProperty('--primary-foreground', hexToHsl(defaults.buttonText));
       } catch (fallbackError) {
         console.error('Error applying fallback theme:', fallbackError);
       }
@@ -216,6 +222,12 @@ export const ThemeSettings: React.FC<ThemeSettingsProps> = ({ settings, onSettin
     }
   }, [settings.customTheme]);
 
+  // Sync notification colors with settings
+  useEffect(() => {
+    setNotificationColor(settings.notificationColor || '#ffffff');
+    setNotificationTextColor(settings.notificationTextColor || '#000000');
+  }, [settings.notificationColor, settings.notificationTextColor]);
+
   const handleColorChange = (colorKey: keyof SimpleThemeColors, hexValue: string) => {
     try {
       // Validate the hex value
@@ -240,20 +252,54 @@ export const ThemeSettings: React.FC<ThemeSettingsProps> = ({ settings, onSettin
     }
   };
 
+  const handleNotificationColorChange = (hexValue: string) => {
+    try {
+      // Validate the hex value
+      if (!hexValue || !hexValue.startsWith('#') || hexValue.length !== 7) {
+        console.warn('Invalid hex value:', hexValue);
+        return;
+      }
+
+      setNotificationColor(hexValue);
+      onSettingChange('notificationColor', hexValue);
+    } catch (error) {
+      console.error('Error handling notification color change:', error);
+    }
+  };
+
+  const handleNotificationTextColorChange = (hexValue: string) => {
+    try {
+      // Validate the hex value
+      if (!hexValue || !hexValue.startsWith('#') || hexValue.length !== 7) {
+        console.warn('Invalid hex value:', hexValue);
+        return;
+      }
+
+      setNotificationTextColor(hexValue);
+      onSettingChange('notificationTextColor', hexValue);
+    } catch (error) {
+      console.error('Error handling notification text color change:', error);
+    }
+  };
+
   const resetToDefault = () => {
     try {
       const defaultColors = getDefaultColors();
+      const defaultNotificationColor = '#ffffff';
+      const defaultNotificationTextColor = '#000000';
       
-      // Update local state
+      // Update local state immediately for instant visual feedback
       setCustomColors(defaultColors);
+      setNotificationColor(defaultNotificationColor);
+      setNotificationTextColor(defaultNotificationTextColor);
       
       // Save to settings (theme colors)
       onSettingChange('customTheme', defaultColors);
       onSettingChange('themeMode', 'custom');
       
       // Reset notification settings to defaults
-      onSettingChange('notificationColor', '#ffffff'); // White (button color)
-      onSettingChange('notificationTextColor', '#000000'); // Black (contrast of white)
+      onSettingChange('notificationColor', defaultNotificationColor);
+      onSettingChange('notificationTextColor', defaultNotificationTextColor);
       onSettingChange('notificationFont', 'system');
       
       // Apply theme immediately
@@ -346,8 +392,8 @@ export const ThemeSettings: React.FC<ThemeSettingsProps> = ({ settings, onSettin
           <div className="flex items-center justify-between p-4 bg-card/30 rounded-lg border border-border">
             <div className="flex items-center gap-3">
               <div 
-                className="w-8 h-8 rounded-md border-2 flex items-center justify-center text-xs font-bold text-white"
-                style={{ backgroundColor: customColors.button, borderColor: customColors.border }}
+                className="w-8 h-8 rounded-md border-2 flex items-center justify-center text-xs font-bold"
+                style={{ backgroundColor: customColors.button, color: customColors.buttonText, borderColor: customColors.border }}
               >
                 ✓
               </div>
@@ -360,6 +406,27 @@ export const ThemeSettings: React.FC<ThemeSettingsProps> = ({ settings, onSettin
               type="color"
               value={customColors.button}
               onChange={(e) => handleColorChange('button', e.target.value)}
+              className="w-12 h-8 rounded-md border border-border cursor-pointer"
+            />
+          </div>
+
+          <div className="flex items-center justify-between p-4 bg-card/30 rounded-lg border border-border">
+            <div className="flex items-center gap-3">
+              <div 
+                className="w-8 h-8 rounded-md border-2 flex items-center justify-center text-xs font-bold"
+                style={{ backgroundColor: customColors.buttonText, color: customColors.button, borderColor: customColors.border }}
+              >
+                Aa
+              </div>
+              <div>
+                <label className="text-sm font-medium">Button Text Color</label>
+                <p className="text-xs text-muted-foreground">Text color for buttons and interactive elements</p>
+              </div>
+            </div>
+            <input
+              type="color"
+              value={customColors.buttonText}
+              onChange={(e) => handleColorChange('buttonText', e.target.value)}
               className="w-12 h-8 rounded-md border border-border cursor-pointer"
             />
           </div>
@@ -463,8 +530,8 @@ export const ThemeSettings: React.FC<ThemeSettingsProps> = ({ settings, onSettin
                   <div 
                     className="w-6 h-6 rounded-md border flex items-center justify-center text-xs font-bold"
                     style={{ 
-                      backgroundColor: settings.notificationColor || '#ffffff', // Default to white
-                      color: getContrastColor(settings.notificationColor || '#ffffff'), 
+                      backgroundColor: notificationColor,
+                      color: getContrastColor(notificationColor), 
                       borderColor: customColors.border 
                     }}
                   >
@@ -477,8 +544,8 @@ export const ThemeSettings: React.FC<ThemeSettingsProps> = ({ settings, onSettin
                 </div>
                 <input
                   type="color"
-                  value={settings.notificationColor || '#ffffff'} // Default to white
-                  onChange={(e) => onSettingChange('notificationColor', e.target.value)}
+                  value={notificationColor}
+                  onChange={(e) => handleNotificationColorChange(e.target.value)}
                   className="w-10 h-6 rounded border border-border cursor-pointer"
                 />
               </div>
@@ -488,8 +555,8 @@ export const ThemeSettings: React.FC<ThemeSettingsProps> = ({ settings, onSettin
                   <div 
                     className="w-6 h-6 rounded-md border flex items-center justify-center text-xs font-bold"
                     style={{ 
-                      backgroundColor: settings.notificationTextColor || '#000000', // Default to black
-                      color: getContrastColor(settings.notificationTextColor || '#000000'), 
+                      backgroundColor: notificationTextColor,
+                      color: getContrastColor(notificationTextColor), 
                       borderColor: customColors.border 
                     }}
                   >
@@ -502,8 +569,8 @@ export const ThemeSettings: React.FC<ThemeSettingsProps> = ({ settings, onSettin
                 </div>
                 <input
                   type="color"
-                  value={settings.notificationTextColor || '#000000'} // Default to black
-                  onChange={(e) => onSettingChange('notificationTextColor', e.target.value)}
+                  value={notificationTextColor}
+                  onChange={(e) => handleNotificationTextColorChange(e.target.value)}
                   className="w-10 h-6 rounded border border-border cursor-pointer"
                 />
               </div>
@@ -540,6 +607,13 @@ export const ThemeSettings: React.FC<ThemeSettingsProps> = ({ settings, onSettin
                   <option value="Courier New">Courier New</option>
                   <option value="Trebuchet MS">Trebuchet MS</option>
                   <option value="Comic Sans MS">Comic Sans MS</option>
+                  <option value="Impact">Impact</option>
+                  <option value="Lucida Console">Lucida Console</option>
+                  <option value="Tahoma">Tahoma</option>
+                  <option value="Palatino Linotype">Palatino Linotype</option>
+                  <option value="Book Antiqua">Book Antiqua</option>
+                  <option value="Garamond">Garamond</option>
+                  <option value="Brush Script MT">Brush Script MT</option>
                 </select>
               </div>
             </div>

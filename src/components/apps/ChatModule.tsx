@@ -587,7 +587,7 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT
           <div className="flex items-center gap-2">
             <Button
               size="sm"
-              className="rounded-xl text-sm h-7 px-3 py-1 flex items-center gap-2 text-foreground hover:opacity-90 transition-opacity"
+              className="rounded-xl text-sm h-7 px-3 py-1 flex items-center gap-2 text-button-foreground hover:opacity-90 transition-opacity"
               style={{ backgroundColor: 'hsl(var(--button))' }}
               disabled={busy}
               onClick={resetChat}
