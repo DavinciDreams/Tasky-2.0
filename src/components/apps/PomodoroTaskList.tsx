@@ -191,7 +191,11 @@ export const PomodoroTaskList: React.FC<PomodoroTaskListProps> = ({
             resetForm();
             setShowAddModal(true);
           }}
-          className="px-3 py-2 text-sm"
+          className="px-3 py-2 text-sm text-button-foreground"
+          style={{
+            backgroundColor: `hsl(var(--button))`,
+            color: `hsl(var(--button-foreground))`
+          }}
         >
           <Plus size={16} className="mr-2" />
           Add Task
@@ -479,12 +483,22 @@ export const PomodoroTaskList: React.FC<PomodoroTaskListProps> = ({
             <Button
               onClick={() => setShowAddModal(false)}
               variant="outline"
+              className="text-button-foreground"
+              style={{
+                borderColor: `hsl(var(--button))`,
+                color: `hsl(var(--button-foreground))`
+              }}
             >
               Cancel
             </Button>
             <Button
               onClick={handleAddTask}
               disabled={!formData.name.trim()}
+              className="text-button-foreground"
+              style={{
+                backgroundColor: `hsl(var(--button))`,
+                color: `hsl(var(--button-foreground))`
+              }}
             >
               Add Task
             </Button>
@@ -606,6 +620,11 @@ export const PomodoroTaskList: React.FC<PomodoroTaskListProps> = ({
             <Button
               onClick={() => setShowEditModal(false)}
               variant="outline"
+              className="text-button-foreground"
+              style={{
+                borderColor: `hsl(var(--button))`,
+                color: `hsl(var(--button-foreground))`
+              }}
             >
               Cancel
             </Button>
@@ -643,6 +662,11 @@ export const PomodoroTaskList: React.FC<PomodoroTaskListProps> = ({
             <Button
               onClick={() => setShowDeleteConfirm(false)}
               variant="outline"
+              className="text-button-foreground"
+              style={{
+                borderColor: `hsl(var(--button))`,
+                color: `hsl(var(--button-foreground))`
+              }}
             >
               Cancel
             </Button>

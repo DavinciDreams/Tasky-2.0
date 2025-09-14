@@ -321,7 +321,8 @@ export const ThemeSettings: React.FC<ThemeSettingsProps> = ({ settings, onSettin
           <h4 className="text-sm font-medium text-foreground">Custom Colors</h4>
           <button
             onClick={resetToDefault}
-            className="text-xs px-4 py-2 bg-destructive/10 hover:bg-destructive/20 text-destructive border border-destructive/30 rounded-lg transition-all duration-200 hover:scale-105 font-medium"
+            className="text-xs px-4 py-2 text-button-foreground border border-border rounded-lg transition-all duration-200 hover:scale-105 hover:opacity-90 font-medium"
+            style={{ backgroundColor: 'hsl(var(--button))' }}
             title="Reset all colors to default values"
           >
             🔄 Reset to Default

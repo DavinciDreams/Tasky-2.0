@@ -247,13 +247,8 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
         // Use the actual selected model from settings
         let modelId = String(settings.llmModel || 'gemini-1.5-flash');
         
-        // Define available Google models (matching the dropdown)
-        const availableGoogleModels = [
-          'gemini-1.5-flash',
-          'gemini-2.0-flash-exp', 
-          'gemini-2.5-pro',
-          'gemini-1.5-flash-latest'
-        ];
+        // Use the actual GOOGLE_AI_MODELS array
+        const availableGoogleModels = GOOGLE_AI_MODELS;
         
         // Check if current model is available, if not, force update to first available model
         if (!availableGoogleModels.includes(modelId)) {

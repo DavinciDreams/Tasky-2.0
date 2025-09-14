@@ -124,6 +124,11 @@
     border: 1px solid hsl(var(--border));
   }
   
+  /* Button text color class for theme system */
+  .text-button-foreground {
+    color: hsl(var(--button-foreground));
+  }
+  
   /* Priority indicators for Perano-400 vibrant background */
   .priority-low { 
     background-color: hsl(var(--accent));
