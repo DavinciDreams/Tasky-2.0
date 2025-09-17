@@ -31,6 +31,103 @@ Modify reminder properties to adjust notification schedules, update messages, or
 
 ## Database Operations
 
+## Confirmation Outcomes
+
+This tool requires user confirmation. Auto accept is not used for updates.
+
+State
+
+```mermaid
+stateDiagram-v2
+  [*] --> PendingConfirm
+  PendingConfirm --> Accepted
+  PendingConfirm --> Rejected
+  Accepted --> [*]
+  Rejected --> [*]
+```
+
+Accepted
+
+```mermaid
+sequenceDiagram
+  participant UI as ChatUI
+  participant Tool as mcpCall
+  participant Pre as Preload
+  participant Main as ElectronMain
+  participant MCP as MCPServer
+  participant DB as Database
+
+  UI->>Tool: User accepts
+  Tool->>Pre: Call mcp tools call
+  Pre->>Main: IPC invoke
+  Main->>MCP: Send tool call
+  MCP->>DB: Update reminder and days
+  DB-->>MCP: Ok
+  MCP-->>Main: Tool result
+  Main-->>Pre: Result and side effects
+  Main-->>UI: Emit reminders updated and notification
+  Pre-->>Tool: Result
+  Tool-->>UI: Update timeline with updated card
+```
+
+Rejected
+
+```mermaid
+flowchart LR
+  User[User cancels] --> NoCall[No tool call]
+  NoCall --> Timeline[Note cancellation in chat]
+```
+
+Auto accept
+
+- Not applicable for update
+
+Side effects on accept
+- Emits `tasky:reminders-updated` event
+- OS notification for updated reminder
+- Adaptive card snapshot embedded in chat
+
+See also: [State Management Diagrams](../state-management-diagrams.md)
+
+## Adaptive Card Response
+
+Snapshot shape
+
+```json
+{
+  "__taskyCard": {
+    "kind": "result",
+    "tool": "tasky_update_reminder",
+    "status": "success",
+    "data": {
+      "id": "abc123",
+      "message": "Check emails",
+      "time": "10:00",
+      "days": ["monday","tuesday","wednesday","thursday","friday"],
+      "enabled": true
+    },
+    "meta": { "operation": "update", "timestamp": "2025-09-17T16:00:00.000Z" }
+  }
+}
+```
+
+Error variant
+
+```json
+{
+  "__taskyCard": {
+    "kind": "result",
+    "tool": "tasky_update_reminder",
+    "status": "error",
+    "error": { "message": "Reminder not found", "code": "NOT_FOUND" }
+  }
+}
+```
+
+Renderer notes
+- Success: Updated reminder card with changed fields emphasized.
+- Error: Inline error with retry guidance.
+
 ```sql
 -- Fetch current reminder for validation
 SELECT * FROM reminders WHERE id = ?;

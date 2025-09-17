@@ -30,6 +30,80 @@ Query and display existing tasks with support for status filtering, tag filterin
 
 ## Database Operations
 
+## Confirmation Outcomes
+
+This is a read only operation and is auto accepted.
+
+State
+
+```mermaid
+stateDiagram-v2
+  [*] --> AutoAccepted
+  AutoAccepted --> [*]
+```
+
+Auto accept
+
+```mermaid
+flowchart LR
+  UI[ChatUI] --> Tool[mcpCall auto accept]
+  Tool --> Pre[Preload]
+  Pre --> Main[ElectronMain]
+  Main --> MCP[MCPServer]
+  MCP --> Main
+  Main --> UI
+  UI --> Timeline[Render task list]
+```
+
+Rejected
+
+- Not applicable for read only tool
+
+Accepted
+
+- Same as auto accept for read only tool
+
+Side effects
+- Minimal UI side effects; no notifications
+- Adaptive card snapshot embedded in chat
+
+See also: [State Management Diagrams](../state-management-diagrams.md)
+
+## Adaptive Card Response
+
+Snapshot shape
+
+```json
+{
+  "__taskyCard": {
+    "kind": "result",
+    "tool": "tasky_list_tasks",
+    "status": "success",
+    "data": [
+      { "schema": { "id": "a1", "title": "Fix login bug", "tags": ["bug"], "dueDate": "2025-09-08T17:00:00.000Z" }, "status": "PENDING" },
+      { "schema": { "id": "a2", "title": "Write tests", "tags": ["testing"] }, "status": "IN_PROGRESS" }
+    ]
+  }
+}
+```
+
+Error variant
+
+```json
+{
+  "__taskyCard": {
+    "kind": "result",
+    "tool": "tasky_list_tasks",
+    "status": "error",
+    "error": { "message": "Database error" }
+  }
+}
+```
+
+Renderer notes
+- Success: Renders a list of task cards with status and tags.
+- Error: Inline error card with retry option.
+
 ```sql
 -- Main query to fetch all tasks
 SELECT * FROM tasks;

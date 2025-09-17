@@ -27,6 +27,127 @@ Start task execution or mark tasks as complete. Attempts to delegate to the main
 
 ## Execution Architecture
 
+## Confirmation Outcomes
+
+This tool requires user confirmation. Auto accept is not used for execution.
+
+State
+
+```mermaid
+stateDiagram-v2
+  [*] --> PendingConfirm
+  PendingConfirm --> Accepted
+  PendingConfirm --> Rejected
+  Accepted --> [*]
+  Rejected --> [*]
+```
+
+Accepted
+
+```mermaid
+flowchart LR
+  UI[ChatUI] --> Tool[mcpCall]
+  Tool --> Pre[Preload]
+  Pre --> Main[ElectronMain]
+  Main --> MCP[MCPServer]
+  MCP -->|Primary HTTP| MainApp[Main Tasky App]
+  MainApp -->|Exec report| MCP
+  MCP --> DB[(Database)]
+  MCP --> Main
+  Main --> UI
+  UI --> Timeline[Update card with execution result]
+```
+
+Fallback on accept
+
+```mermaid
+flowchart LR
+  UI[ChatUI] --> Tool[mcpCall]
+  Tool --> Pre[Preload]
+  Pre --> Main[ElectronMain]
+  Main --> MCP[MCPServer]
+  MCP --> DB[(Database)]
+  DB --> MCP
+  MCP --> Main
+  Main --> UI
+  UI --> Timeline[Update card with status only]
+```
+
+Rejected
+
+```mermaid
+flowchart LR
+  User[User cancels] --> NoCall[No tool call]
+  NoCall --> Timeline[Note cancellation in chat]
+```
+
+Auto accept
+
+- Not applicable for execute
+
+Side effects on accept
+- Emits `tasky:tasks-updated` event
+- OS notification for task status change
+- Adaptive card snapshot embedded in chat
+
+See also: [State Management Diagrams](../state-management-diagrams.md)
+
+## Adaptive Card Response
+
+Snapshot shape success primary
+
+```json
+{
+  "__taskyCard": {
+    "kind": "result",
+    "tool": "tasky_execute_task",
+    "status": "success",
+    "data": {
+      "schema": { "id": "a1", "title": "Fix login bug" },
+      "execution": { "performed": "automated_execution", "status": "completed" },
+      "status": "COMPLETED"
+    },
+    "meta": { "operation": "execute", "path": "primary", "timestamp": "2025-09-17T16:00:00.000Z" }
+  }
+}
+```
+
+Snapshot shape success fallback
+
+```json
+{
+  "__taskyCard": {
+    "kind": "result",
+    "tool": "tasky_execute_task",
+    "status": "success",
+    "data": {
+      "schema": { "id": "a1", "title": "Fix login bug" },
+      "execution": { "performed": "status_update" },
+      "status": "IN_PROGRESS"
+    },
+    "meta": { "operation": "execute", "path": "fallback", "timestamp": "2025-09-17T16:00:00.000Z" }
+  }
+}
+```
+
+Error variant
+
+```json
+{
+  "__taskyCard": {
+    "kind": "result",
+    "tool": "tasky_execute_task",
+    "status": "error",
+    "error": { "message": "Connection refused", "code": "CONNECTION" }
+  }
+}
+```
+
+Renderer notes
+- Primary: Show execution details and results.
+- Fallback: Show status change note and warn about limited automation.
+- Error: Show inline error with suggestion to start main app.
+
 ### Primary Path: Main App Integration
 ```
 MCP Tool → HTTP POST → Main Tasky App → Agent Execution → Database Update

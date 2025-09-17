@@ -126,7 +126,7 @@ export const ApplicationsTab: React.FC<ApplicationsTabProps> = ({
           </div>
         </div>
       ) : (
-        <div className="flex-1 min-h-0 flex flex-col p-1 relative">
+  <div className={`flex-1 min-h-0 flex flex-col relative ${activeApp === 'chat' ? 'p-0' : 'p-1'}` }>
           
           {activeApp === 'reminders' && <div className="flex-1 min-h-0 overflow-hidden">{remindersContent}</div>}
           {activeApp === 'tasks' && (

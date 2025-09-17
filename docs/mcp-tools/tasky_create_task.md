@@ -35,6 +35,109 @@ Add new tasks to the system with full metadata support including tags, due dates
 
 ## Database Operations
 
+## Confirmation Outcomes
+
+This tool requires user confirmation. Auto accept is not used for creation.
+
+State
+
+```mermaid
+stateDiagram-v2
+  [*] --> PendingConfirm
+  PendingConfirm --> Accepted
+  PendingConfirm --> Rejected
+  Accepted --> [*]
+  Rejected --> [*]
+```
+
+Accepted
+
+```mermaid
+sequenceDiagram
+  participant UI as ChatUI
+  participant Tool as mcpCall
+  participant Pre as Preload
+  participant Main as ElectronMain
+  participant MCP as MCPServer
+  participant DB as Database
+
+  UI->>Tool: User accepts
+  Tool->>Pre: Call mcp tools call
+  Pre->>Main: IPC invoke
+  Main->>MCP: Send tool call
+  MCP->>DB: Insert task and tags
+  DB-->>MCP: Ok
+  MCP-->>Main: Tool result
+  Main-->>Pre: Result and side effects
+  Main-->>UI: Emit tasks updated and notification
+  Pre-->>Tool: Result
+  Tool-->>UI: Update timeline with task card
+```
+
+Rejected
+
+```mermaid
+flowchart LR
+  User[User cancels] --> NoCall[No tool call]
+  NoCall --> Timeline[Note cancellation in chat]
+```
+
+Auto accept
+
+- Not applicable for create
+
+Side effects on accept
+- Emits `tasky:tasks-updated` event
+- OS notification for created task
+- Adaptive card snapshot embedded in chat
+
+See also: [State Management Diagrams](../state-management-diagrams.md)
+
+## Adaptive Card Response
+
+Snapshot shape
+
+```json
+{
+  "__taskyCard": {
+    "kind": "result",
+    "tool": "tasky_create_task",
+    "status": "success",
+    "data": {
+      "schema": {
+        "id": "fix_login_bug_20250907_143022_abc123",
+        "title": "Fix login bug",
+        "description": "Users cannot log in with Google OAuth",
+        "dueDate": "2025-09-08T17:00:00.000Z",
+        "tags": ["bug","authentication","urgent"],
+        "assignedAgent": "claude",
+        "estimatedDuration": 120
+      },
+      "status": "PENDING",
+      "reminderEnabled": false
+    },
+    "meta": { "operation": "create", "timestamp": "2025-09-17T16:00:00.000Z" }
+  }
+}
+```
+
+Error variant
+
+```json
+{
+  "__taskyCard": {
+    "kind": "result",
+    "tool": "tasky_create_task",
+    "status": "error",
+    "error": { "message": "title is required", "code": "VALIDATION" }
+  }
+}
+```
+
+Renderer notes
+- Success: Task card with badges and tags.
+- Error: Inline error with missing fields.
+
 ```sql
 -- Main task insertion
 INSERT INTO tasks (

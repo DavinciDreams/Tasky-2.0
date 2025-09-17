@@ -27,6 +27,106 @@ Remove tasks from the system when they are no longer needed. This is a destructi
 
 ## Database Operations
 
+## Confirmation Outcomes
+
+This tool requires user confirmation. Auto accept is not used for delete.
+
+State
+
+```mermaid
+stateDiagram-v2
+  [*] --> PendingConfirm
+  PendingConfirm --> Accepted
+  PendingConfirm --> Rejected
+  Accepted --> [*]
+  Rejected --> [*]
+```
+
+Accepted
+
+```mermaid
+sequenceDiagram
+  participant UI as ChatUI
+  participant Tool as mcpCall
+  participant Pre as Preload
+  participant Main as ElectronMain
+  participant MCP as MCPServer
+  participant DB as Database
+
+  UI->>Tool: User confirms delete
+  Tool->>Pre: Call mcp tools call
+  Pre->>Main: IPC invoke
+  Main->>MCP: Send tool call
+  MCP->>DB: Delete task and tags
+  DB-->>MCP: Ok
+  MCP-->>Main: Tool result
+  Main-->>Pre: Result and side effects
+  Main-->>UI: Emit tasks updated and notification
+  Pre-->>Tool: Result
+  Tool-->>UI: Update timeline with deletion confirmation
+```
+
+Rejected
+
+```mermaid
+flowchart LR
+  User[User cancels] --> NoCall[No tool call]
+  NoCall --> Timeline[No changes; note cancellation]
+```
+
+Auto accept
+
+- Not applicable for delete
+
+Side effects on accept
+- Emits `tasky:tasks-updated` event
+- OS notification for deleted task
+- Adaptive card snapshot embedded in chat
+
+See also: [State Management Diagrams](../state-management-diagrams.md)
+
+## Adaptive Card Response
+
+Snapshot shape
+
+```json
+{
+  "__taskyCard": {
+    "kind": "result",
+    "tool": "tasky_delete_task",
+    "status": "success",
+    "data": {
+      "id": "fix_login_bug_20250907_143022_abc123",
+      "title": "Fix login bug",
+      "tags": ["bug","authentication"],
+      "status": "PENDING"
+    },
+    "meta": {
+      "operation": "delete",
+      "timestamp": "2025-09-17T16:00:00.000Z"
+    }
+  }
+}
+```
+
+Error variant
+
+```json
+{
+  "__taskyCard": {
+    "kind": "result",
+    "tool": "tasky_delete_task",
+    "status": "error",
+    "error": { "message": "Task not found", "code": "NOT_FOUND" }
+  }
+}
+```
+
+Renderer notes
+- Success: Deletion confirmation with task summary.
+- Error: Inline error card with retry guidance.
+- Unknown shape: Fallback to raw JSON rendering.
+
 ```sql
 -- Transaction ensures referential integrity
 BEGIN TRANSACTION;

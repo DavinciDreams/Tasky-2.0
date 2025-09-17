@@ -24,6 +24,80 @@ Query and display existing reminders to help users review their notification sch
 
 ## Database Operations
 
+## Confirmation Outcomes
+
+This is a read only operation and is auto accepted.
+
+State
+
+```mermaid
+stateDiagram-v2
+  [*] --> AutoAccepted
+  AutoAccepted --> [*]
+```
+
+Auto accept
+
+```mermaid
+flowchart LR
+  UI[ChatUI] --> Tool[mcpCall auto accept]
+  Tool --> Pre[Preload]
+  Pre --> Main[ElectronMain]
+  Main --> MCP[MCPServer]
+  MCP --> Main
+  Main --> UI
+  UI --> Timeline[Render reminder list]
+```
+
+Rejected
+
+- Not applicable for read only tool
+
+Accepted
+
+- Same as auto accept for read only tool
+
+Side effects
+- Minimal UI side effects; no notifications
+- Adaptive card snapshot embedded in chat
+
+See also: [State Management Diagrams](../state-management-diagrams.md)
+
+## Adaptive Card Response
+
+Snapshot shape
+
+```json
+{
+  "__taskyCard": {
+    "kind": "result",
+    "tool": "tasky_list_reminders",
+    "status": "success",
+    "data": [
+      { "id": "abc123", "message": "Check emails", "time": "09:00", "days": ["monday","tuesday","wednesday","thursday","friday"], "enabled": true },
+      { "id": "def456", "message": "Weekend planning", "time": "10:00", "days": ["saturday","sunday"], "enabled": false }
+    ]
+  }
+}
+```
+
+Error variant
+
+```json
+{
+  "__taskyCard": {
+    "kind": "result",
+    "tool": "tasky_list_reminders",
+    "status": "error",
+    "error": { "message": "Database error" }
+  }
+}
+```
+
+Renderer notes
+- Success: Renders a list of reminder cards with schedule and status.
+- Error: Inline error card with retry option.
+
 ```sql
 -- Main query to fetch reminders (handled by ReminderBridge)
 SELECT * FROM reminders;

@@ -33,6 +33,107 @@ Set up recurring or one-time notifications to remind users about tasks, deadline
 
 ## Time Processing Logic
 
+## Confirmation Outcomes
+
+This tool requires user confirmation. Auto accept is not used for creation.
+
+State
+
+```mermaid
+stateDiagram-v2
+  [*] --> PendingConfirm
+  PendingConfirm --> Accepted
+  PendingConfirm --> Rejected
+  Accepted --> [*]
+  Rejected --> [*]
+```
+
+Accepted
+
+```mermaid
+sequenceDiagram
+  participant UI as ChatUI
+  participant Tool as mcpCall
+  participant Pre as Preload
+  participant Main as ElectronMain
+  participant MCP as MCPServer
+  participant DB as Database
+
+  UI->>Tool: User accepts
+  Tool->>Pre: Call mcp tools call
+  Pre->>Main: IPC invoke
+  Main->>MCP: Send tool call
+  MCP->>DB: Insert reminder and days
+  DB-->>MCP: Ok
+  MCP-->>Main: Tool result
+  Main-->>Pre: Result and side effects
+  Main-->>UI: Emit reminders updated and notification
+  Pre-->>Tool: Result
+  Tool-->>UI: Update timeline with card
+```
+
+Rejected
+
+```mermaid
+flowchart LR
+  User[User cancels] --> NoCall[No tool call]
+  NoCall --> Timeline[Note cancellation in chat]
+```
+
+Auto accept
+
+- Not applicable for create
+
+Side effects on accept
+- Emits `tasky:reminders-updated` event
+- OS notification for created reminder
+- Adaptive card snapshot embedded in chat
+
+See also: [State Management Diagrams](../state-management-diagrams.md)
+
+## Adaptive Card Response
+
+Snapshot shape
+
+```json
+{
+  "__taskyCard": {
+    "kind": "result",
+    "tool": "tasky_create_reminder",
+    "status": "success",
+    "data": {
+      "id": "abc123",
+      "message": "Check emails",
+      "time": "09:00",
+      "days": ["monday","tuesday","wednesday","thursday","friday"],
+      "enabled": true,
+      "oneTime": false
+    },
+    "meta": {
+      "operation": "create",
+      "timestamp": "2025-09-17T16:00:00.000Z"
+    }
+  }
+}
+```
+
+Error variant
+
+```json
+{
+  "__taskyCard": {
+    "kind": "result",
+    "tool": "tasky_create_reminder",
+    "status": "error",
+    "error": { "message": "Validation failed", "code": "VALIDATION" }
+  }
+}
+```
+
+Renderer notes
+- Success: Render created reminder card with schedule chips.
+- Error: Inline error card with validation hints.
+
 ### Standard Time Format
 - **Input:** "09:00", "14:30", "23:59"
 - **Processing:** Direct HH:MM validation

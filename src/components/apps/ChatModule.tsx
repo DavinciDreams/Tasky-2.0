@@ -609,43 +609,47 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. After 
   };
 
   return (
-    <div ref={rootRef} className="h-full w-full flex flex-col relative">
-      {/* Content area that takes up available space minus input box */}
-      <div className="flex-1 min-h-0 flex flex-col relative w-full overflow-hidden">
-        {/* Simple header with reset button */}
-        <div className="flex-shrink-0 flex items-center justify-between mb-2 px-1">
-          <div className="flex items-center gap-2">
-            <h2 className="text-lg font-semibold text-foreground">Tasky Chat</h2>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              className="rounded-xl text-sm h-7 px-3 py-1 flex items-center gap-2 text-button-foreground hover:opacity-90 transition-opacity"
-              style={{ backgroundColor: 'hsl(var(--button))' }}
-              disabled={busy}
-              onClick={resetChat}
-            >
-              <span>🔄</span>
-              <span>Reset Chat</span>
-            </Button>
-          </div>
+  <div ref={rootRef} className="h-full w-full flex flex-col relative">
+      {/* Header section - fixed height */}
+  <div className="flex-shrink-0 flex items-center justify-between mb-4 px-4">
+        <div className="flex items-center gap-2">
+          <h2 className="text-lg font-semibold text-foreground">Tasky Chat</h2>
         </div>
-
-        {!providerSupported && (
-          <div className="text-xs text-accent mb-2">
-            Provider not yet supported here. Please select Google or LM Studio in Settings.
-          </div>
-        )}
-
-        {/* Message container with controlled height - extends to bottom */}
-        <div className="flex-1 w-full rounded-2xl border border-border/30 p-2 flex flex-col relative overflow-hidden bg-background min-h-0">
-
-          <div
-            ref={scrollRef}
-            className="chat-scroll-container flex-1 overflow-y-auto no-scrollbar p-2 w-full relative min-h-0"
-            onScroll={handleScroll}
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            className="rounded-xl text-sm h-7 px-3 py-1 flex items-center gap-2 text-button-foreground hover:opacity-90 transition-opacity"
+            style={{ backgroundColor: 'hsl(var(--button))' }}
+            disabled={busy}
+            onClick={resetChat}
           >
-            {/* Use the new MessageContainer for proper ordering */}
+            <span>🔄</span>
+            <span>Reset Chat</span>
+          </Button>
+        </div>
+      </div>
+
+      {!providerSupported && (
+        <div className="flex-shrink-0 text-xs text-accent mb-3 px-4">
+          Provider not yet supported here. Please select Google or LM Studio in Settings.
+        </div>
+      )}
+
+      {/* Unified message area (scrollable) */}
+      <div className="flex-1 min-h-0 w-full flex flex-col border-t border-b md:border border-border/30 bg-background">
+        <div
+          ref={scrollRef}
+          className="chat-scroll-container flex-1 min-h-0 overflow-y-auto no-scrollbar px-4 py-4 w-full flex flex-col"
+          onScroll={handleScroll}
+        >
+          {messages.length === 0 ? (
+            <div className="flex-1 w-full flex items-center justify-center">
+              <div className="text-center px-4">
+                <h3 className="text-lg font-medium text-foreground mb-2">Start a conversation with Tasky</h3>
+                <p className="text-sm text-muted-foreground">Ask me about tasks, reminders, or anything else!</p>
+              </div>
+            </div>
+          ) : (
             <MessageContainer
               messages={messages}
               toolEvents={toolEvents}
@@ -654,21 +658,21 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. After 
               streamingContent={streamingAssistantMessage}
               onConfirm={handleConfirmSimplified}
             />
-          </div>
+          )}
         </div>
-
-        {/* Confirmation overlay - Hidden when using inline confirmations */}
-        {false && pendingConfirm && (
-          <ConfirmOverlay
-            pendingConfirm={pendingConfirm}
-            onConfirm={handleConfirmSimplified}
-            rootRef={rootRef}
-          />
-        )}
       </div>
 
-      {/* Input box - positioned closer to message area */}
-      <div className="flex-shrink-0 w-full bg-background border-t border-border/30 px-3 pb-3 pt-2 mt-2">
+      {/* Confirmation overlay - Hidden when using inline confirmations */}
+      {false && pendingConfirm && (
+        <ConfirmOverlay
+          pendingConfirm={pendingConfirm}
+          onConfirm={handleConfirmSimplified}
+          rootRef={rootRef}
+        />
+      )}
+
+      {/* Composer at bottom via flex layout */}
+      <div className="flex-shrink-0 w-full bg-background border-t border-border/30 px-4 py-3 mt-auto">
         <ChatComposer
           input={input}
           setInput={setInput}

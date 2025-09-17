@@ -37,6 +37,108 @@ Modify task properties including status transitions, content updates, tag change
 
 ## Database Operations
 
+## Confirmation Outcomes
+
+This tool requires user confirmation. Auto accept is not used for updates.
+
+State
+
+```mermaid
+stateDiagram-v2
+  [*] --> PendingConfirm
+  PendingConfirm --> Accepted
+  PendingConfirm --> Rejected
+  Accepted --> [*]
+  Rejected --> [*]
+```
+
+Accepted
+
+```mermaid
+sequenceDiagram
+  participant UI as ChatUI
+  participant Tool as mcpCall
+  participant Pre as Preload
+  participant Main as ElectronMain
+  participant MCP as MCPServer
+  participant DB as Database
+
+  UI->>Tool: User accepts
+  Tool->>Pre: Call mcp tools call
+  Pre->>Main: IPC invoke
+  Main->>MCP: Send tool call
+  MCP->>DB: Update task and tags
+  DB-->>MCP: Ok
+  MCP-->>Main: Tool result
+  Main-->>Pre: Result and side effects
+  Main-->>UI: Emit tasks updated and notification
+  Pre-->>Tool: Result
+  Tool-->>UI: Update timeline with updated task card
+```
+
+Rejected
+
+```mermaid
+flowchart LR
+  User[User cancels] --> NoCall[No tool call]
+  NoCall --> Timeline[Note cancellation in chat]
+```
+
+Auto accept
+
+- Not applicable for update
+
+Side effects on accept
+- Emits `tasky:tasks-updated` event
+- OS notification for updated task
+- Adaptive card snapshot embedded in chat
+
+See also: [State Management Diagrams](../state-management-diagrams.md)
+
+## Adaptive Card Response
+
+Snapshot shape
+
+```json
+{
+  "__taskyCard": {
+    "kind": "result",
+    "tool": "tasky_update_task",
+    "status": "success",
+    "data": {
+      "schema": {
+        "id": "fix_login_bug_20250907_143022_abc123",
+        "title": "Fix critical login bug",
+        "description": "Updated scope",
+        "dueDate": "2025-09-10T17:00:00.000Z",
+        "tags": ["bug","authentication","urgent"]
+      },
+      "status": "IN_PROGRESS",
+      "reminderEnabled": true,
+      "reminderTime": "09:00"
+    },
+    "meta": { "operation": "update", "timestamp": "2025-09-17T16:00:00.000Z" }
+  }
+}
+```
+
+Error variant
+
+```json
+{
+  "__taskyCard": {
+    "kind": "result",
+    "tool": "tasky_update_task",
+    "status": "error",
+    "error": { "message": "Task not found", "code": "NOT_FOUND" }
+  }
+}
+```
+
+Renderer notes
+- Success: Updated task card with status badges and tag changes.
+- Error: Inline error with actionable fixes.
+
 ```sql
 -- Fetch current task for validation
 SELECT * FROM tasks WHERE id = ?;
