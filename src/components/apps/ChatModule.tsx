@@ -78,7 +78,7 @@ User: "list tasks" → Tool returns data → You respond:
 IMPORTANT: 
 - Always use the mcpCall tool function when users request task or reminder operations
 - Extract parameters properly from natural language requests
-- Show a brief "Plan:" before calling tools
+- Do not output a 'Plan:' step; call tools as needed and present results directly
 - Use tools only when intent is actionable
 - Map "start"→IN_PROGRESS, "finish"→COMPLETED
 - Remember task IDs from previous responses in the conversation
@@ -112,6 +112,27 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. After 
   const lastFlushRef = useRef<number>(0);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const messagesRef = useRef<ChatMessage[]>([]);
+
+  // Sanitize assistant text: strip a leading 'Plan:' line if present
+  const sanitizeAssistantText = useCallback((text: string) => {
+    try {
+      // Remove a single leading line starting with 'Plan:' and following newline(s)
+      return text.replace(/^\s*Plan:\s.*?(\r?\n)+/i, '').trimStart();
+    } catch {
+      return text;
+    }
+  }, []);
+
+  // Sanitize system prompt: remove any instruction to show a 'Plan:'
+  const sanitizeSystemPrompt = useCallback((prompt: string) => {
+    try {
+      const lines = prompt.split(/\r?\n/);
+      const filtered = lines.filter(l => !/show\s+a\s+brief\s+"?plan:?"?/i.test(l));
+      return filtered.join('\n');
+    } catch {
+      return prompt;
+    }
+  }, []);
 
   // Custom hooks
   const {
@@ -396,9 +417,10 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. After 
         throw new Error('Selected provider not yet supported in this chat module');
       }
 
-      const effectiveSys = useCustomPrompt && systemPrompt.trim().length > 0 
+      const effectiveSysRaw = useCustomPrompt && systemPrompt.trim().length > 0 
         ? systemPrompt.trim() 
         : TASKY_DEFAULT_PROMPT;
+      const effectiveSys = sanitizeSystemPrompt(effectiveSysRaw);
 
       chatMessages = [
         { role: 'system', content: effectiveSys },
@@ -465,10 +487,11 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. After 
           setMessages(prev => {
             const copy = [...prev];
             const lastIdx = copy.length - 1;
+            const finalText = sanitizeAssistantText(assistantMessage);
             if (streamStarted && lastIdx >= 0 && copy[lastIdx].role === 'assistant') {
-              copy[lastIdx] = { role: 'assistant', content: assistantMessage } as ChatMessage;
+              copy[lastIdx] = { role: 'assistant', content: finalText } as ChatMessage;
             } else {
-              copy.push({ role: 'assistant', content: assistantMessage } as ChatMessage);
+              copy.push({ role: 'assistant', content: finalText } as ChatMessage);
             }
             return copy;
           });
@@ -555,10 +578,11 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. After 
             setMessages(prev => {
               const copy = [...prev];
               const lastIdx = copy.length - 1;
+              const finalText = sanitizeAssistantText(assistantMessageRetry);
               if (streamStartedRetry && lastIdx >= 0 && copy[lastIdx].role === 'assistant') {
-                copy[lastIdx] = { role: 'assistant', content: assistantMessageRetry } as ChatMessage;
+                copy[lastIdx] = { role: 'assistant', content: finalText } as ChatMessage;
               } else {
-                copy.push({ role: 'assistant', content: assistantMessageRetry } as ChatMessage);
+                copy.push({ role: 'assistant', content: finalText } as ChatMessage);
               }
               return copy;
             });
@@ -636,10 +660,10 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. After 
       )}
 
       {/* Unified message area (scrollable) */}
-      <div className="flex-1 min-h-0 w-full flex flex-col border-t border-b md:border border-border/30 bg-background">
+      <div className="flex-1 min-h-[60vh] md:min-h-[70vh] w-full flex flex-col border-t border-b md:border border-border/30 bg-background">
         <div
           ref={scrollRef}
-          className="chat-scroll-container flex-1 min-h-0 overflow-y-auto no-scrollbar px-4 py-4 w-full flex flex-col"
+          className="chat-scroll-container flex-1 min-h-0 overflow-y-auto no-scrollbar px-4 pt-4 pb-24 w-full flex flex-col"
           onScroll={handleScroll}
         >
           {messages.length === 0 ? (
@@ -671,8 +695,8 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. After 
         />
       )}
 
-      {/* Composer at bottom via flex layout */}
-      <div className="flex-shrink-0 w-full bg-background border-t border-border/30 px-4 py-3 mt-auto">
+      {/* Composer pinned at bottom */}
+      <div className="flex-shrink-0 w-full bg-background border-t border-border/30 px-4 py-3 mt-auto sticky bottom-0 z-10">
         <ChatComposer
           input={input}
           setInput={setInput}

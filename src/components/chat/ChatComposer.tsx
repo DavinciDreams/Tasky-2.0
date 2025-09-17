@@ -97,6 +97,7 @@ export const ChatComposer: React.FC<ChatComposerProps> = ({
         `}
         style={{
           background: 'linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--card) / 0.95) 100%)',
+          width: '100%'
         }}
         onSubmit={(e) => {
           e.preventDefault();

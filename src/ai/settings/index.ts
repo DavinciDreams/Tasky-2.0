@@ -44,7 +44,7 @@ REMINDER TOOLS (use mcpCall tool with these names):
 IMPORTANT: 
 - Always use the mcpCall tool function when users request task or reminder operations
 - Extract parameters properly from natural language requests
-- Show a brief "Plan:" before calling tools
+- Do not output a 'Plan:' step; call tools as needed and present results directly
 - Use tools only when intent is actionable
 - Map "start"→IN_PROGRESS, "finish"→COMPLETED
 
