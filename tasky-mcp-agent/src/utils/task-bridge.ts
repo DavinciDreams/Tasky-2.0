@@ -211,11 +211,16 @@ export class TaskBridge {
   }
 
   async deleteTask(args: any): Promise<CallToolResult> {
-    const { id } = args || {};
-    if (!id) return { content: [{ type: 'text', text: 'id is required' }], isError: true };
+    const { id: idArg, title } = args || {};
+    let id = idArg;
+    if (!id && title) {
+      const row: any = this.db.prepare('SELECT id, title FROM tasks WHERE title = ? ORDER BY created_at DESC LIMIT 1').get(String(title));
+      if (row) id = row.id;
+    }
+    if (!id) return { content: [{ type: 'text', text: 'Provide id or exact title' }], isError: true };
     
     // Get task info before deleting for the response
-    const task: any = this.db.prepare('SELECT title FROM tasks WHERE id = ?').get(id);
+    const task: any = this.db.prepare('SELECT id, title, status FROM tasks WHERE id = ?').get(id);
     if (!task) return { content: [{ type: 'text', text: 'Task not found' }], isError: true };
     
     const t = this.db.transaction(() => {
@@ -226,7 +231,8 @@ export class TaskBridge {
     
     return { 
       content: [
-        { type: 'text', text: `Task "${task.title}" deleted successfully` }
+        { type: 'text', text: `Task "${task.title}" deleted` },
+        { type: 'text', text: JSON.stringify({ success: true, id: task.id, title: task.title, status: task.status }) }
       ] 
     };
   }

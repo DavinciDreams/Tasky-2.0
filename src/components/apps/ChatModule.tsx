@@ -39,7 +39,7 @@ TASK TOOLS (use mcpCall tool with these names):
 - tasky_create_task: Create tasks with title, description, dueDate, tags, etc.
 - tasky_list_tasks: List existing tasks with optional filtering  
 - tasky_update_task: Update task status or properties (requires id)
-- tasky_delete_task: Delete tasks by ID (requires id)
+- tasky_delete_task: Delete tasks by ID or exact title
 - tasky_execute_task: Execute a task (requires id, optional status)
 
 REMINDER TOOLS (use mcpCall tool with these names):
@@ -84,6 +84,8 @@ IMPORTANT:
 - Map "start"→IN_PROGRESS, "finish"→COMPLETED
 - Remember task IDs from previous responses in the conversation
 - ALWAYS display tool results - never hide them from the user
+
+For deletions: Prefer using the task ID if it is available from prior context; otherwise, you may use the exact task title to delete.
 
 For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. After the tool executes, format and show the returned task data to the user.
 For listing reminders, call mcpCall with name="tasky_list_reminders" and args={}. After the tool executes, format and show the returned reminder data to the user.`;
@@ -692,7 +694,7 @@ For listing reminders, call mcpCall with name="tasky_list_reminders" and args={}
       )}
 
   {/* Unified message area (scrollable) */}
-  <div className="flex-1 min-h-[60vh] md:min-h-[70vh] w-full flex flex-col bg-background">
+  <div className="flex-1 min-h-0 w-full flex flex-col bg-background">
         <div
           ref={scrollRef}
           className="chat-scroll-container flex-1 min-h-0 overflow-y-auto no-scrollbar px-5 md:px-6 pt-2 pb-4 w-full flex flex-col"

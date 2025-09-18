@@ -146,12 +146,16 @@ server.tool(
 
 server.tool(
   'tasky_delete_task',
-  'Delete a Tasky task by ID',
+  'Delete a Tasky task by ID or exact title',
   {
-    id: z.string().describe('Task ID to delete'),
+    id: z.string().optional().describe('Task ID to delete'),
+    title: z.string().optional().describe('Exact task title to delete (used when id not provided)'),
   },
   async (args) => {
     try {
+      if (!args?.id && !args?.title) {
+        throw new Error('Provide either id or title');
+      }
       const result = await taskBridge.deleteTask(args);
       return result;
     } catch (error) {

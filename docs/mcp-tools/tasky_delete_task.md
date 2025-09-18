@@ -1,7 +1,7 @@
 # tasky_delete_task
 
 ## Description
-Permanently deletes a Tasky task by ID, removing all associated data including tags and references.
+Permanently deletes a Tasky task by ID or exact title, removing all associated data including tags and references.
 
 ## Purpose
 Remove tasks from the system when they are no longer needed. This is a destructive operation that cannot be undone and requires explicit user confirmation.
@@ -10,16 +10,17 @@ Remove tasks from the system when they are no longer needed. This is a destructi
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `id` | string | ✅ | Task ID to delete |
+| `id` | string | ➖ | Task ID to delete |
+| `title` | string | ➖ | Exact task title to delete (used when `id` not provided) |
 
 ## UI Flow
 
-1. **User Input:** "Delete task ABC123" or "Remove the login bug task"
-2. **AI Processing:** Identifies task ID to delete
+1. **User Input:** "Delete task ABC123" or "Delete 'Fix login bug'"
+2. **AI Processing:** Identifies task by ID or resolves exact title
 3. **Tool Call:** `mcpCall` invoked with task ID
 4. **⚠️ Confirmation Required:** User sees destructive action warning
 5. **Confirmation Dialog:** Shows:
-   - Task details to be deleted
+  - Task details to be deleted (ID or Title)
    - Warning about permanent removal
    - Cascading deletions (tags, references)
 6. **Execution:** Upon user approval, task permanently removed
@@ -163,8 +164,8 @@ curl -X POST http://localhost:7844/mcp \
     "params": {
       "name": "tasky_delete_task",
       "arguments": {
-        "id": "fix_login_bug_20250907_143022_abc123"
-      }
+            "title": "Fix login bug"
+          }
     }
   }'
 ```
