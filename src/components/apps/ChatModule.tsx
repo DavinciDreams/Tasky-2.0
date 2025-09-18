@@ -38,8 +38,7 @@ When users want to create, list, update, delete, or execute tasks or reminders, 
 TASK TOOLS (use mcpCall tool with these names):
 - tasky_create_task: Create tasks with title, description, dueDate, tags, etc.
 - tasky_list_tasks: List existing tasks with optional filtering  
-- tasky_update_task: Update task status or properties (requires id)
- - tasky_update_task: Update task status or properties (use id when available; otherwise provide matchTitle with the task's title — typos ok)
+- tasky_update_task: Update task properties. Prefer id; otherwise provide matchTitle with the task's title — typos ok
 - tasky_delete_task: Delete tasks by ID or exact title
  - tasky_delete_task: Delete tasks by ID or title (handles close title matches)
 - tasky_execute_task: Execute a task (requires id, optional status)
@@ -63,6 +62,13 @@ EXAMPLE CORRECT FLOW:
 3. Response includes: {"schema":{"id":"create_new_folder_20250914_164055_e6213ef4",...}}
 4. User: "execute the task"
 5. Call: mcpCall with name="tasky_execute_task", args={"id":"create_new_folder_20250914_164055_e6213ef4"}
+
+RENAME TASKS (important):
+- If the user says “rename <title> to <new>”, or “update task <title> name to <new>”, call:
+  - mcpCall name="tasky_update_task", args={ matchTitle: "<title>", newTitle: "<new>" }
+  - If you already have the id, use: args={ id: "<id>", newTitle: "<new>" }
+- Do NOT send only { id, title: "<title>" } for renames — always provide newTitle for the new name.
+- Do NOT change status when the user only asks to rename.
 
 TOOL RESULT DISPLAY REQUIREMENTS:
 - After calling ANY tool, you MUST display the results to the user

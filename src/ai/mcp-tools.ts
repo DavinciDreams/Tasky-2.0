@@ -113,8 +113,18 @@ function preprocessArgs(name: string, raw: any): any {
     const n = String(name || '').toLowerCase();
     const a: any = { ...(raw || {}) };
     if (n === 'tasky_update_task') {
+      // If an id is provided but doesn't look like a real Tasky ID, discard it to allow title matching
+      if (a.id && !/_\d{8}_\d{6}_/.test(String(a.id))) {
+        delete a.id;
+      }
       if (!a.id && a.title && !a.matchTitle) a.matchTitle = a.title;
-      if (!a.id && a.name && !a.matchTitle) a.matchTitle = a.name;
+      // If both title (match target) and name (likely new value) are present, prefer using name as newTitle
+      if (a.title && a.name && !a.newTitle) {
+        a.newTitle = String(a.name);
+      } else if (!a.id && a.name && !a.matchTitle) {
+        // Only use name as matchTitle when title is absent
+        a.matchTitle = a.name;
+      }
       if (!a.newTitle) {
         if (typeof a.to === 'string') a.newTitle = a.to;
         else if (typeof a.value === 'string') a.newTitle = a.value;
@@ -123,13 +133,15 @@ function preprocessArgs(name: string, raw: any): any {
       if (!a.newTitle && typeof a.rename === 'string') a.newTitle = a.rename;
       if (!a.newTitle && typeof a.newName === 'string') a.newTitle = a.newName;
       // Try to parse simple natural phrase patterns on raw text-like payloads
-      if (!a.newTitle && typeof a === 'object') {
-        const guess = (a.title || a.name || a.matchTitle || '') as string;
-        if (typeof guess === 'string') {
-          const m = guess.match(/^(.*?)(?:\s+(?:name|title))?\s+to\s+(.+)$/i);
+      if (typeof a === 'object') {
+        const candidates = [a.title, a.matchTitle, a.name].filter(Boolean) as string[];
+        for (const cand of candidates) {
+          const m = String(cand).match(/^(.*?)(?:\s+(?:name|title))?\s+to\s+(.+)$/i);
           if (m) {
-            a.matchTitle = a.matchTitle || m[1].trim();
-            a.newTitle = m[2].replace(/["']/g,'').trim();
+            const left = m[1].replace(/["']/g,'').replace(/^\s*from\s+/i,'').trim();
+            a.matchTitle = left;
+            if (!a.newTitle) a.newTitle = m[2].replace(/["']/g,'').trim();
+            break;
           }
         }
       }
@@ -137,6 +149,10 @@ function preprocessArgs(name: string, raw: any): any {
       delete a.rename; delete a.newName; delete a.name;
     }
     if (n === 'tasky_update_reminder') {
+      // If an id is provided but doesn't look like a real reminder ID, discard it to allow message matching
+      if (a.id && !/^rem_/.test(String(a.id))) {
+        delete a.id;
+      }
       if (!a.id && a.message && !a.matchMessage) a.matchMessage = a.message;
       if (!a.id && a.name && !a.matchMessage) a.matchMessage = a.name;
       if (!a.id && a.title && !a.matchMessage) a.matchMessage = a.title;
@@ -148,6 +164,19 @@ function preprocessArgs(name: string, raw: any): any {
       if (!a.newMessage && typeof a.rename === 'string') a.newMessage = a.rename;
       if (!a.newMessage && typeof a.newName === 'string') a.newMessage = a.newName;
       if (!a.newMessage && typeof a.newTitle === 'string') a.newMessage = a.newTitle;
+      // Parse phrase patterns and override matchMessage when detected
+      if (typeof a === 'object') {
+        const candidates = [a.message, a.matchMessage, a.name, a.title].filter(Boolean) as string[];
+        for (const cand of candidates) {
+          const m = String(cand).match(/^(.*?)(?:\s+(?:name|title|message))?\s+to\s+(.+)$/i);
+          if (m) {
+            const left = m[1].replace(/["']/g,'').replace(/^\s*from\s+/i,'').trim();
+            a.matchMessage = left;
+            if (!a.newMessage) a.newMessage = m[2].replace(/["']/g,'').trim();
+            break;
+          }
+        }
+      }
       delete a.to; delete a.value; delete a.new;
       delete a.rename; delete a.newName; delete a.name; delete a.title; delete a.newTitle;
     }
