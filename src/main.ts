@@ -882,6 +882,12 @@ ipcMain.handle('get-setting', (event, key) => {
 ipcMain.on('set-setting', (event, key, value) => {
   if (store) {
     store.setSetting(key, value);
+    try {
+      if (mainWindow && mainWindow.webContents) {
+        const payload = { key, value };
+        mainWindow.webContents.send('settings-update', payload);
+      }
+    } catch {}
     
     // Apply setting changes to scheduler
     if (scheduler) {

@@ -154,15 +154,17 @@ export class TaskBridge {
         q = q.replace(/["']/g, '');
         q = q.replace(/\s+(name|title)\s+to\s+.*$/, '');
         q = q.replace(/\s+to\s+.*$/, '');
-        q = q.replace(/^update\s+/, '').trim();
+        q = q.replace(/^(update|change|rename)\s+/, '').trim();
         return q.trim();
       };
-      const query = sanitize(String(matchTitle));
-      const exact = rows.find(r => r.title.toLowerCase() === query);
+      const normalize = (s: string) => sanitize(s).replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+      const queryRaw = sanitize(String(matchTitle));
+      const query = normalize(queryRaw);
+      const exact = rows.find(r => normalize(r.title) === query);
       if (exact) id = exact.id;
       else {
         const score = (a: string, b: string) => {
-          a = a.toLowerCase(); b = b.toLowerCase();
+          a = normalize(a); b = normalize(b);
           if (a === b) return 1;
           if (a.includes(b) || b.includes(a)) return 0.9;
           const as = new Set(a.split(/\s+/));
@@ -256,15 +258,17 @@ export class TaskBridge {
         q = q.replace(/["']/g, '');
         q = q.replace(/\s+(name|title)\s+to\s+.*$/, '');
         q = q.replace(/\s+to\s+.*$/, '');
-        q = q.replace(/^delete\s+/, '').trim();
+        q = q.replace(/^(delete|remove)\s+/, '').trim();
         return q.trim();
       };
-      const q = sanitize(String(title));
-      const exact = rows.find(r => r.title.toLowerCase() === q);
+      const normalize = (s: string) => sanitize(s).replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+      const qRaw = sanitize(String(title));
+      const q = normalize(qRaw);
+      const exact = rows.find(r => normalize(r.title) === q);
       if (exact) id = exact.id;
       else {
         const score = (a: string, b: string) => {
-          a = a.toLowerCase(); b = b.toLowerCase();
+          a = normalize(a); b = normalize(b);
           if (a === b) return 1;
           if (a.includes(b) || b.includes(a)) return 0.9;
           const as = new Set(a.split(/\s+/));

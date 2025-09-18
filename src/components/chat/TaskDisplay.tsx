@@ -191,11 +191,32 @@ export const ReminderDisplay: React.FC<ReminderDisplayProps> = ({ reminders }) =
         try {
           const tf = await (window as any)?.electronAPI?.getSetting?.('timeFormat');
           if (!mounted) return;
-          const mapped = tf === '24' ? '24h' : tf === '12' ? '12h' : (tf === '24h' || tf === '12h') ? tf : '12h';
+          const mapped = ((): '12h' | '24h' => {
+            if (tf === '24' || tf === '24h' || tf === true) return '24h';
+            if (tf === '12' || tf === '12h' || tf === false) return '12h';
+            const s = String(tf || '').toLowerCase();
+            return s.includes('24') ? '24h' : '12h';
+          })();
           setTimeFormat(mapped);
         } catch {}
       })();
     } catch {}
+    const handler = (_: any, payload: any) => {
+      try {
+        if (!payload) return;
+        if (payload.key === 'timeFormat') {
+          const v = payload.value;
+          const mapped = ((): '12h' | '24h' => {
+            if (v === '24' || v === '24h' || v === true) return '24h';
+            if (v === '12' || v === '12h' || v === false) return '12h';
+            const s = String(v || '').toLowerCase();
+            return s.includes('24') ? '24h' : '12h';
+          })();
+          setTimeFormat(mapped);
+        }
+      } catch {}
+    };
+    try { (window as any)?.electronAPI?.onSettingsUpdate?.(handler); } catch {}
     return () => { mounted = false; };
   }, []);
   if (!Array.isArray(reminders) || reminders.length === 0) {
