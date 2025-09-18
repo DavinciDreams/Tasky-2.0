@@ -60,6 +60,7 @@ export const AdaptiveCardRenderer: React.FC<AdaptiveCardRendererProps> = ({ card
     const nameLower = String(name || '').toLowerCase();
     const outputStr = typeof output === 'string' ? output : JSON.stringify(output);
     const parsedOut = extractJsonFromOutput(outputStr);
+    const outputStrLower = (outputStr || '').toLowerCase();
 
     // Render list_reminders results using ReminderDisplay
     if (nameLower.includes('list_reminders') && Array.isArray(parsedOut)) {
@@ -148,6 +149,8 @@ export const AdaptiveCardRenderer: React.FC<AdaptiveCardRendererProps> = ({ card
     // Render delete operations with a compact success card. Prefer title over id.
     if (nameLower.includes('delete_task') || nameLower.includes('delete_reminder')) {
       const entity = nameLower.includes('delete_task') ? 'Task' : 'Reminder';
+      // Detect common failure messages from MCP to avoid false "success"
+      const isFailure = outputStrLower.includes('not found') || outputStrLower.includes('did you mean') || outputStrLower.includes('provide id') || outputStrLower.includes('error');
       // Try to parse Tasky structured card format
       let deletedTitle: string | undefined;
       let deletedId: string | undefined;
@@ -164,10 +167,16 @@ export const AdaptiveCardRenderer: React.FC<AdaptiveCardRendererProps> = ({ card
           <ToolHeader type={`tool-${nameLower.includes('delete_task') ? 'delete_task' : 'delete_reminder'}`} state="output-available" />
           <ToolContent>
             <div className="p-3">
-              <div className="text-sm bg-green-50 text-green-700 border border-green-200 rounded-lg p-3">
-                {entity} deleted successfully{deletedTitle ? `: ${deletedTitle}` : ''}
-                {!deletedTitle && deletedId ? ` (ID: ${deletedId})` : ''}
-              </div>
+              {isFailure ? (
+                <div className="text-sm bg-red-50 text-red-700 border border-red-200 rounded-lg p-3">
+                  {outputStr}
+                </div>
+              ) : (
+                <div className="text-sm bg-green-50 text-green-700 border border-green-200 rounded-lg p-3">
+                  {entity} deleted successfully{deletedTitle ? `: ${deletedTitle}` : ''}
+                  {!deletedTitle && deletedId ? ` (ID: ${deletedId})` : ''}
+                </div>
+              )}
             </div>
           </ToolContent>
         </Tool>

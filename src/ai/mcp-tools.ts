@@ -181,7 +181,18 @@ function preprocessArgs(name: string, raw: any): any {
       delete a.rename; delete a.newName; delete a.name; delete a.title; delete a.newTitle;
     }
     if (n === 'tasky_delete_task') {
-      if (!a.id && a.title) a.title = String(a.title);
+      // Discard suspicious id shapes to allow title matching
+      if (a.id && !/_\d{8}_\d{6}_/.test(String(a.id))) {
+        delete a.id;
+      }
+      if (!a.id) {
+        if (!a.title && typeof a.name === 'string') a.title = a.name;
+        if (!a.title && typeof a.matchTitle === 'string') a.title = a.matchTitle;
+        // Light sanitize common leading verbs
+        if (typeof a.title === 'string') {
+          a.title = a.title.replace(/^\s*(delete|remove)\s+/i, '').trim();
+        }
+      }
     }
     if (n === 'tasky_delete_reminder') {
       if (!a.id && a.message) a.message = String(a.message);
