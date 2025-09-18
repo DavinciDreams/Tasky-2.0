@@ -111,8 +111,12 @@ server.tool(
   'tasky_update_task',
   'Update an existing Tasky task',
   {
-    id: z.string().describe('Task ID to update'),
-    title: z.string().optional().describe('New task title'),
+    id: z.string().optional().describe('Task ID to update (optional if matchTitle provided)'),
+    matchTitle: z.string().optional().describe('Exact or approximate task title to identify the task when id is not provided'),
+    // If user provides just `title` and other fields, we treat it as the match title
+    // Use `newTitle` when changing the title value
+    title: z.string().optional().describe('Task title to match (alias for matchTitle when id is not provided). Prefer newTitle to change the title'),
+    newTitle: z.string().optional().describe('New task title (use this to rename)'),
     description: z.string().optional().describe('New task description'),
     status: z.enum(['pending', 'in_progress', 'completed', 'cancelled']).optional().describe('New task status'),
     dueDate: z.string().optional().describe('New due date in ISO format'),
@@ -127,8 +131,35 @@ server.tool(
   },
   async (args) => {
     try {
-      const { id, ...updates } = args;
-      const result = await taskBridge.updateTask({ id, updates });
+      let { id, matchTitle, title, newTitle, name, newName, ...updates } = args as any;
+      // If no id/matchTitle but title is present along with other updates, use it as matchTitle
+      if (!id && !matchTitle && title && Object.keys(updates).length > 0) {
+        matchTitle = title;
+      }
+      // Accept `name` as alias for matching title
+      if (!id && !matchTitle && name && Object.keys(updates).length > 0) {
+        matchTitle = name;
+      }
+      // Promote newTitle to updates.title
+      if (newTitle) updates.title = newTitle;
+      // Accept newName as alias for new title
+      if (!updates.title && newName) updates.title = newName;
+      // If both matchTitle and updates.title are missing but title exists in updates, allow it
+      if (!updates.title && newTitle == null && args?.title && id) {
+        // If the user provided id and title alone, treat that as renaming
+        updates.title = args.title;
+      }
+      if (typeof updates.status === 'string') {
+        const s = updates.status.toLowerCase();
+        const map: Record<string, string> = {
+          pending: 'PENDING',
+          in_progress: 'IN_PROGRESS',
+          completed: 'COMPLETED',
+          cancelled: 'ARCHIVED'
+        };
+        updates.status = map[s] || updates.status.toUpperCase();
+      }
+      const result = await taskBridge.updateTask({ id, matchTitle, updates });
       return result;
     } catch (error) {
       return {
@@ -289,16 +320,35 @@ server.tool(
   'tasky_update_reminder',
   'Update an existing Tasky reminder',
   {
-    id: z.string().describe('Reminder ID to update'),
-    message: z.string().optional().describe('New reminder message'),
+    id: z.string().optional().describe('Reminder ID to update (optional if matchMessage provided)'),
+    matchMessage: z.string().optional().describe('Exact or approximate reminder message to identify the reminder when id is not provided'),
+    message: z.string().optional().describe('Reminder message to match (alias for matchMessage when id is not provided). Prefer newMessage to change the message'),
+    newMessage: z.string().optional().describe('New reminder message (use this to rename)'),
     time: z.string().optional().describe('New time in HH:MM format'),
     days: z.array(z.enum(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'])).optional().describe('New days of the week'),
     enabled: z.boolean().optional().describe('Whether reminder is enabled'),
   },
   async (args) => {
     try {
-      const { id, ...updates } = args;
-      const result = await reminderBridge.updateReminder({ id, updates });
+      let { id, matchMessage, message, newMessage, name, newName, newTitle, title, ...updates } = args as any;
+      if (!id && !matchMessage && message && Object.keys(updates).length > 0) {
+        matchMessage = message;
+      }
+      // Accept `name` or `title` as alias for matching message
+      if (!id && !matchMessage && name && Object.keys(updates).length > 0) {
+        matchMessage = name;
+      }
+      if (!id && !matchMessage && title && Object.keys(updates).length > 0) {
+        matchMessage = title;
+      }
+      if (newMessage) updates.message = newMessage;
+      // Accept newName/newTitle as alias for new message value
+      if (!updates.message && newName) updates.message = newName;
+      if (!updates.message && newTitle) updates.message = newTitle;
+      if (!updates.message && newMessage == null && args?.message && id) {
+        updates.message = args.message;
+      }
+      const result = await reminderBridge.updateReminder({ id, matchMessage, updates });
       return result;
     } catch (error) {
       return {
@@ -316,12 +366,16 @@ server.tool(
 
 server.tool(
   'tasky_delete_reminder',
-  'Delete a Tasky reminder by ID',
+  'Delete a Tasky reminder by ID or exact/approximate message',
   {
-    id: z.string().describe('Reminder ID to delete'),
+    id: z.string().optional().describe('Reminder ID to delete'),
+    message: z.string().optional().describe('Exact or approximate reminder message to delete (used when id not provided)'),
   },
   async (args) => {
     try {
+      if (!args?.id && !args?.message) {
+        throw new Error('Provide either id or message');
+      }
       const result = await reminderBridge.deleteReminder(args);
       return result;
     } catch (error) {

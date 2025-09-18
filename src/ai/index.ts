@@ -25,7 +25,8 @@ export class AIService {
   async streamText(
     messages: ChatMessage[],
     options: StreamingOptions = {},
-    tools?: any
+    tools?: any,
+    abortSignal?: AbortSignal
   ) {
     const model = this.provider.getModel(this.config.model);
     
@@ -35,6 +36,12 @@ export class AIService {
       temperature: this.config.temperature || 1.0,
       maxTokens: this.config.maxTokens || 4096,
     };
+    // Pass abort signal through to underlying SDK/fetch
+    if (abortSignal) {
+      // Many SDKs accept either `abortSignal` or `signal`; include both defensively
+      (streamOptions as any).abortSignal = abortSignal;
+      (streamOptions as any).signal = abortSignal;
+    }
 
     // Add tools if provided and supported
     if (tools && this.provider.supportsTools) {
@@ -43,7 +50,7 @@ export class AIService {
 
     console.log(`[AIService] Streaming with ${this.config.provider} model: ${this.config.model}`);
     
-    const result = await streamText(streamOptions);
+  const result = await streamText(streamOptions);
     
     return {
       textStream: result.textStream,

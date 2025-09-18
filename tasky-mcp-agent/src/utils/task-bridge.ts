@@ -145,8 +145,44 @@ export class TaskBridge {
   }
 
   async updateTask(args: any): Promise<CallToolResult> {
-    const { id, updates } = args || {};
-    if (!id) return { content: [{ type: 'text', text: 'id is required' }], isError: true };
+    const { id: idArg, matchTitle, updates } = args || {};
+    let id = idArg;
+    if (!id && matchTitle) {
+      const rows: any[] = this.db.prepare('SELECT id, title FROM tasks').all();
+      const sanitize = (s: string) => {
+        let q = String(s || '').toLowerCase().trim();
+        q = q.replace(/["']/g, '');
+        q = q.replace(/\s+(name|title)\s+to\s+.*$/, '');
+        q = q.replace(/\s+to\s+.*$/, '');
+        q = q.replace(/^update\s+/, '').trim();
+        return q.trim();
+      };
+      const query = sanitize(String(matchTitle));
+      const exact = rows.find(r => r.title.toLowerCase() === query);
+      if (exact) id = exact.id;
+      else {
+        const score = (a: string, b: string) => {
+          a = a.toLowerCase(); b = b.toLowerCase();
+          if (a === b) return 1;
+          if (a.includes(b) || b.includes(a)) return 0.9;
+          const as = new Set(a.split(/\s+/));
+          const bs = new Set(b.split(/\s+/));
+          const inter = [...as].filter(x => bs.has(x)).length;
+          const union = new Set([...as, ...bs]).size;
+          return union ? inter / union : 0;
+        };
+        let best: { id: string; title: string; s: number } | null = null;
+        for (const r of rows) {
+          const s = score(r.title, query);
+          if (!best || s > best.s) best = { id: r.id, title: r.title, s };
+        }
+        if (best && best.s >= 0.35) id = best.id;
+        else if (best) {
+          return { content: [{ type: 'text', text: `Task not found. Did you mean "${best.title}"?` }], isError: true };
+        }
+      }
+    }
+    if (!id) return { content: [{ type: 'text', text: 'Provide id or matchTitle for the task' }], isError: true };
     const current = await this.getTask({ id });
     if ((current as any).isError) return current;
     const now = new Date();
@@ -214,12 +250,42 @@ export class TaskBridge {
     const { id: idArg, title } = args || {};
     let id = idArg;
     if (!id && title) {
-      const row: any = this.db.prepare('SELECT id, title FROM tasks WHERE title = ? ORDER BY created_at DESC LIMIT 1').get(String(title));
-      if (row) id = row.id;
+      const rows: any[] = this.db.prepare('SELECT id, title FROM tasks').all();
+      const sanitize = (s: string) => {
+        let q = String(s || '').toLowerCase().trim();
+        q = q.replace(/["']/g, '');
+        q = q.replace(/\s+(name|title)\s+to\s+.*$/, '');
+        q = q.replace(/\s+to\s+.*$/, '');
+        q = q.replace(/^delete\s+/, '').trim();
+        return q.trim();
+      };
+      const q = sanitize(String(title));
+      const exact = rows.find(r => r.title.toLowerCase() === q);
+      if (exact) id = exact.id;
+      else {
+        const score = (a: string, b: string) => {
+          a = a.toLowerCase(); b = b.toLowerCase();
+          if (a === b) return 1;
+          if (a.includes(b) || b.includes(a)) return 0.9;
+          const as = new Set(a.split(/\s+/));
+          const bs = new Set(b.split(/\s+/));
+          const inter = [...as].filter(x => bs.has(x)).length;
+          const union = new Set([...as, ...bs]).size;
+          return union ? inter / union : 0;
+        };
+        let best: { id: string; title: string; s: number } | null = null;
+        for (const r of rows) {
+          const s = score(r.title, q);
+          if (!best || s > best.s) best = { id: r.id, title: r.title, s };
+        }
+        if (best && best.s >= 0.35) id = best.id;
+        else if (best) {
+          return { content: [{ type: 'text', text: `Task not found. Did you mean "${best.title}"?` }], isError: true };
+        }
+      }
     }
-    if (!id) return { content: [{ type: 'text', text: 'Provide id or exact title' }], isError: true };
+    if (!id) return { content: [{ type: 'text', text: 'Provide id or title' }], isError: true };
     
-    // Get task info before deleting for the response
     const task: any = this.db.prepare('SELECT id, title, status FROM tasks WHERE id = ?').get(id);
     if (!task) return { content: [{ type: 'text', text: 'Task not found' }], isError: true };
     
@@ -229,11 +295,21 @@ export class TaskBridge {
     });
     t();
     
-    return { 
+    return {
       content: [
-        { type: 'text', text: `Task "${task.title}" deleted` },
-        { type: 'text', text: JSON.stringify({ success: true, id: task.id, title: task.title, status: task.status }) }
-      ] 
+        {
+          type: 'text',
+          text: JSON.stringify({
+            __taskyCard: {
+              kind: 'result',
+              tool: 'tasky_delete_task',
+              status: 'success',
+              data: { success: true, id: task.id, title: task.title, status: task.status },
+              meta: { operation: 'delete', timestamp: new Date().toISOString() }
+            }
+          })
+        }
+      ]
     };
   }
 

@@ -39,14 +39,17 @@ TASK TOOLS (use mcpCall tool with these names):
 - tasky_create_task: Create tasks with title, description, dueDate, tags, etc.
 - tasky_list_tasks: List existing tasks with optional filtering  
 - tasky_update_task: Update task status or properties (requires id)
+ - tasky_update_task: Update task status or properties (use id when available; otherwise provide matchTitle with the task's title — typos ok)
 - tasky_delete_task: Delete tasks by ID or exact title
+ - tasky_delete_task: Delete tasks by ID or title (handles close title matches)
 - tasky_execute_task: Execute a task (requires id, optional status)
 
 REMINDER TOOLS (use mcpCall tool with these names):
 - tasky_create_reminder: Create reminders with message, time, days array, oneTime boolean
 - tasky_list_reminders: List existing reminders
 - tasky_update_reminder: Update reminders (message, time, days, enabled)
-- tasky_delete_reminder: Delete reminders by ID or message
+ - tasky_update_reminder: Update reminders (use id when available; otherwise provide matchMessage — typos ok)
+ - tasky_delete_reminder: Delete reminders by ID or message (handles close matches)
 
 CRITICAL - TASK ID USAGE:
 - When tasky_list_tasks returns tasks, extract the task ID from the "schema.id" field
@@ -85,7 +88,7 @@ IMPORTANT:
 - Remember task IDs from previous responses in the conversation
 - ALWAYS display tool results - never hide them from the user
 
-For deletions: Prefer using the task ID if it is available from prior context; otherwise, you may use the exact task title to delete.
+For updates/deletions: Prefer using the task ID if available; otherwise, pass the task title via matchTitle (tasks) or message via matchMessage (reminders). Titles/messages can be approximate; the tool will resolve fuzzy matches safely.
 
 For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. After the tool executes, format and show the returned task data to the user.
 For listing reminders, call mcpCall with name="tasky_list_reminders" and args={}. After the tool executes, format and show the returned reminder data to the user.`;
@@ -362,8 +365,8 @@ For listing reminders, call mcpCall with name="tasky_list_reminders" and args={}
     // Quick path: keyword-based list commands (ensure tool runs even if model doesn't)
     try {
       const lower = trimmed.toLowerCase();
-      const wantsListReminders = /\b(list|show|display)\s+reminders?\b/.test(lower);
-      const wantsListTasks = /\b(list|show|display)\s+tasks?\b/.test(lower);
+  const wantsListReminders = /\b(list|show|display)\s+reminders?\b/.test(lower);
+  const wantsListTasks = /\b(list|show|display)\s+tasks?\b/.test(lower);
       if (mcpReady && (wantsListReminders || wantsListTasks)) {
         setError(null);
         // Append user message and clear input immediately
@@ -373,11 +376,14 @@ For listing reminders, call mcpCall with name="tasky_list_reminders" and args={}
         setBusy(true);
         const id = `${Date.now()}-${Math.random().toString(36).slice(2,6)}`;
         const toolName = wantsListReminders ? 'tasky_list_reminders' : 'tasky_list_tasks';
+        // create abort controller for this quick tool call
+        let controller = new AbortController();
+        abortRef.current = controller;
         try {
           (window as any).dispatchEvent(new CustomEvent('tasky:tool', { detail: { id, phase: 'start', name: toolName, args: {} } }));
         } catch {}
         try {
-          const output = await callMcpTool(toolName, {});
+          const output = await callMcpTool(toolName, {}, { abortSignal: controller.signal });
           try {
             (window as any).dispatchEvent(new CustomEvent('tasky:tool', { detail: { id, phase: 'done', name: toolName, args: {}, output } }));
           } catch {}
@@ -386,6 +392,7 @@ For listing reminders, call mcpCall with name="tasky_list_reminders" and args={}
             (window as any).dispatchEvent(new CustomEvent('tasky:tool', { detail: { id, phase: 'error', name: toolName, args: {}, error: err?.message || String(err) } }));
           } catch {}
         } finally {
+          abortRef.current = null;
           setBusy(false);
         }
         return;
@@ -399,6 +406,8 @@ For listing reminders, call mcpCall with name="tasky_list_reminders" and args={}
         setError(null);
         setBusy(true);
         const id = `${Date.now()}-${Math.random().toString(36).slice(2,6)}`;
+        let controller = new AbortController();
+        abortRef.current = controller;
         // surface confirm overlay
         try {
           (window as any).dispatchEvent(new CustomEvent('tasky:tool:confirm', { detail: { id, name: maybeJson.name, args: maybeJson.args || {} } }));
@@ -420,10 +429,11 @@ For listing reminders, call mcpCall with name="tasky_list_reminders" and args={}
           return;
         }
         // execute
-        const output = await callMcpTool(maybeJson.name, maybeJson.args || {});
+        const output = await callMcpTool(maybeJson.name, maybeJson.args || {}, { abortSignal: controller.signal });
         try {
           (window as any).dispatchEvent(new CustomEvent('tasky:tool', { detail: { id, phase: 'done', name: maybeJson.name, args: maybeJson.args || {}, output } }));
         } catch {}
+        abortRef.current = null;
         setBusy(false);
         return;
       }
@@ -500,7 +510,8 @@ For listing reminders, call mcpCall with name="tasky_list_reminders" and args={}
               console.error('[Chat] Stream error:', error);
             }
           },
-          tools
+          tools,
+          controller.signal
         );
         
         // Stream response
@@ -604,7 +615,9 @@ For listing reminders, call mcpCall with name="tasky_list_reminders" and args={}
               onError: (error) => {
                 console.error('[Chat] Retry stream error:', error);
               }
-            }
+            },
+            undefined,
+            controller?.signal
           );
 
           // Stream response (retry)
@@ -694,7 +707,7 @@ For listing reminders, call mcpCall with name="tasky_list_reminders" and args={}
       )}
 
   {/* Unified message area (scrollable) */}
-  <div className="flex-1 min-h-0 w-full flex flex-col bg-background">
+  <div className="flex-1 min-h-[60vh] md:min-h-[70vh] w-full flex flex-col bg-background overflow-hidden">
         <div
           ref={scrollRef}
           className="chat-scroll-container flex-1 min-h-0 overflow-y-auto no-scrollbar px-5 md:px-6 pt-2 pb-4 w-full flex flex-col"

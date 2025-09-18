@@ -55,14 +55,14 @@ export const InlineConfirmation: React.FC<InlineConfirmationProps> = ({
               <div className="text-xs text-muted-foreground">This action cannot be undone</div>
             </div>
           </div>
-          {args?.id && (
-            <div className="text-xs text-muted-foreground pl-2">
-              ID: {String(args.id)}
-            </div>
-          )}
           {args?.title && (
             <div className="text-sm text-foreground pl-2">
               <strong>Title:</strong> {String(args.title)}
+            </div>
+          )}
+          {args?.id && (
+            <div className="text-xs text-muted-foreground pl-2">
+              ID: {String(args.id)}
             </div>
           )}
         </div>
@@ -211,7 +211,7 @@ export const InlineConfirmation: React.FC<InlineConfirmationProps> = ({
           size="sm"
           onClick={() => onConfirm(true)}
           disabled={disabled}
-          className="flex items-center gap-1"
+          className={`flex items-center gap-1 border ${isDelete ? 'border-destructive/50' : 'border-primary/50'}`}
         >
           <CheckCircle className="h-3 w-3" />
           {isDelete ? 'Delete' : 'Confirm'}

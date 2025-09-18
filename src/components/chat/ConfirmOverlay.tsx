@@ -67,6 +67,11 @@ export const ConfirmOverlay: React.FC<ConfirmOverlayProps> = ({
                         <AlertTriangle className="h-4 w-4 text-destructive" />
                         This action cannot be undone
                       </div>
+                      {args?.title && (
+                        <div className="text-sm mt-2">
+                          <span className="text-muted-foreground">Title:</span> {String(args.title)}
+                        </div>
+                      )}
                       {args?.id && (
                         <div className="text-xs mt-1 text-muted-foreground">
                           ID: {String(args.id)}
@@ -213,7 +218,7 @@ export const ConfirmOverlay: React.FC<ConfirmOverlayProps> = ({
                 ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90' 
                 : 'bg-primary text-primary-foreground hover:bg-primary/90'
               }
-            `}
+            ` + ` border ${isDelete ? 'border-destructive/50' : 'border-primary/50'}`}
             onClick={() => onConfirm(true)}
           >
             Confirm

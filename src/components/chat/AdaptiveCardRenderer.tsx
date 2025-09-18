@@ -131,21 +131,29 @@ export const AdaptiveCardRenderer: React.FC<AdaptiveCardRendererProps> = ({ card
       );
     }
 
-    // Render delete operations with a success message
+    // Render delete operations with a compact success card. Prefer title over id.
     if (nameLower.includes('delete_task') || nameLower.includes('delete_reminder')) {
+      const entity = nameLower.includes('delete_task') ? 'Task' : 'Reminder';
+      // Try to parse Tasky structured card format
+      let deletedTitle: string | undefined;
+      let deletedId: string | undefined;
+      if (parsedOut && typeof parsedOut === 'object') {
+        // Direct card or wrapped under __taskyCard
+        const card = (parsedOut as any)?.__taskyCard ? (parsedOut as any).__taskyCard : parsedOut;
+        const data = (card as any)?.data || (card as any);
+        deletedTitle = data?.title;
+        deletedId = data?.id;
+      }
+
       return (
         <Tool defaultOpen={true}>
           <ToolHeader type={`tool-${nameLower.includes('delete_task') ? 'delete_task' : 'delete_reminder'}`} state="output-available" />
           <ToolContent>
             <div className="p-3">
-              <div className="text-sm text-green-600 bg-green-50 border border-green-200 rounded-lg p-3">
-                {nameLower.includes('delete_task') ? 'Task' : 'Reminder'} deleted successfully
+              <div className="text-sm bg-green-50 text-green-700 border border-green-200 rounded-lg p-3">
+                {entity} deleted successfully{deletedTitle ? `: ${deletedTitle}` : ''}
+                {!deletedTitle && deletedId ? ` (ID: ${deletedId})` : ''}
               </div>
-              {outputStr && outputStr !== 'undefined' && (
-                <div className="mt-2 text-xs text-muted-foreground">
-                  {outputStr}
-                </div>
-              )}
             </div>
           </ToolContent>
         </Tool>

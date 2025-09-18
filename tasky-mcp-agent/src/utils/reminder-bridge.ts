@@ -112,24 +112,59 @@ export class ReminderBridge {
       process.stderr.write(Buffer.from(`Failed to send reminder creation notification: ${error}\n`, 'utf8'));
     }
     
-    return { 
+    // Load the created reminder to return structured data
+    const created: any = this.db.prepare('SELECT * FROM reminders WHERE id = ?').get(reminderId);
+    const rem: Reminder = {
+      id: created.id,
+      message: created.message,
+      time: created.time,
+      days: created.days ? JSON.parse(created.days) : reminderDays,
+      enabled: !!created.enabled,
+      createdAt: created.created_at,
+      updatedAt: created.updated_at
+    };
+
+    return {
       content: [
-        { type: 'text', text: `Reminder "${message}" created successfully for ${time} on ${reminderDays.join(', ')}` }
-      ] 
+        { type: 'text', text: `Reminder ${rem.id}: ${rem.message}` },
+        { type: 'text', text: JSON.stringify(rem) }
+      ]
     };
   }
 
   async updateReminder(args: any): Promise<CallToolResult> {
-    const { id, updates } = args || {};
-    if (!id) return { content: [{ type: 'text', text: 'id is required' }], isError: true };
-    
-    // Try to find by ID first, then by message if ID not found
-    let current: any = this.db.prepare('SELECT * FROM reminders WHERE id = ?').get(id);
-    if (!current) {
-      // Try to find by message (for user-friendly updates)
-      current = this.db.prepare('SELECT * FROM reminders WHERE message = ?').get(id);
-      if (!current) return { content: [{ type: 'text', text: 'Reminder not found' }], isError: true };
+    const { id: idArg, matchMessage, updates } = args || {};
+    let current: any = null;
+    if (idArg) current = this.db.prepare('SELECT * FROM reminders WHERE id = ?').get(idArg);
+    if (!current && matchMessage) {
+      const rows: any[] = this.db.prepare('SELECT * FROM reminders').all();
+      const sanitize = (s: string) => {
+        let q = String(s || '').toLowerCase().trim();
+        q = q.replace(/["']/g, '');
+        q = q.replace(/\s+(name|title|message)\s+to\s+.*$/, '');
+        q = q.replace(/\s+to\s+.*$/, '');
+        q = q.replace(/^update\s+/, '').trim();
+        return q.trim();
+      };
+      const query = sanitize(String(matchMessage));
+      let best: any = null; let bestScore = -1;
+      const score = (a: string, b: string) => {
+        a = a.toLowerCase(); b = b.toLowerCase();
+        if (a === b) return 1;
+        if (a.includes(b) || b.includes(a)) return 0.9;
+        const as = new Set(a.split(/\s+/));
+        const bs = new Set(b.split(/\s+/));
+        const inter = [...as].filter(x => bs.has(x)).length;
+        const union = new Set([...as, ...bs]).size;
+        return union ? inter / union : 0;
+      };
+      for (const r of rows) {
+        const s = score(r.message, query);
+        if (s > bestScore) { best = r; bestScore = s; }
+      }
+      if (best && bestScore >= 0.35) current = best;
     }
+    if (!current) return { content: [{ type: 'text', text: 'Provide id or matchMessage; reminder not found' }], isError: true };
     const next: any = {
       message: updates?.message ?? current.message,
       time: updates?.time ?? current.time,
@@ -144,24 +179,57 @@ export class ReminderBridge {
   }
 
   async deleteReminder(args: any): Promise<CallToolResult> {
-    const { id } = args;
-    if (!id) return { content: [{ type: 'text', text: 'id is required' }], isError: true };
-    
-    // Try to find by ID first, then by message if ID not found
-    let current: any = this.db.prepare('SELECT * FROM reminders WHERE id = ?').get(id);
-    if (!current) {
-      // Try to find by message (for user-friendly deletes)
-      current = this.db.prepare('SELECT * FROM reminders WHERE message = ?').get(id);
-      if (!current) return { content: [{ type: 'text', text: 'Reminder not found' }], isError: true };
+    const { id: idArg, message } = args || {};
+    let current: any = null;
+    if (idArg) current = this.db.prepare('SELECT * FROM reminders WHERE id = ?').get(idArg);
+    if (!current && message) {
+      const rows: any[] = this.db.prepare('SELECT * FROM reminders').all();
+      const sanitize = (s: string) => {
+        let q = String(s || '').toLowerCase().trim();
+        q = q.replace(/["']/g, '');
+        q = q.replace(/\s+(name|title|message)\s+to\s+.*$/, '');
+        q = q.replace(/\s+to\s+.*$/, '');
+        q = q.replace(/^delete\s+/, '').trim();
+        return q.trim();
+      };
+      const query = sanitize(String(message));
+      let best: any = null; let bestScore = -1;
+      const score = (a: string, b: string) => {
+        a = a.toLowerCase(); b = b.toLowerCase();
+        if (a === b) return 1;
+        if (a.includes(b) || b.includes(a)) return 0.9;
+        const as = new Set(a.split(/\s+/));
+        const bs = new Set(b.split(/\s+/));
+        const inter = [...as].filter(x => bs.has(x)).length;
+        const union = new Set([...as, ...bs]).size;
+        return union ? inter / union : 0;
+      };
+      for (const r of rows) {
+        const s = score(r.message, query);
+        if (s > bestScore) { best = r; bestScore = s; }
+      }
+      if (best && bestScore >= 0.35) current = best;
     }
-    
+    if (!current) return { content: [{ type: 'text', text: 'Provide id or message; reminder not found' }], isError: true };
+
     const info = this.db.prepare('DELETE FROM reminders WHERE id = ?').run(current.id);
     if (!info.changes) return { content: [{ type: 'text', text: 'Reminder not found' }], isError: true };
-    
-    return { 
+
+    return {
       content: [
-        { type: 'text', text: `Reminder "${current.message}" deleted successfully` }
-      ] 
+        {
+          type: 'text',
+          text: JSON.stringify({
+            __taskyCard: {
+              kind: 'result',
+              tool: 'tasky_delete_reminder',
+              status: 'success',
+              data: { success: true, id: current.id, title: current.message },
+              meta: { operation: 'delete', timestamp: new Date().toISOString() }
+            }
+          })
+        }
+      ]
     };
   }
 
