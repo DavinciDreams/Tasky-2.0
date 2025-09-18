@@ -22,6 +22,56 @@ export const ConfirmOverlay: React.FC<ConfirmOverlayProps> = ({
   const nameLower = String(name || '').toLowerCase();
   const isDelete = nameLower.includes('delete');
 
+  const [timeFormat, setTimeFormat] = React.useState<'12h' | '24h'>('12h');
+  React.useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const tf = await (window as any)?.electronAPI?.getSetting?.('timeFormat');
+        if (!mounted) return;
+        const mapped = tf === '24' || tf === '24h' || tf === true
+          ? '24h'
+          : tf === '12' || tf === '12h' || tf === false
+            ? '12h'
+            : String(tf || '').toLowerCase().includes('24')
+              ? '24h'
+              : '12h';
+        setTimeFormat(mapped);
+      } catch {}
+    })();
+    const onUpdate = (_: any, payload?: { key: string; value: any }) => {
+      try {
+        if (!payload) return;
+        if (payload.key === 'timeFormat') {
+          const v = payload.value;
+          const mapped = v === '24' || v === '24h' || v === true
+            ? '24h'
+            : v === '12' || v === '12h' || v === false
+              ? '12h'
+              : String(v || '').toLowerCase().includes('24')
+                ? '24h'
+                : '12h';
+          setTimeFormat(mapped);
+        }
+      } catch {}
+    };
+    try { (window as any)?.electronAPI?.onSettingsUpdate?.(onUpdate); } catch {}
+    return () => { mounted = false; };
+  }, []);
+
+  const formatTimeString = (time: string) => {
+    if (timeFormat === '24h') return time;
+    const m = String(time || '').match(/^(\d{1,2}):(\d{2})$/);
+    if (!m) return time;
+    let h = parseInt(m[1], 10);
+    const mm = m[2];
+    let suffix = 'AM';
+    if (h === 0) { h = 12; suffix = 'AM'; }
+    else if (h === 12) { suffix = 'PM'; }
+    else if (h > 12) { h = h - 12; suffix = 'PM'; }
+    return `${h}:${mm} ${suffix}`;
+  };
+
   return createPortal(
     <div className="absolute inset-0 z-[10000] flex items-center justify-center pointer-events-none">
       <motion.div
@@ -99,7 +149,7 @@ export const ConfirmOverlay: React.FC<ConfirmOverlayProps> = ({
                       <div className="flex items-center gap-2">
                         <Clock className="h-3 w-3 text-primary" />
                         <span className="text-xs text-foreground">
-                          {typeof timeVal === 'string' ? timeVal : JSON.stringify(timeVal)}
+                          {typeof timeVal === 'string' ? formatTimeString(timeVal) : JSON.stringify(timeVal)}
                         </span>
                       </div>
                     )}
