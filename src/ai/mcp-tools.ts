@@ -59,16 +59,7 @@ async function executeMcpTool(
   console.log('[MCP] Parameters:', JSON.stringify(prepArgs, null, 2));
   
   // Validate parameters for common issues
-  if (name === 'tasky_execute_task') {
-    if (args && args.title && !args.id) {
-      console.warn('[MCP] WARNING: tasky_execute_task called with title instead of id. This will likely fail.');
-      console.warn('[MCP] Expected: args.id, Got: args.title =', args.title);
-    }
-    if (!args || !args.id) {
-      console.error('[MCP] ERROR: tasky_execute_task requires an id parameter');
-      return 'Error: Task execution requires a task ID. Please list tasks first to get the task ID.';
-    }
-  }
+  // No hard validation here; server now supports execute by title
   
   // Handle test environments
   if (isTestEnvironment()) {
@@ -112,6 +103,22 @@ function preprocessArgs(name: string, raw: any): any {
   try {
     const n = String(name || '').toLowerCase();
     const a: any = { ...(raw || {}) };
+    if (n === 'tasky_execute_task') {
+      // Discard suspicious id shapes to allow title matching
+      if (a.id && !/_\d{8}_\d{6}_/.test(String(a.id))) {
+        delete a.id;
+      }
+      // Map natural args into matchTitle
+      const natural = a.title || a.name || a.matchTitle || a.query || a.task;
+      if (!a.id && natural && !a.matchTitle) {
+        let q = String(natural).toLowerCase().trim();
+        q = q.replace(/^(execute|run|start|begin|do|perform)\s+/, '');
+        q = q.replace(/^task\s*(#|number)?\s*/, '');
+        a.matchTitle = q.trim();
+      }
+      if (!a.matchTitle && typeof a.title === 'string') a.matchTitle = a.title;
+      delete a.query; delete a.task; delete a.name; // keep title as-is for display
+    }
     if (n === 'tasky_update_task') {
       // If an id is provided but doesn't look like a real Tasky ID, discard it to allow title matching
       if (a.id && !/_\d{8}_\d{6}_/.test(String(a.id))) {

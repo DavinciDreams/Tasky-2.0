@@ -13,6 +13,7 @@ import * as path from 'path';
 import * as os from 'os';
 import * as fs from 'fs';
 import { spawn, ChildProcess } from 'child_process';
+import * as http from 'http';
 import logger from './lib/logger';
 import { MainWindow, TrayIcon } from './types/electron';
 import { Storage } from './electron/storage';
@@ -49,6 +50,72 @@ let mcpServerProcess: ChildProcess | null = null; // MCP server subprocess
  */
 // MCP server integration using stdio protocol (replaces HTTP approach)
 // The MCP tool functionality will be handled via IPC to the MCP subprocess
+
+// Lightweight HTTP bridge so external processes (like MCP agent) can request execution
+let httpServer: http.Server | null = null;
+function startHttpBridge(port = 7844): void {
+  try {
+    if (httpServer) return;
+    httpServer = http.createServer(async (req, res) => {
+      try {
+        // Enable basic CORS for local tools
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+        if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
+
+        if (req.method === 'POST' && req.url === '/execute-task') {
+          let body = '';
+          req.on('data', chunk => { body += chunk; });
+          req.on('end', async () => {
+            try {
+              const payload = JSON.parse(body || '{}');
+              const id = String(payload.taskId || payload.id || '').trim();
+              const agent = payload.agent === 'claude' ? 'claude' : payload.agent === 'gemini' ? 'gemini' : undefined;
+              if (!id) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'taskId is required' }));
+                return;
+              }
+              if (!taskManager) {
+                res.writeHead(503, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'Task manager not ready' }));
+                return;
+              }
+              // Fire-and-forget execution; respond immediately
+              taskManager.executeTask(id, agent ? { agent } : undefined).catch(e => logger.error('HTTP execute error:', e));
+              res.writeHead(200, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ success: true, taskId: id, agent: agent || null }));
+            } catch (e: any) {
+              logger.error('HTTP /execute-task parse/exec error:', e);
+              res.writeHead(500, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ success: false, error: e?.message || 'Internal error' }));
+            }
+          });
+          return;
+        }
+
+        // Not found
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: 'Not found' }));
+      } catch (e: any) {
+        logger.error('HTTP bridge error:', e);
+        try {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: 'Internal server error' }));
+        } catch {}
+      }
+    });
+    httpServer.listen(port, '127.0.0.1', () => {
+      logger.info(`HTTP bridge listening on http://localhost:${port}`);
+    });
+    httpServer.on('error', (err) => {
+      logger.error('HTTP bridge failed to start:', err);
+    });
+  } catch (error) {
+    logger.error('Failed to start HTTP bridge:', error);
+  }
+}
 
 /**
  * Starts the local MCP server subprocess
@@ -316,6 +383,9 @@ app.whenReady().then(async () => {
   // Initialize task manager
   taskManager = new ElectronTaskManager();
   await taskManager.initialize();
+
+  // Start lightweight HTTP bridge for MCP execution delegation
+  startHttpBridge(7844);
 
   // Initialize pomodoro service
   pomodoroService = new PomodoroService(store);
@@ -811,6 +881,10 @@ app.on('before-quit', () => {
   }
   if (pomodoroService) {
     pomodoroService.destroy();
+  }
+  if (httpServer) {
+    try { httpServer.close(); } catch {}
+    httpServer = null;
   }
   // Stop MCP server
   stopMcpServer();

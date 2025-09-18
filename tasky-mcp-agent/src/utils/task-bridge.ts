@@ -404,100 +404,96 @@ export class TaskBridge {
   }
 
   async executeTask(args: any): Promise<CallToolResult> {
-    const { id, status } = args || {};
-    if (!id) return { content: [{ type: 'text', text: 'id is required' }], isError: true };
-    
-    try {
-      // First, get the task to check if it exists and get execution details
-      const taskResult = await this.getTask({ id });
-      if (taskResult.isError) {
-        return taskResult;
-      }
-      
-      // Parse task details from the result
-      const taskJsonStr = (taskResult.content as any)?.[1]?.text;
-      const task = taskJsonStr ? JSON.parse(taskJsonStr) : null;
-      
-      if (!task) {
-        return { content: [{ type: 'text', text: 'Failed to get task details for execution' }], isError: true };
-      }
+    let { id, status, matchTitle, title, name } = args || {};
 
-      // Try to delegate to main Tasky app for full execution (like clicking play button)
+    // Resolve by approximate title if id is missing
+    if (!id && (matchTitle || title || name)) {
+      const rows: any[] = this.db.prepare('SELECT id, title FROM tasks').all();
+      const sanitize = (s: string) => {
+        let q = String(s || '').toLowerCase().trim();
+        q = q.replace(/["']/g, '');
+        // Strip common verbs and prefixes
+        q = q.replace(/^(execute|run|start|begin|do|perform)\s+/, '');
+        q = q.replace(/^task\s*(#|number)?\s*/,'');
+        return q.trim();
+      };
+      const normalize = (s: string) => sanitize(s).replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+      const query = normalize(String(matchTitle || title || name));
+      let best: { id: string; title: string; s: number } | null = null;
+      const score = (a: string, b: string) => {
+        a = normalize(a); b = normalize(b);
+        if (a === b) return 1;
+        if (a.includes(b) || b.includes(a)) return 0.9;
+        const as = new Set(a.split(/\s+/));
+        const bs = new Set(b.split(/\s+/));
+        const inter = [...as].filter(x => bs.has(x)).length;
+        const union = new Set([...as, ...bs]).size;
+        return union ? inter / union : 0;
+      };
+      for (const r of rows) {
+        const s = score(r.title, query);
+        if (!best || s > best.s) best = { id: r.id, title: r.title, s };
+      }
+      if (best && best.s >= 0.35) id = best.id;
+      else if (best) {
+        return { content: [{ type: 'text', text: `Task not found. Did you mean "${best.title}"?` }], isError: true };
+      }
+    }
+
+    if (!id) return { content: [{ type: 'text', text: 'Provide id or matchTitle/title to execute' }], isError: true };
+
+    try {
+      // Get current task details
+      const taskResult = await this.getTask({ id });
+      if (taskResult.isError) return taskResult;
+      const taskJsonStr = (taskResult.content as any)?.[1]?.text;
+      const task = taskJsonStr ? JSON.parse(taskJsonStr) as TaskyTask : null;
+      if (!task) return { content: [{ type: 'text', text: 'Failed to get task details for execution' }], isError: true };
+
+      const prevStatus = task.status as TaskStatus;
+      const desiredStatus: TaskStatus = (status === 'COMPLETED' ? 'COMPLETED' : 'IN_PROGRESS');
+
+      // Try to delegate to main Tasky app for full execution
+      let delegated = false;
+      let provider: 'claude' | 'gemini' = (task.schema.assignedAgent || '').toLowerCase() === 'claude' ? 'claude' : 'gemini';
       try {
         const mainAppUrl = 'http://localhost:7844/execute-task';
-        const provider = (task.schema.assignedAgent || '').toLowerCase() === 'claude' ? 'claude' : 'gemini';
-        
-        // Use node fetch for HTTP call
         const response = await fetch(mainAppUrl, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            taskId: id,
-            agent: provider
-          }),
-          // 5 second timeout for main app response
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ taskId: id, agent: provider }),
           signal: AbortSignal.timeout(5000)
         });
-
-        if (response.ok) {
-          const result = await response.json();
-          
-          // Main app execution successful - return detailed results
-          return {
-            content: [
-              { type: 'text', text: `Task ${task.schema.title}` },
-              { type: 'text', text: JSON.stringify({
-                ...task,
-                schema: {
-                  ...task.schema,
-                  status: status === 'COMPLETED' ? 'COMPLETED' : 'IN_PROGRESS',
-                  updatedAt: new Date().toISOString()
-                }
-              }) },
-              { type: 'text', text: `Execution delegated to main Tasky application with ${provider} agent` }
-            ]
-          };
-        } else {
-          throw new Error(`Main app returned ${response.status}: ${response.statusText}`);
-        }
-        
+        if (!response.ok) throw new Error(`Main app returned ${response.status}: ${response.statusText}`);
+        try { await response.json(); } catch {}
+        delegated = true;
       } catch (httpError) {
-        // Main app not available - fallback to simple status update
-        console.warn('Main app execution failed, falling back to status update:', httpError);
-        
-        const executionStatus: TaskStatus = (status === 'COMPLETED' ? 'COMPLETED' : 'IN_PROGRESS');
-        const updates: any = { status: executionStatus };
-        
-        const result = await this.updateTask({ id, updates });
-        
-        if (result.isError) {
-          return result;
-        }
-        
-        return { 
-          content: [
-            { type: 'text', text: `Task ${task.schema.title}` },
-            { type: 'text', text: JSON.stringify({
-              ...task,
-              schema: {
-                ...task.schema,
-                status: executionStatus,
-                updatedAt: new Date().toISOString()
-              }
-            }) },
-            { type: 'text', text: `Note: Task execution requires main Tasky app to be running (Error: ${httpError instanceof Error ? httpError.message : String(httpError)})` }
-          ]
-        };
+        // Fallback: just update status locally
+        const res = await this.updateTask({ id, updates: { status: desiredStatus } });
+        if (res.isError) return res;
       }
-      
+
+      const nowIso = new Date().toISOString();
+      const card = {
+        __taskyCard: {
+          kind: 'result',
+          tool: 'tasky_execute_task',
+          status: 'success',
+          data: {
+            id: task.schema.id,
+            title: task.schema.title,
+            previousStatus: prevStatus,
+            newStatus: desiredStatus,
+            delegated,
+            provider
+          },
+          meta: { operation: 'execute', timestamp: nowIso }
+        }
+      };
+      return { content: [ { type: 'text', text: JSON.stringify(card) } ] };
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
-      return { 
-        content: [{ type: 'text', text: `Error executing task: ${errorMsg}` }], 
-        isError: true 
-      };
+      return { content: [{ type: 'text', text: `Error executing task: ${errorMsg}` }], isError: true };
     }
   }
 }

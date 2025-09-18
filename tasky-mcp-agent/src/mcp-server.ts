@@ -207,11 +207,19 @@ server.tool(
   'tasky_execute_task',
   'Execute a selected task by updating status to IN_PROGRESS or COMPLETED',
   {
-    id: z.string().describe('Task ID to execute'),
+    id: z.string().optional().describe('Task ID to execute (optional if title or matchTitle provided)'),
+    matchTitle: z.string().optional().describe('Exact or approximate task title to identify the task'),
+    title: z.string().optional().describe('Task title to match (alias for matchTitle). Also accepts natural phrases like "execute <title>"'),
+    name: z.string().optional().describe('Alias for title'),
     status: z.enum(['IN_PROGRESS', 'COMPLETED']).optional().describe('New task status (defaults to IN_PROGRESS)'),
   },
   async (args) => {
     try {
+      // Normalize possible lowercase status inputs from models
+      if (typeof (args as any).status === 'string') {
+        const s = String((args as any).status).toLowerCase();
+        (args as any).status = s === 'completed' ? 'COMPLETED' : s === 'in_progress' ? 'IN_PROGRESS' : (args as any).status;
+      }
       const result = await taskBridge.executeTask(args);
       return result;
     } catch (error) {
