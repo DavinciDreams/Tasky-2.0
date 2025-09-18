@@ -195,7 +195,19 @@ function preprocessArgs(name: string, raw: any): any {
       }
     }
     if (n === 'tasky_delete_reminder') {
-      if (!a.id && a.message) a.message = String(a.message);
+      // Discard suspicious id shapes to allow message matching (valid reminders start with rem_)
+      if (a.id && !/^rem_/i.test(String(a.id))) {
+        delete a.id;
+      }
+      if (!a.id) {
+        if (!a.message && typeof a.name === 'string') a.message = a.name;
+        if (!a.message && typeof a.title === 'string') a.message = a.title;
+        if (!a.message && typeof a.matchMessage === 'string') a.message = a.matchMessage;
+        if (typeof a.message === 'string') {
+          // Light sanitize common leading verbs
+          a.message = a.message.replace(/^\s*(delete|remove)\s+/i, '').trim();
+        }
+      }
     }
     return a;
   } catch {

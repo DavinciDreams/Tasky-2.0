@@ -200,13 +200,14 @@ export class ReminderBridge {
         q = q.replace(/["']/g, '');
         q = q.replace(/\s+(name|title|message)\s+to\s+.*$/, '');
         q = q.replace(/\s+to\s+.*$/, '');
-        q = q.replace(/^delete\s+/, '').trim();
+        q = q.replace(/^(delete|remove)\s+/, '').trim();
         return q.trim();
       };
-      const query = sanitize(String(message));
+      const normalize = (s: string) => sanitize(s).replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+      const query = normalize(String(message));
       let best: any = null; let bestScore = -1;
       const score = (a: string, b: string) => {
-        a = a.toLowerCase(); b = b.toLowerCase();
+        a = normalize(a); b = normalize(b);
         if (a === b) return 1;
         if (a.includes(b) || b.includes(a)) return 0.9;
         const as = new Set(a.split(/\s+/));
