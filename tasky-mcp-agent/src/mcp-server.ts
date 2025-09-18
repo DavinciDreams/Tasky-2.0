@@ -297,10 +297,16 @@ server.tool(
   'List all Tasky reminders',
   {
     enabled: z.boolean().optional().describe('Filter by enabled status'),
+    day: z
+      .enum(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'])
+      .optional()
+      .describe('Filter by a specific day of week'),
+    search: z.string().optional().describe('Search substring in reminder message'),
   },
   async (args) => {
     try {
-      const result = await reminderBridge.listReminders(args.enabled);
+      // Pass the full args object so the bridge can handle all filters
+      const result = await reminderBridge.listReminders(args);
       return result;
     } catch (error) {
       return {

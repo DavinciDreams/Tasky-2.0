@@ -68,7 +68,17 @@ export class ReminderBridge {
       reminderDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
     }
     
-    console.log('Creating reminder with:', { message, time, reminderDays, enabled, oneTime });
+    // Avoid stdout (reserved for JSON-RPC). Log to stderr instead.
+    try {
+      process.stderr.write(
+        Buffer.from(
+          '[ReminderBridge] Creating reminder: ' +
+            JSON.stringify({ message, time, days: reminderDays, enabled, oneTime }) +
+            '\n',
+          'utf8'
+        )
+      );
+    } catch {}
     
     const nowIso = new Date().toISOString();
     const reminderId = this.genId();
@@ -126,8 +136,9 @@ export class ReminderBridge {
 
     return {
       content: [
-        { type: 'text', text: `Reminder ${rem.id}: ${rem.message}` },
-        { type: 'text', text: JSON.stringify(rem) }
+        // Put JSON first so clients that parse the first payload succeed
+        { type: 'text', text: JSON.stringify(rem) },
+        { type: 'text', text: `Reminder ${rem.id}: ${rem.message}` }
       ]
     };
   }

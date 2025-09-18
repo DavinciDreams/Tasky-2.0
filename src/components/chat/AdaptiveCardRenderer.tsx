@@ -131,6 +131,20 @@ export const AdaptiveCardRenderer: React.FC<AdaptiveCardRendererProps> = ({ card
       );
     }
 
+    // Render update_reminder results using ReminderDisplay (single reminder)
+    if (nameLower.includes('update_reminder') && parsedOut && typeof parsedOut === 'object' && !Array.isArray(parsedOut)) {
+      return (
+        <Tool defaultOpen={true}>
+          <ToolHeader type="tool-update_reminder" state="output-available" />
+          <ToolContent>
+            <div className="p-3">
+              <ReminderDisplay reminders={[parsedOut]} />
+            </div>
+          </ToolContent>
+        </Tool>
+      );
+    }
+
     // Render delete operations with a compact success card. Prefer title over id.
     if (nameLower.includes('delete_task') || nameLower.includes('delete_reminder')) {
       const entity = nameLower.includes('delete_task') ? 'Task' : 'Reminder';

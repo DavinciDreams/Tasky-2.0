@@ -182,6 +182,22 @@ export const TaskDisplay: React.FC<TaskDisplayProps> = ({ tasks }) => {
 };
 
 export const ReminderDisplay: React.FC<ReminderDisplayProps> = ({ reminders }) => {
+  const [timeFormat, setTimeFormat] = React.useState<'12h' | '24h'>('12h');
+
+  React.useEffect(() => {
+    let mounted = true;
+    try {
+      (async () => {
+        try {
+          const tf = await (window as any)?.electronAPI?.getSetting?.('timeFormat');
+          if (!mounted) return;
+          const mapped = tf === '24' ? '24h' : tf === '12' ? '12h' : (tf === '24h' || tf === '12h') ? tf : '12h';
+          setTimeFormat(mapped);
+        } catch {}
+      })();
+    } catch {}
+    return () => { mounted = false; };
+  }, []);
   if (!Array.isArray(reminders) || reminders.length === 0) {
     return (
       <div className="text-sm text-muted-foreground p-3 bg-muted/20 rounded-lg">
@@ -190,12 +206,30 @@ export const ReminderDisplay: React.FC<ReminderDisplayProps> = ({ reminders }) =
     );
   }
 
+  // Simple formatter for HH:mm -> 12h when needed
+  const formatTime = (time: string) => {
+    try {
+      const use24 = timeFormat === '24h';
+      if (use24) return time;
+      const m = String(time || '').match(/^(\d{1,2}):(\d{2})$/);
+      if (!m) return time;
+      let h = parseInt(m[1], 10);
+      const min = m[2];
+      const suffix = h >= 12 ? 'PM' : 'AM';
+      h = h % 12;
+      if (h === 0) h = 12;
+      return `${h}:${min} ${suffix}`;
+    } catch {
+      return time;
+    }
+  };
+
   return (
     <div className="space-y-2 w-full">
       {reminders.map((reminder, idx) => {
         const isEnabled = reminder.enabled;
         const message = reminder.message || 'Reminder';
-        const time = reminder.time;
+  const time = formatTime(reminder.time);
         const days = reminder.days || [];
 
         return (
