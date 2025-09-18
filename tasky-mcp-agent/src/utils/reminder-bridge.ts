@@ -52,8 +52,8 @@ export class ReminderBridge {
    * Log reminder creation (notification now handled by main app via IPC)
    */
   private async notifyReminderCreated(message: string, time: string, days: string[]): Promise<void> {
-    // Simple synchronous logging to avoid timeout issues
-    console.log(`[ReminderBridge] Reminder created: ${message} at ${time} on ${days.join(', ')}`);
+    // IMPORTANT: Do not write to stdout (reserved for JSON-RPC). Use stderr for diagnostics.
+    process.stderr.write(Buffer.from(`[ReminderBridge] Reminder created: ${message} at ${time} on ${days.join(', ')}` + '\n', 'utf8'));
   }
 
   async createReminder(args: any): Promise<CallToolResult> {

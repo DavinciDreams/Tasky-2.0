@@ -84,7 +84,8 @@ IMPORTANT:
 - Remember task IDs from previous responses in the conversation
 - ALWAYS display tool results - never hide them from the user
 
-For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. After the tool executes, format and show the returned task data to the user.`;
+For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. After the tool executes, format and show the returned task data to the user.
+For listing reminders, call mcpCall with name="tasky_list_reminders" and args={}. After the tool executes, format and show the returned reminder data to the user.`;
 
   // State - Chat persistence
   const {
@@ -355,6 +356,39 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. After 
       }
     }
     
+    // Quick path: keyword-based list commands (ensure tool runs even if model doesn't)
+    try {
+      const lower = trimmed.toLowerCase();
+      const wantsListReminders = /\b(list|show|display)\s+reminders?\b/.test(lower);
+      const wantsListTasks = /\b(list|show|display)\s+tasks?\b/.test(lower);
+      if (mcpReady && (wantsListReminders || wantsListTasks)) {
+        setError(null);
+        // Append user message and clear input immediately
+        setMessages(prev => [...prev, { role: 'user', content: trimmed } as ChatMessage]);
+        setInput('');
+        requestAnimationFrame(scrollToBottom);
+        setBusy(true);
+        const id = `${Date.now()}-${Math.random().toString(36).slice(2,6)}`;
+        const toolName = wantsListReminders ? 'tasky_list_reminders' : 'tasky_list_tasks';
+        try {
+          (window as any).dispatchEvent(new CustomEvent('tasky:tool', { detail: { id, phase: 'start', name: toolName, args: {} } }));
+        } catch {}
+        try {
+          const output = await callMcpTool(toolName, {});
+          try {
+            (window as any).dispatchEvent(new CustomEvent('tasky:tool', { detail: { id, phase: 'done', name: toolName, args: {}, output } }));
+          } catch {}
+        } catch (err:any) {
+          try {
+            (window as any).dispatchEvent(new CustomEvent('tasky:tool', { detail: { id, phase: 'error', name: toolName, args: {}, error: err?.message || String(err) } }));
+          } catch {}
+        } finally {
+          setBusy(false);
+        }
+        return;
+      }
+    } catch {}
+
     // Check for inline JSON tool call pattern and run immediately
     try {
       const maybeJson = JSON.parse(trimmed);
@@ -422,10 +456,25 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. After 
         : TASKY_DEFAULT_PROMPT;
       const effectiveSys = sanitizeSystemPrompt(effectiveSysRaw);
 
-      chatMessages = [
-        { role: 'system', content: effectiveSys },
-        ...next.map(m => ({ role: m.role, content: m.content }))
-      ].filter(msg => msg.content && msg.content.trim().length > 0); // Filter out empty messages
+      const normalizeRole = (r: unknown): 'system' | 'user' | 'assistant' => {
+        if (r === 'system') return 'system';
+        if (r === 'user') return 'user';
+        if (r === 'assistant') return 'assistant';
+        return 'assistant';
+      };
+
+      type ChatTurn = { role: 'system' | 'user' | 'assistant'; content: string };
+      const normalizedMessages: ChatTurn[] = next.map((m) => ({
+        role: normalizeRole((m as any).role),
+        content: m.content ?? ''
+      }));
+
+      chatMessages = (
+        [
+          { role: 'system', content: effectiveSys },
+          ...normalizedMessages
+        ] as ChatTurn[]
+      ).filter(msg => msg.content && msg.content.trim().length > 0); // Filter out empty messages
 
       console.log('[Chat] Final chat messages:', chatMessages);
 
@@ -634,24 +683,6 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. After 
 
   return (
   <div ref={rootRef} className="h-full w-full flex flex-col relative">
-      {/* Header section - fixed height */}
-  <div className="flex-shrink-0 flex items-center justify-between mb-4 px-4">
-        <div className="flex items-center gap-2">
-          <h2 className="text-lg font-semibold text-foreground">Tasky Chat</h2>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            className="rounded-xl text-sm h-7 px-3 py-1 flex items-center gap-2 text-button-foreground hover:opacity-90 transition-opacity"
-            style={{ backgroundColor: 'hsl(var(--button))' }}
-            disabled={busy}
-            onClick={resetChat}
-          >
-            <span>🔄</span>
-            <span>Reset Chat</span>
-          </Button>
-        </div>
-      </div>
 
       {!providerSupported && (
         <div className="flex-shrink-0 text-xs text-accent mb-3 px-4">
@@ -659,11 +690,11 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. After 
         </div>
       )}
 
-      {/* Unified message area (scrollable) */}
-      <div className="flex-1 min-h-[60vh] md:min-h-[70vh] w-full flex flex-col border-t border-b md:border border-border/30 bg-background">
+  {/* Unified message area (scrollable) */}
+  <div className="flex-1 min-h-[60vh] md:min-h-[70vh] w-full flex flex-col bg-background">
         <div
           ref={scrollRef}
-          className="chat-scroll-container flex-1 min-h-0 overflow-y-auto no-scrollbar px-4 pt-4 pb-24 w-full flex flex-col"
+          className="chat-scroll-container flex-1 min-h-0 overflow-y-auto no-scrollbar px-5 md:px-6 pt-2 pb-4 w-full flex flex-col"
           onScroll={handleScroll}
         >
           {messages.length === 0 ? (
@@ -695,15 +726,30 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. After 
         />
       )}
 
-      {/* Composer pinned at bottom */}
-      <div className="flex-shrink-0 w-full bg-background border-t border-border/30 px-4 py-3 mt-auto sticky bottom-0 z-10">
-        <ChatComposer
-          input={input}
-          setInput={setInput}
-          onSend={onSend}
-          onStop={onStop}
-          busy={busy}
-        />
+      {/* Composer anchored below message list with Reset action */}
+      <div className="flex-shrink-0 w-full bg-background px-5 md:px-6 py-2">
+        <div className="w-full flex items-center gap-2">
+          <div className="flex-1">
+            <ChatComposer
+              input={input}
+              setInput={setInput}
+              onSend={onSend}
+              onStop={onStop}
+              busy={busy}
+            />
+          </div>
+          <Button
+            size="icon"
+            className="h-10 w-10 rounded-full flex items-center justify-center text-button-foreground hover:opacity-90 transition-opacity"
+            style={{ backgroundColor: 'hsl(var(--button))' }}
+            disabled={busy}
+            onClick={resetChat}
+            aria-label="Reset Chat"
+            title="Reset Chat"
+          >
+            <span role="img" aria-hidden="true">🔄</span>
+          </Button>
+        </div>
       </div>
     </div>
   );

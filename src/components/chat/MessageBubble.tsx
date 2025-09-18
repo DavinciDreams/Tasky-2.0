@@ -37,15 +37,15 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, index }) 
         type: "spring",
         stiffness: 100
       }}
-      className={`chat-message-container max-w-full ${isUser ? 'ml-auto' : ''} flex animate-message-slide-in`}
+  className={`chat-message-container max-w-[78%] md:max-w-[64%] ${isUser ? 'ml-auto mr-3' : 'ml-3'} flex animate-message-slide-in`}
     >
       <div
         className={`
           ${isUser 
-            ? 'bg-primary text-primary-foreground' 
-            : 'bg-card text-foreground border border-border/30'
+            ? 'bg-primary text-primary-foreground border border-primary/40' 
+            : 'bg-card text-foreground border border-border'
           }
-          rounded-2xl px-4 py-3 w-full break-words chat-message-content
+          rounded-2xl px-3.5 py-2.5 w-full break-words chat-message-content shadow-sm
         `}
       >
         {isUser ? (

@@ -93,10 +93,9 @@ export class TaskBridge {
    * Log task creation (notification now handled by main app via IPC)
    */
   private async notifyTaskCreated(title: string, description?: string): Promise<void> {
-    // With stdio protocol, main app handles notifications when it receives MCP responses
-    // Use Buffer to ensure proper UTF-8 encoding for console output
+    // IMPORTANT: Do not write to stdout (reserved for JSON-RPC). Use stderr for diagnostics.
     const message = `[TASK-CREATED] Task created: ${title}${description ? ` - ${description}` : ''}`;
-    process.stdout.write(Buffer.from(message + '\n', 'utf8'));
+    process.stderr.write(Buffer.from(message + '\n', 'utf8'));
   }
 
   async createTask(args: any): Promise<CallToolResult> {

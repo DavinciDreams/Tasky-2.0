@@ -144,16 +144,25 @@ const sendMcpMessage = async (message: any): Promise<any> => {
 
     const messageStr = JSON.stringify(message) + '\n';
     
-    // Set up response handler
+    // Buffer stdout and parse newline-delimited JSON
+    let buffer = '';
     const responseHandler = (data: Buffer) => {
-      try {
-        const response = JSON.parse(data.toString().trim());
-        if (response.id === message.id) {
-          mcpServerProcess!.stdout!.removeListener('data', responseHandler);
-          resolve(response);
+      buffer += data.toString();
+      let idx;
+      while ((idx = buffer.indexOf('\n')) !== -1) {
+        const line = buffer.slice(0, idx).trim();
+        buffer = buffer.slice(idx + 1);
+        if (!line) continue;
+        try {
+          const response = JSON.parse(line);
+          if (response && response.id === message.id) {
+            mcpServerProcess!.stdout!.removeListener('data', responseHandler);
+            resolve(response);
+            return;
+          }
+        } catch {
+          // Ignore non-JSON lines
         }
-      } catch (error) {
-        // Not a JSON response, ignore
       }
     };
 
@@ -162,11 +171,11 @@ const sendMcpMessage = async (message: any): Promise<any> => {
     // Send message
     mcpServerProcess.stdin.write(messageStr);
     
-    // Timeout after 5 seconds
+    // Timeout after 8 seconds
     setTimeout(() => {
-      mcpServerProcess!.stdout!.removeListener('data', responseHandler);
+      try { mcpServerProcess!.stdout!.removeListener('data', responseHandler); } catch {}
       reject(new Error('MCP message timeout'));
-    }, 5000);
+    }, 8000);
   });
 };
 
