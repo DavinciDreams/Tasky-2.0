@@ -4,6 +4,7 @@ import type { AIConfig } from '../../ai';
 
 // UI Components
 import { Button } from '../ui/button';
+import { Trash } from 'lucide-react';
 import { Modal } from '../ui/modal';
 
 // Chat Components
@@ -747,7 +748,7 @@ For listing reminders, call mcpCall with name="tasky_list_reminders" and args={}
             aria-label="Reset Chat"
             title="Reset Chat"
           >
-            <span role="img" aria-hidden="true">🔄</span>
+            <Trash className="h-5 w-5" aria-hidden="true" />
           </Button>
         </div>
       </div>
