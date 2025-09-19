@@ -88,13 +88,13 @@ const MCP_TOOLS: McpTool[] = [
     description: 'Execute/start a task',
     icon: Play,
     category: 'tasks',
-    template: `Execute task {{id}} with status {{status}}`,
-    helpText: 'Executes a task by updating status to IN_PROGRESS or COMPLETED, with optional integration to the main Tasky application for automated execution.',
+    template: `Execute task {{id}} or title {{title}} with status {{status}}`,
+    helpText: 'Executes a task by updating status to IN_PROGRESS or COMPLETED, with integration to the main Tasky app. Prefer id; if not available, provide title or matchTitle — fuzzy matching resolves to the canonical ID.',
     examples: [
-      'Execute task "task_123"',
-      'Execute task "task_456" with status "IN_PROGRESS"',
-      'Execute task "task_789" with status "COMPLETED"',
-      'Start task "task_abc"'
+      'Execute task id "create_new_folder_20250914_164055_e6213ef4"',
+      'Execute task title "Fix login bug"',
+      'Execute task title "login bug" with status "IN_PROGRESS"',
+      'Start task title "prepare presentation"'
     ]
   },
   // Reminder Tools

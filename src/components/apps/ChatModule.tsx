@@ -38,10 +38,9 @@ When users want to create, list, update, delete, or execute tasks or reminders, 
 TASK TOOLS (use mcpCall tool with these names):
 - tasky_create_task: Create tasks with title, description, dueDate, tags, etc.
 - tasky_list_tasks: List existing tasks with optional filtering  
-- tasky_update_task: Update task properties. Prefer id; otherwise provide matchTitle with the task's title — typos ok
-- tasky_delete_task: Delete tasks by ID or exact title
+ - tasky_update_task: Update task properties. Prefer id; otherwise provide matchTitle with the task's title — typos ok
  - tasky_delete_task: Delete tasks by ID or title (handles close title matches)
-- tasky_execute_task: Execute a task (requires id, optional status)
+ - tasky_execute_task: Execute a task (prefer id; otherwise provide matchTitle/title — typos ok)
 
 REMINDER TOOLS (use mcpCall tool with these names):
 - tasky_create_reminder: Create reminders with message, time, days array, oneTime boolean
@@ -50,11 +49,10 @@ REMINDER TOOLS (use mcpCall tool with these names):
  - tasky_update_reminder: Update reminders (use id when available; otherwise provide matchMessage — typos ok)
  - tasky_delete_reminder: Delete reminders by ID or message (handles close matches)
 
-CRITICAL - TASK ID USAGE:
-- When tasky_list_tasks returns tasks, extract the task ID from the "schema.id" field
-- For tasky_execute_task, ALWAYS use the exact task ID from previous list results
-- Never use task title for execution - only use the full task ID
-- Be context-aware: when user says "execute the task" after listing tasks, use the ID from the list
+EXECUTION GUIDANCE:
+- Prefer using the exact task ID from prior results when available (from schema.id).
+- If the ID isn’t available, pass matchTitle or title — the tool will fuzzy‑match and return the canonical ID. Do not invent IDs.
+- Be context‑aware: when the user says "execute the task" after listing, use that task’s ID if present.
 
 EXAMPLE CORRECT FLOW:
 1. User: "list tasks" 
@@ -62,6 +60,11 @@ EXAMPLE CORRECT FLOW:
 3. Response includes: {"schema":{"id":"create_new_folder_20250914_164055_e6213ef4",...}}
 4. User: "execute the task"
 5. Call: mcpCall with name="tasky_execute_task", args={"id":"create_new_folder_20250914_164055_e6213ef4"}
+
+ALT FLOW (no ID on hand):
+1. User: "execute the login bug task"
+2. Call: mcpCall with name="tasky_execute_task", args={ matchTitle: "login bug" }
+3. Tool resolves the task by title (fuzzy) and returns the canonical ID
 
 RENAME TASKS (important):
 - If the user says “rename <title> to <new>”, or “update task <title> name to <new>”, call:

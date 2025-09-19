@@ -10,14 +10,16 @@ Start task execution or mark tasks as complete. Attempts to delegate to the main
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `id` | string | ✅ | Task ID to execute |
+| `id` | string | ❌ | Task ID to execute (preferred when available) |
+| `matchTitle` | string | ❌ | Exact or approximate title used to resolve the task when `id` isn’t provided |
+| `title` | string | ❌ | Alias for `matchTitle`; natural phrases like "execute login bug" are accepted |
 | `status` | "IN_PROGRESS" \| "COMPLETED" | ❌ | Target status (defaults to "IN_PROGRESS") |
 
 ## UI Flow
 
 1. **User Input:** "Start working on task ABC123" or "Execute the login bug fix"
-2. **AI Processing:** Identifies task ID and execution intent
-3. **Tool Call:** `mcpCall` invoked with task ID and optional status
+2. **AI Processing:** Prefers existing task ID; otherwise resolves by fuzzy title
+3. **Tool Call:** `mcpCall` invoked with id or matchTitle/title and optional status
 4. **Confirmation:** User sees execution confirmation dialog
 5. **Dual Execution Path:**
    - **Primary:** HTTP call to main Tasky app at localhost:7844/execute-task
@@ -103,11 +105,14 @@ Snapshot shape success primary
     "tool": "tasky_execute_task",
     "status": "success",
     "data": {
-      "schema": { "id": "a1", "title": "Fix login bug" },
-      "execution": { "performed": "automated_execution", "status": "completed" },
-      "status": "COMPLETED"
+      "id": "fix_login_bug_20250907_143022_abc123",
+      "title": "Fix login bug",
+      "previousStatus": "PENDING",
+      "newStatus": "IN_PROGRESS",
+      "delegated": true,
+      "provider": "claude"
     },
-    "meta": { "operation": "execute", "path": "primary", "timestamp": "2025-09-17T16:00:00.000Z" }
+    "meta": { "operation": "execute", "timestamp": "2025-09-17T16:00:00.000Z" }
   }
 }
 ```
@@ -121,11 +126,13 @@ Snapshot shape success fallback
     "tool": "tasky_execute_task",
     "status": "success",
     "data": {
-      "schema": { "id": "a1", "title": "Fix login bug" },
-      "execution": { "performed": "status_update" },
-      "status": "IN_PROGRESS"
+      "id": "fix_login_bug_20250907_143022_abc123",
+      "title": "Fix login bug",
+      "previousStatus": "PENDING",
+      "newStatus": "IN_PROGRESS",
+      "delegated": false
     },
-    "meta": { "operation": "execute", "path": "fallback", "timestamp": "2025-09-17T16:00:00.000Z" }
+    "meta": { "operation": "execute", "timestamp": "2025-09-17T16:00:00.000Z" }
   }
 }
 ```
@@ -215,11 +222,7 @@ curl -X POST http://localhost:7844/mcp \
     "content": [
       {
         "type": "text",
-        "text": "Task execution started: Agent Claude executed task with automated fixes"
-      },
-      {
-        "type": "text",
-        "text": "{\"performed\": \"automated_execution\", \"agent\": \"claude\", \"results\": \"Applied OAuth redirect fix, updated tests, deployed to staging\", \"duration\": 240}"
+        "text": "{\"__taskyCard\":{\"kind\":\"result\",\"tool\":\"tasky_execute_task\",\"status\":\"success\",\"data\":{\"id\":\"...\",\"title\":\"...\",\"previousStatus\":\"PENDING\",\"newStatus\":\"IN_PROGRESS\",\"delegated\":true,\"provider\":\"claude\"},\"meta\":{\"operation\":\"execute\",\"timestamp\":\"...\"}}}"
       }
     ]
   }
@@ -235,15 +238,7 @@ curl -X POST http://localhost:7844/mcp \
     "content": [
       {
         "type": "text",
-        "text": "Task fix_login_bug_20250907_143022_abc123: Fix login bug"
-      },
-      {
-        "type": "text",
-        "text": "{\"schema\":{\"id\":\"fix_login_bug_20250907_143022_abc123\",\"title\":\"Fix login bug\",\"status\":\"IN_PROGRESS\",\"updatedAt\":\"2025-09-07T16:30:00.000Z\"}}"
-      },
-      {
-        "type": "text",
-        "text": "Note: Task execution requires main Tasky app to be running (Error: Tasky app not running or not accessible)"
+        "text": "{\"__taskyCard\":{\"kind\":\"result\",\"tool\":\"tasky_execute_task\",\"status\":\"success\",\"data\":{\"id\":\"...\",\"title\":\"...\",\"previousStatus\":\"PENDING\",\"newStatus\":\"IN_PROGRESS\",\"delegated\":false},\"meta\":{\"operation\":\"execute\",\"timestamp\":\"...\"}}}"
       }
     ]
   }
