@@ -62,7 +62,7 @@ export const AdaptiveCardRenderer: React.FC<AdaptiveCardRendererProps> = ({ card
     const parsedOut = extractJsonFromOutput(outputStr);
     const outputStrLower = (outputStr || '').toLowerCase();
     // Render execute_task results with a compact success card
-    if (nameLower.includes('execute_task')) {
+  if (nameLower.includes('execute_task')) {
       // Prefer Tasky structured card: { __taskyCard: { data: { id, title, previousStatus, newStatus, delegated, provider } } }
       let data: any = null;
       if (parsedOut && typeof parsedOut === 'object') {
@@ -72,6 +72,8 @@ export const AdaptiveCardRenderer: React.FC<AdaptiveCardRendererProps> = ({ card
 
   const id = data?.id;
   const title = data?.title;
+    const previousStatus = data?.previousStatus || data?.previous || data?.statusBefore;
+    const newStatus = data?.newStatus || data?.status || data?.statusAfter;
       const delegated = data?.delegated === true;
       const provider = (data?.provider || '').toString();
 
@@ -83,6 +85,11 @@ export const AdaptiveCardRenderer: React.FC<AdaptiveCardRendererProps> = ({ card
               <div className="text-sm bg-blue-50 text-blue-700 border border-blue-200 rounded-lg p-3">
                 <div className="font-medium">Task execution started</div>
                 <div className="mt-1">{title || 'Task'}{!title && id ? ` (ID: ${id})` : ''}</div>
+                {(previousStatus || newStatus) && (
+                  <div className="mt-1 text-xs opacity-80">
+                    Status: {previousStatus ? `${previousStatus} → ` : ''}{newStatus || 'IN_PROGRESS'}
+                  </div>
+                )}
                 <div className="mt-1 text-xs opacity-80">
                   {delegated ? 'Delegated to ' : 'Updated via fallback'}{delegated ? (provider ? ` ${provider}` : '') : ''}
                 </div>
