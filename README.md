@@ -43,8 +43,9 @@ Tasky 2.0 is a modern, cross-platform desktop task management application built 
 - **Flexible Layout**: Responsive chat interface with sticky input positioning
 
 ### 🔗 **Model Context Protocol (MCP)**
-- **Full CRUD Operations**: Create, read, update, and delete tasks via MCP
-- **Real-time Sync**: Bidirectional synchronization between app and MCP clients
+- **Internal Integration**: Built-in MCP tools accessible through the chat interface
+- **Full CRUD Operations**: Create, read, update, and delete tasks and reminders via MCP
+- **Real-time Sync**: Bidirectional synchronization between app and external MCP clients
 - **External AI Integration**: Compatible with Cursor, Claude Desktop, and other MCP clients
 - **Tool Discovery**: Automatic MCP tool registration and documentation
 - **Enhanced Validation**: Comprehensive parameter validation and error handling
@@ -251,8 +252,13 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
   - OpenAI API key for GPT models
   - Or local LM Studio installation for offline AI
 - **For AI Execution**: Install CLI tools on PATH:
-  - [Claude CLI](https://github.com/anthropics/claude-cli) for Anthropic integration
+  - [Claude Code](https://docs.claude.com/en/docs/claude-code) for Anthropic integration
   - [Gemini CLI](https://github.com/google-gemini/gemini-cli) for Google AI integration
+
+### Platform Compatibility
+- **Windows**: ✅ Stable - Fully tested and production ready
+- **Linux**: ⚠️ Scaling issues present - Updates coming soon
+- **macOS**: ❓ Not tested - Community feedback welcome
 
 ### Installation & Development
 
