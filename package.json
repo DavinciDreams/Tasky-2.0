@@ -20,7 +20,7 @@
     "dist:win": "npm run build && npx electron-builder --win",
     "dist:linux": "npm run build && npx electron-builder --linux",
     "pack": "npx electron-builder --dir",
-    "postinstall": "npm --prefix tasky-mcp-agent install && electron-rebuild -f -w better-sqlite3",
+    "postinstall": "npm --prefix tasky-mcp-agent install --ignore-scripts && electron-rebuild -f -w better-sqlite3",
     "rebuild:native": "electron-rebuild -f -w better-sqlite3",
     "lint": "eslint . || exit 0",
     "test": "vitest run --environment happy-dom",
