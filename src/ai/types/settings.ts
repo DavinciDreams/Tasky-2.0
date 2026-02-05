@@ -1,5 +1,5 @@
 export interface AISettings {
-  provider: 'google' | 'lmstudio';
+  provider: 'google' | 'lmstudio' | 'zai' | 'openrouter';
   apiKey: string;
   model: string;
   temperature: number;

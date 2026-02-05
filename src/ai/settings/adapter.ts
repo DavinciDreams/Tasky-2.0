@@ -61,16 +61,23 @@ export class AISettingsAdapter {
     const applied: string[] = [];
 
     // Fix missing or invalid provider
-    if (!appSettings.llmProvider || !['google', 'lmstudio'].includes(appSettings.llmProvider)) {
+    if (!appSettings.llmProvider || !['google', 'lmstudio', 'zai', 'openrouter'].includes(appSettings.llmProvider)) {
       fixes.llmProvider = 'google';
       applied.push('Set provider to Google');
     }
 
     // Fix missing model
     if (!appSettings.llmModel) {
-      if ((appSettings.llmProvider || 'google') === 'google') {
-        fixes.llmModel = 'gemini-1.5-flash'; // Use 1.5-flash as default instead of 2.5-flash
+      const provider = appSettings.llmProvider || 'google';
+      if (provider === 'google') {
+        fixes.llmModel = 'gemini-1.5-flash';
         applied.push('Set model to Gemini 1.5 Flash');
+      } else if (provider === 'zai') {
+        fixes.llmModel = 'glm-4-flash';
+        applied.push('Set model to GLM-4 Flash');
+      } else if (provider === 'openrouter') {
+        fixes.llmModel = 'openai/gpt-4o-mini';
+        applied.push('Set model to GPT-4o Mini');
       } else {
         fixes.llmModel = 'llama-3.3-70b-instruct';
         applied.push('Set model to Llama 3.3 70B Instruct');
@@ -98,20 +105,30 @@ export class AISettingsAdapter {
     return { fixed: fixes, applied };
   }
 
-  private normalizeProvider(provider?: string): 'google' | 'lmstudio' {
+  private normalizeProvider(provider?: string): 'google' | 'lmstudio' | 'zai' | 'openrouter' {
     if (!provider) return 'google';
-    
+
     const normalized = provider.toLowerCase();
-    
+
     // Map legacy providers
     if (['openai', 'openai-compatible'].includes(normalized)) {
       return 'google'; // Migrate from OpenAI to Google
     }
-    
+
     if (['lmstudio', 'lm-studio', 'local', 'custom'].includes(normalized)) {
       return 'lmstudio';
     }
-    
-    return ['google', 'lmstudio'].includes(normalized) ? normalized as 'google' | 'lmstudio' : 'google';
+
+    if (['zai', 'z.ai', 'zhipu', 'glm'].includes(normalized)) {
+      return 'zai';
+    }
+
+    if (['openrouter', 'open-router'].includes(normalized)) {
+      return 'openrouter';
+    }
+
+    return ['google', 'lmstudio', 'zai', 'openrouter'].includes(normalized)
+      ? normalized as 'google' | 'lmstudio' | 'zai' | 'openrouter'
+      : 'google';
   }
 }

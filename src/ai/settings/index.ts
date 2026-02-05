@@ -1,5 +1,5 @@
 import type { AISettings, AIValidationResult, AIModelInfo, AIProviderCapabilities } from '../types/settings';
-import { SUPPORTED_GOOGLE_MODELS } from '../config';
+import { SUPPORTED_GOOGLE_MODELS, SUPPORTED_ZAI_MODELS, SUPPORTED_OPENROUTER_MODELS } from '../config';
 
 export class AISettingsManager {
   private static instance: AISettingsManager;
@@ -59,8 +59,8 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT
     // Provider validation
     if (!settings.provider) {
       errors.push('AI provider is required');
-    } else if (!['google', 'lmstudio'].includes(settings.provider)) {
-      errors.push('AI provider must be either "google" or "lmstudio"');
+    } else if (!['google', 'lmstudio', 'zai', 'openrouter'].includes(settings.provider)) {
+      errors.push('AI provider must be one of: google, lmstudio, zai, openrouter');
     }
 
     // API Key validation
@@ -72,6 +72,12 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT
         // LM Studio typically uses a placeholder API key like "lm-studio"
         warnings.push('LM Studio usually uses "lm-studio" as API key');
         suggestions.push('Use "lm-studio" as the API key for local LM Studio instances');
+      } else if (settings.provider === 'zai') {
+        errors.push('Z.AI API key is required');
+        suggestions.push('Get your API key from https://open.bigmodel.cn/');
+      } else if (settings.provider === 'openrouter') {
+        errors.push('OpenRouter API key is required');
+        suggestions.push('Get your API key from https://openrouter.ai/keys');
       }
     }
 
@@ -82,6 +88,11 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT
       if (!SUPPORTED_GOOGLE_MODELS.includes(settings.model as any)) {
         warnings.push(`Model "${settings.model}" may not be supported. Recommended: gemini-2.5-flash`);
         suggestions.push('Use a supported Google model for best compatibility');
+      }
+    } else if (settings.provider === 'zai') {
+      if (!SUPPORTED_ZAI_MODELS.includes(settings.model as any)) {
+        warnings.push(`Model "${settings.model}" may not be supported. Recommended: glm-4-flash`);
+        suggestions.push('Use a supported Z.AI model for best compatibility');
       }
     }
 
@@ -132,6 +143,10 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT
         return this.getGoogleModels();
       case 'lmstudio':
         return this.getLMStudioModels();
+      case 'zai':
+        return this.getZAIModels();
+      case 'openrouter':
+        return this.getOpenRouterModels();
       default:
         return [];
     }
@@ -198,6 +213,118 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT
     // This is because LM Studio models are loaded dynamically and we need to
     // query the API to get the actual available models
     return [];
+  }
+
+  private getZAIModels(): AIModelInfo[] {
+    const baseCapabilities: AIProviderCapabilities = {
+      supportsStreaming: true,
+      supportsTools: true,
+      supportsImages: true,
+      supportsObjectGeneration: true,
+      supportsSearch: false,
+      supportsUrlContext: false,
+      maxContextLength: 128000
+    };
+
+    return [
+      {
+        id: 'glm-4.7',
+        name: 'GLM-4.7',
+        description: 'Latest and most capable GLM model',
+        capabilities: baseCapabilities,
+        isRecommended: true
+      },
+      {
+        id: 'glm-4.6',
+        name: 'GLM-4.6',
+        description: 'Previous generation flagship model',
+        capabilities: baseCapabilities
+      },
+      {
+        id: 'glm-4.5',
+        name: 'GLM-4.5',
+        description: 'Stable high-performance model',
+        capabilities: baseCapabilities
+      },
+      {
+        id: 'glm-4-plus',
+        name: 'GLM-4 Plus',
+        description: 'Enhanced GLM-4 with improved capabilities',
+        capabilities: baseCapabilities
+      },
+      {
+        id: 'glm-4-long',
+        name: 'GLM-4 Long',
+        description: 'Extended context window model',
+        capabilities: { ...baseCapabilities, maxContextLength: 1000000 }
+      },
+      {
+        id: 'glm-4-flash',
+        name: 'GLM-4 Flash',
+        description: 'Fast and cost-effective model',
+        capabilities: { ...baseCapabilities, maxContextLength: 128000 },
+        isDefault: true
+      }
+    ];
+  }
+
+  private getOpenRouterModels(): AIModelInfo[] {
+    const baseCapabilities: AIProviderCapabilities = {
+      supportsStreaming: true,
+      supportsTools: true,
+      supportsImages: true,
+      supportsObjectGeneration: true,
+      supportsSearch: false,
+      supportsUrlContext: false,
+      maxContextLength: 128000
+    };
+
+    return [
+      {
+        id: 'anthropic/claude-sonnet-4',
+        name: 'Claude Sonnet 4',
+        description: 'Anthropic Claude Sonnet 4 via OpenRouter',
+        capabilities: { ...baseCapabilities, maxContextLength: 200000 },
+        isRecommended: true
+      },
+      {
+        id: 'openai/gpt-4o',
+        name: 'GPT-4o',
+        description: 'OpenAI GPT-4o via OpenRouter',
+        capabilities: { ...baseCapabilities, maxContextLength: 128000 }
+      },
+      {
+        id: 'openai/gpt-4o-mini',
+        name: 'GPT-4o Mini',
+        description: 'OpenAI GPT-4o Mini - fast and affordable',
+        capabilities: { ...baseCapabilities, maxContextLength: 128000 },
+        isDefault: true
+      },
+      {
+        id: 'google/gemini-2.5-flash',
+        name: 'Gemini 2.5 Flash',
+        description: 'Google Gemini 2.5 Flash via OpenRouter',
+        capabilities: { ...baseCapabilities, maxContextLength: 1000000 }
+      },
+      {
+        id: 'meta-llama/llama-4-maverick',
+        name: 'Llama 4 Maverick',
+        description: 'Meta Llama 4 Maverick via OpenRouter',
+        capabilities: baseCapabilities
+      },
+      {
+        id: 'deepseek/deepseek-r1',
+        name: 'DeepSeek R1',
+        description: 'DeepSeek R1 reasoning model via OpenRouter',
+        capabilities: baseCapabilities
+      },
+      {
+        id: 'mistralai/mistral-large',
+        name: 'Mistral Large',
+        description: 'Mistral Large via OpenRouter',
+        capabilities: baseCapabilities
+      }
+    ];
   }
 
   async getLMStudioModelsFromAPI(baseUrl: string = 'http://127.0.0.1:1234', apiKey?: string): Promise<AIModelInfo[]> {
@@ -268,8 +395,20 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT
     // Return default capabilities for provider
     if (provider === 'google') {
       return this.getGoogleModels()[0].capabilities;
+    } else if (provider === 'zai') {
+      return this.getZAIModels()[0].capabilities;
+    } else if (provider === 'openrouter') {
+      return this.getOpenRouterModels()[0].capabilities;
     } else {
-      return this.getLMStudioModels()[0].capabilities;
+      return this.getLMStudioModels()[0]?.capabilities || {
+        supportsStreaming: true,
+        supportsTools: false,
+        supportsImages: false,
+        supportsObjectGeneration: false,
+        supportsSearch: false,
+        supportsUrlContext: false,
+        maxContextLength: 8192
+      };
     }
   }
 
@@ -302,8 +441,12 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT
       return defaultModel.id;
     }
 
-    // Fallback to first available model
-    return availableModels[0]?.id || (provider === 'google' ? 'gemini-2.5-flash' : 'llama-3.1-8b-instruct');
+    // Fallback to first available model or provider-specific default
+    if (availableModels[0]?.id) return availableModels[0].id;
+    if (provider === 'zai') return 'glm-4-flash';
+    if (provider === 'openrouter') return 'openai/gpt-4o-mini';
+    if (provider === 'google') return 'gemini-2.5-flash';
+    return 'llama-3.1-8b-instruct';
   }
 
   async testConnection(settings: AISettings): Promise<{ success: boolean; message: string; error?: any }> {
@@ -312,6 +455,10 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT
         return await this.testGoogleConnection(settings);
       } else if (settings.provider === 'lmstudio') {
         return await this.testLMStudioConnection(settings);
+      } else if (settings.provider === 'zai') {
+        return await this.testZAIConnection(settings);
+      } else if (settings.provider === 'openrouter') {
+        return await this.testOpenRouterConnection(settings);
       } else {
         return { success: false, message: 'Unsupported provider' };
       }
@@ -385,10 +532,61 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT
           message: 'Cannot connect to LM Studio. Please start LM Studio and enable the server.' 
         };
       }
-      return { 
-        success: false, 
-        message: 'LM Studio connection failed. Check if the server is running on the correct port.' 
+      return {
+        success: false,
+        message: 'LM Studio connection failed. Check if the server is running on the correct port.'
       };
+    }
+  }
+
+  private async testZAIConnection(settings: AISettings): Promise<{ success: boolean; message: string }> {
+    if (!settings.apiKey) {
+      return { success: false, message: 'Z.AI API key required' };
+    }
+
+    try {
+      const response = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${settings.apiKey}`
+        },
+        body: JSON.stringify({
+          model: settings.model || 'glm-4-flash',
+          messages: [{ role: 'user', content: 'Hello' }],
+          max_tokens: 10
+        })
+      });
+
+      if (response.ok) {
+        return { success: true, message: 'Z.AI connection successful' };
+      } else {
+        return { success: false, message: `Z.AI error: ${response.status}` };
+      }
+    } catch (_error) {
+      return { success: false, message: 'Z.AI connection failed' };
+    }
+  }
+
+  private async testOpenRouterConnection(settings: AISettings): Promise<{ success: boolean; message: string }> {
+    if (!settings.apiKey) {
+      return { success: false, message: 'OpenRouter API key required' };
+    }
+
+    try {
+      const response = await fetch('https://openrouter.ai/api/v1/models', {
+        headers: {
+          'Authorization': `Bearer ${settings.apiKey}`
+        }
+      });
+
+      if (response.ok) {
+        return { success: true, message: 'OpenRouter connection successful' };
+      } else {
+        return { success: false, message: `OpenRouter error: ${response.status}` };
+      }
+    } catch (_error) {
+      return { success: false, message: 'OpenRouter connection failed' };
     }
   }
 }

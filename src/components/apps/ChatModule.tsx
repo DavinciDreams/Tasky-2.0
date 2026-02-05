@@ -318,7 +318,7 @@ For listing reminders, call mcpCall with name="tasky_list_reminders" and args={}
     }
   }, [settings.llmProvider, settings.llmApiKey, settings.llmModel, settings.llmBaseUrl, temperature]);
 
-  const providerSupported = useMemo(() => ['google', 'lmstudio'].includes(
+  const providerSupported = useMemo(() => ['google', 'lmstudio', 'zai', 'openrouter'].includes(
     (settings.llmProvider || 'google').toLowerCase()
   ), [settings.llmProvider]);
 

@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Button } from '../ui/button';
 import { Modal } from '../ui/modal';
-import { GOOGLE_AI_MODELS } from '../../ai/providers';
+import { GOOGLE_AI_MODELS, ZAI_MODELS, OPENROUTER_POPULAR_MODELS } from '../../ai/providers';
 import type { Settings } from '../../types';
 
 interface ChatHeaderProps {
@@ -85,6 +85,20 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
       }));
     }
     
+    if (normalizedProvider === 'zai') {
+      return ZAI_MODELS.map(model => ({
+        value: model,
+        label: model.toUpperCase().replace('GLM-', 'GLM-')
+      }));
+    }
+
+    if (normalizedProvider === 'openrouter') {
+      return OPENROUTER_POPULAR_MODELS.map(model => ({
+        value: model,
+        label: model.split('/').pop()?.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || model
+      }));
+    }
+
     // For LM Studio providers, provide common models
     return [
       { value: 'llama-3.3-70b-instruct', label: 'Llama 3.3 70B Instruct' },
