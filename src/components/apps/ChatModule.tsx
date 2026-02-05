@@ -294,13 +294,13 @@ For listing reminders, call mcpCall with name="tasky_list_reminders" and args={}
     ensureMcp();
   }, []);
 
-  // Build AI service
-  const aiService = useMemo(() => {
+  // Build AI service (returns null if provider can't be initialized)
+  const aiService = useMemo((): AIService | null => {
     const adapter = new AISettingsAdapter();
     const aiSettings = adapter.fromAppSettings(settings);
     const settingsManager = AISettingsManager.getInstance();
     const normalizedSettings = settingsManager.normalizeSettings(aiSettings);
-    
+
     const config: AIConfig = {
       provider: normalizedSettings.provider,
       apiKey: normalizedSettings.apiKey,
@@ -309,18 +309,12 @@ For listing reminders, call mcpCall with name="tasky_list_reminders" and args={}
       maxTokens: normalizedSettings.maxTokens,
       baseUrl: normalizedSettings.baseUrl
     };
-    
+
     try {
       return new AIService(config);
     } catch (error) {
-      console.error('[Chat] Failed to create AI service:', error);
-      // Fallback to Google with user's preferred model or 1.5-flash
-      return new AIService({
-        provider: 'google',
-        apiKey: settings.llmApiKey || '',
-        model: settings.llmModel || 'gemini-1.5-flash', // Respect user choice
-        temperature: temperature
-      });
+      console.warn('[Chat] AI service not available:', (error as Error).message);
+      return null;
     }
   }, [settings.llmProvider, settings.llmApiKey, settings.llmModel, settings.llmBaseUrl, temperature]);
 
@@ -451,6 +445,14 @@ For listing reminders, call mcpCall with name="tasky_list_reminders" and args={}
     console.log('[Chat] Validating settings...');
     if (!validateSettings()) {
       console.log('[Chat] Validation failed, not sending message');
+      return;
+    }
+    if (!aiService) {
+      setMessages(prev => [...prev,
+        { role: 'user', content: trimmed } as ChatMessage,
+        { role: 'assistant', content: 'Please configure your API key in Settings to use the chat.' } as ChatMessage
+      ]);
+      setInput('');
       return;
     }
     console.log('[Chat] Validation passed, proceeding with send');

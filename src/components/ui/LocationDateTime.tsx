@@ -84,13 +84,22 @@ const LocationDateTime: React.FC<LocationDateTimeProps> = ({
         if (locationData) {
           setLocationInfo(locationData);
         } else {
-          throw new Error('All location services failed');
+          console.warn('All location services failed, using system timezone');
+          setError('Unable to detect location');
+          setLocationInfo({
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            city: 'Local',
+            country: 'System',
+            countryCode: 'SYS',
+            lat: 0,
+            lon: 0
+          });
         }
-        
+
       } catch (err) {
         console.error('Failed to fetch location:', err);
         setError('Unable to detect location');
-        
+
         // Fallback to system timezone
         setLocationInfo({
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
