@@ -88,9 +88,6 @@
     "vitest": "^3.0.0",
     "wait-on": "^8.0.4"
   },
-  "vitest": {
-    "environment": "happy-dom"
-  },
   "dependencies": {
     "@ai-sdk/google": "^2.0.12",
     "@ai-sdk/openai-compatible": "^1.0.0",
