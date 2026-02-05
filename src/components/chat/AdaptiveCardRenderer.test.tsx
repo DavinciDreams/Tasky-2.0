@@ -5,7 +5,7 @@ import { AdaptiveCardRenderer } from './AdaptiveCardRenderer';
 
 // Mock the heavy dependencies that aren't relevant to card rendering logic
 vi.mock('@/components/ai-elements', () => ({
-  Tool: ({ children, defaultOpen }: any) => <div data-testid="tool">{children}</div>,
+  Tool: ({ children }: any) => <div data-testid="tool">{children}</div>,
   ToolHeader: ({ type, state }: any) => <div data-testid="tool-header" data-type={type} data-state={state} />,
   ToolContent: ({ children }: any) => <div data-testid="tool-content">{children}</div>,
   ToolOutput: ({ output }: any) => <pre data-testid="tool-output">{output}</pre>,

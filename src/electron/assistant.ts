@@ -244,9 +244,9 @@ class TaskyAssistant {
     #tasky-character {
       font-size: 80px;
       animation: bounce 2s infinite;
-      cursor: move;
+      cursor: pointer;
       text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-      -webkit-app-region: drag;
+      -webkit-app-region: no-drag;
       -webkit-user-select: none;
       -moz-user-select: none;
       -ms-user-select: none;
@@ -295,7 +295,8 @@ class TaskyAssistant {
       -moz-user-select: none;
       -ms-user-select: none;
       user-select: none;
-      -webkit-app-region: drag;
+      -webkit-app-region: no-drag;
+      pointer-events: none;
     }
   </style>
 </head>
@@ -486,7 +487,7 @@ class TaskyAssistant {
             this.window.setVisibleOnAllWorkspaces(true);
           }
         }
-      } catch (error) {
+      } catch (_error) {
         // Fallback to basic always on top behavior
         if (layer === 'below') {
           this.window.setAlwaysOnTop(false);

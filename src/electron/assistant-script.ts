@@ -14,7 +14,7 @@ interface AssistantAPI {
 
 const character = document.getElementById('tasky-character') as HTMLElement | null;
 const bubble = document.getElementById('notification-bubble') as HTMLElement | null;
-const containerEl = document.getElementById('tasky-container') as HTMLElement | null;
+
 
 function getAvatarRectNow(): DOMRect | null {
   const character = document.getElementById('tasky-character') as HTMLElement | null;
@@ -33,7 +33,7 @@ let notificationColor = '#7f7f7c';
 let notificationFont = 'system';
 let notificationTextColor = '#ffffff';
 let bubbleVisible = false;
-let draggingEnabled = true;
+
 let lastIgnoreState: boolean | null = null;
 
 // Simple IPC handlers
@@ -381,11 +381,18 @@ window.addEventListener('DOMContentLoaded', () => {
   const avatar = document.getElementById('tasky-character') as HTMLElement | null;
   if (avatar) {
     (avatar.style as any).pointerEvents = 'auto';
-    
+
     avatar.addEventListener('mousedown', () => {
       lastIgnoreState = false;
       try {
         ipcRenderer.send('assistant:set-ignore-mouse-events', false);
+      } catch {}
+    });
+
+    // Avatar is no-drag so click events fire normally
+    avatar.addEventListener('click', () => {
+      try {
+        ipcRenderer.send('assistant:open-chat');
       } catch {}
     });
   }

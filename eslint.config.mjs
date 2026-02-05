@@ -9,6 +9,7 @@ export default [
       'src/renderer/dist/**',
       'node_modules/**',
       'tasky-mcp-agent/**',
+      'vitest.config.ts',
     ],
   },
   {
@@ -24,10 +25,28 @@ export default [
     plugins: {
       '@typescript-eslint': tsPlugin,
     },
+    linterOptions: {
+      reportUnusedDisableDirectives: 'off',
+    },
     rules: {
       ...tsPlugin.configs.recommended.rules,
       'no-console': 'off',
       '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-unused-vars': ['error', {
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+        caughtErrorsIgnorePattern: '^_',
+      }],
+    },
+  },
+  {
+    files: [
+      'src/electron/**/*.ts',
+      'src/main.ts',
+      'src/preload.ts',
+    ],
+    rules: {
+      '@typescript-eslint/no-require-imports': 'off',
     },
   },
 ];

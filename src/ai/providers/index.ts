@@ -1,6 +1,6 @@
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
-import type { AIProvider, AIConfig } from '../types';
+import type { AIProvider } from '../types';
 
 // Export Google AI models for UI consumption
 export const GOOGLE_AI_MODELS = [

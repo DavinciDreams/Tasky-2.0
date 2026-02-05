@@ -149,6 +149,7 @@ export interface ElectronAPI {
   // Push updates
   onTasksUpdated?: (callback: () => void) => void;
   onRemindersUpdated?: (callback: () => void) => void;
+  onNavigateToChat?: (callback: () => void) => void;
 
   // Pomodoro timer methods
   pomodoroGetState: () => Promise<any>;

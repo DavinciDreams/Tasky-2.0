@@ -11,12 +11,10 @@ import {
   CreateTaskInput,
   UpdateTaskInput,
   ToolResult,
-  TaskNotFoundError,
   TaskValidationError,
   TaskSuggestion,
   TaskAlert,
-  TaskEventMap,
-  createTaskId
+  TaskEventMap
 } from '../../types/task';
 import { ITaskStorage } from '../storage/ITaskStorage';
 import { TypedEventBus } from './events';
@@ -648,7 +646,7 @@ export class TaskyEngine {
     return alerts;
   }
 
-  private async executeAction(action: TaskAction): Promise<void> {
+  private async executeAction(_action: TaskAction): Promise<void> {
     // Implementation would depend on the specific action type
     // This is where you'd integrate with notification systems, UI updates, etc.
     // Reduced verbosity: keep engine quiet in production

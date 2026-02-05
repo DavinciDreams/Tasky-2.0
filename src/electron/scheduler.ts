@@ -9,7 +9,7 @@
 import * as cron from 'node-cron';
 import { app, shell, BrowserWindow } from 'electron';
 import * as path from 'path';
-import { spawn, ChildProcess } from 'child_process';
+import { spawn } from 'child_process';
 import * as fs from 'fs';
 import logger from '../lib/logger';
 import type { Reminder } from '../types/index';
@@ -78,7 +78,7 @@ class ReminderScheduler {
    * Schedule a new reminder
    */
   scheduleReminder(reminder: Reminder): void {
-    const { id, message, time, days, enabled } = reminder;
+    const { id, message: _message, time, days, enabled } = reminder;
     
     if (!enabled || !this.notificationsEnabled) {
       return;
@@ -235,7 +235,7 @@ class ReminderScheduler {
         type: 'info',
         clickable: true
       });
-    } catch (error) {
+    } catch (_error) {
       this.showFallbackNotification(reminder);
     }
   }
@@ -603,7 +603,7 @@ class ReminderScheduler {
         }
       }, 2000);
 
-    } catch (error) {
+    } catch (_error) {
       // Ultimate fallback - ASCII bell
       try {
         process.stdout.write('\u0007');
@@ -662,7 +662,7 @@ class ReminderScheduler {
     }
     
     // Clear existing tasks
-    this.scheduledTasks.forEach((task, id) => {
+    this.scheduledTasks.forEach((task, _id) => {
       task.stop();
     });
     this.scheduledTasks.clear();
@@ -681,12 +681,12 @@ class ReminderScheduler {
   getNextScheduledTime(reminder: Reminder): string {
     try {
       const cronPattern = this.daysToCronPattern(reminder.days, reminder.time);
-      const task = cron.schedule(cronPattern, () => {}, { scheduled: false });
+      cron.schedule(cronPattern, () => {}, { scheduled: false });
       
       // This is a simplified version - you'd need a more sophisticated
       // library like node-cron-tz to get actual next execution times
       return `Next: ${reminder.time} on ${reminder.days.join(', ')}`;
-    } catch (error) {
+    } catch (_error) {
       return 'Invalid schedule';
     }
   }
@@ -698,30 +698,30 @@ class ReminderScheduler {
     if (process.env.NODE_ENV === 'development') {
       
     }
-    this.scheduledTasks.forEach((task, id) => {
+    this.scheduledTasks.forEach((task, _id) => {
       try {
         task.stop();
         (task as any).destroy?.();
-      } catch (error) {
+      } catch (_error) {
         if (process.env.NODE_ENV === 'development') {
-          
+
         }
       }
     });
     this.scheduledTasks.clear();
-    
+
     // Kill any lingering PowerShell processes on Windows
     if (process.platform === 'win32') {
       try {
         // Don't wait for this to complete, just fire and forget
-        spawn('taskkill', ['/f', '/im', 'powershell.exe', '/fi', 'WINDOWTITLE eq Windows PowerShell'], { 
+        spawn('taskkill', ['/f', '/im', 'powershell.exe', '/fi', 'WINDOWTITLE eq Windows PowerShell'], {
           windowsHide: true,
           detached: true,
           stdio: 'ignore'
         }).unref();
-      } catch (error) {
+      } catch (_error) {
         if (process.env.NODE_ENV === 'development') {
-          
+
         }
       }
     }

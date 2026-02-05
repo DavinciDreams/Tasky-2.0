@@ -181,11 +181,11 @@ export class ThemeManager {
   // Get automatic contrast color (light or dark) based on background
   private getContrastColor(hslColor: string): string {
     // Convert HSL to RGB to calculate luminance
-    const [h, s, l] = hslColor.split(' ').map((val, index) => {
+    const [, , l] = hslColor.split(' ').map((val, index) => {
       if (index === 0) return parseInt(val);
       return parseInt(val.replace('%', ''));
     });
-    
+
     // Simple luminance check - if lightness > 50%, use dark text
     if (l > 50) {
       return '240 30% 15%'; // Dark text

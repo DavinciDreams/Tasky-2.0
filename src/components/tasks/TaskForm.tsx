@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { TaskyTaskSchema } from '../../types/task';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { Card, CardContent } from '../ui/card';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Button } from '../ui/button';
-import { Plus, FileText, FolderOpen, User, Terminal, Upload } from 'lucide-react';
+import { Plus, FileText, FolderOpen, User, Upload } from 'lucide-react';
 import { Select } from '../ui/select';
 
 interface TaskFormProps {
@@ -19,7 +19,7 @@ interface TaskFormProps {
   noCard?: boolean;
 }
 
-export const TaskForm: React.FC<TaskFormProps> = ({ onCreateTask, initial, submitLabel, onSubmitOverride, forceExpanded, onCancel, noCard }) => {
+export const TaskForm: React.FC<TaskFormProps> = ({ onCreateTask, initial, submitLabel, onSubmitOverride, forceExpanded, onCancel: _onCancel, noCard }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [formData, setFormData] = useState({
     title: (initial?.title as string) || '',

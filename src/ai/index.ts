@@ -24,7 +24,7 @@ export class AIService {
 
   async streamText(
     messages: ChatMessage[],
-    options: StreamingOptions = {},
+    _options: StreamingOptions = {},
     tools?: any,
     abortSignal?: AbortSignal
   ) {

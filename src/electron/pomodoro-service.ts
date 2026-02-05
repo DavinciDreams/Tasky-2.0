@@ -13,9 +13,9 @@ type SessionType = 'work' | 'shortBreak' | 'longBreak';
 
 // Simple event emitter implementation for Electron
 class SimpleEventEmitter {
-  private listeners: { [event: string]: Function[] } = {};
+  private listeners: { [event: string]: ((...args: unknown[]) => void)[] } = {};
 
-  on(event: string, listener: Function): void {
+  on(event: string, listener: (...args: unknown[]) => void): void {
     if (!this.listeners[event]) {
       this.listeners[event] = [];
     }
@@ -297,8 +297,6 @@ export class PomodoroService extends SimpleEventEmitter {
 
   resetCurrentSession(): boolean {
     try {
-      const wasRunning = this.state.isRunning;
-      
       if (this.interval) {
         clearInterval(this.interval);
         this.interval = null;

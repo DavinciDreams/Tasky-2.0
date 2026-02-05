@@ -5,7 +5,6 @@ import type { AIConfig } from '../../ai';
 // UI Components
 import { Button } from '../ui/button';
 import { Trash } from 'lucide-react';
-import { Modal } from '../ui/modal';
 
 // Chat Components
 import {
@@ -19,7 +18,7 @@ import {
 
 // Types and Tools
 import type { Settings as AppSettings } from '../../types';
-import type { ChatMessage, ToolEvent } from '../chat/types';
+import type { ChatMessage } from '../chat/types';
 import { mcpCall, callMcpTool } from '../../ai/mcp-tools';
 
 interface ChatModuleProps {
@@ -115,10 +114,10 @@ For listing reminders, call mcpCall with name="tasky_list_reminders" and args={}
   // Other state
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [_error, setError] = useState<string | null>(null);
   const [systemPrompt, setSystemPrompt] = useState<string>(String(settings.llmSystemPrompt || ''));
-  const [useCustomPrompt, setUseCustomPrompt] = useState<boolean>(!!settings.llmUseCustomPrompt);
-  const [temperature, setTemperature] = useState<number>(1.0);
+  const [useCustomPrompt, _setUseCustomPrompt] = useState<boolean>(!!settings.llmUseCustomPrompt);
+  const [temperature, _setTemperature] = useState<number>(1.0);
   const [mcpReady, setMcpReady] = useState<boolean>(false);
   const [checkedMcp, setCheckedMcp] = useState<boolean>(false);
   const [streamingAssistantMessage, setStreamingAssistantMessage] = useState<string>('');
@@ -155,7 +154,7 @@ For listing reminders, call mcpCall with name="tasky_list_reminders" and args={}
     toolEvents,
     pendingConfirm,
     pendingResult,
-    loadingTools,
+    loadingTools: _loadingTools,
     handleConfirm,
     createConfirmSnapshot,
     createResultSnapshot,

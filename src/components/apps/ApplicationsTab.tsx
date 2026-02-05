@@ -1,11 +1,10 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Bell, CheckSquare, Timer, MessageCircle } from 'lucide-react';
 import { TasksTab } from '../tasks/TasksTab';
 import { ChatModule } from './ChatModule';
 import { PomodoroTimer } from './PomodoroTimer';
 import type { TaskyTask, TaskyTaskSchema } from '../../types/task';
 import type { Reminder, Settings as AppSettings } from '../../types';
-import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
 
 interface ApplicationsTabProps {
   // Reminders
@@ -29,12 +28,12 @@ interface ApplicationsTabProps {
 }
 
 export const ApplicationsTab: React.FC<ApplicationsTabProps> = ({
-  reminders,
-  onAddReminder,
-  onRemoveReminder,
-  onEditReminder,
-  onToggleReminder,
-  timeFormat,
+  reminders: _reminders,
+  onAddReminder: _onAddReminder,
+  onRemoveReminder: _onRemoveReminder,
+  onEditReminder: _onEditReminder,
+  onToggleReminder: _onToggleReminder,
+  timeFormat: _timeFormat,
   tasks,
   onCreateTask,
   onUpdateTask,

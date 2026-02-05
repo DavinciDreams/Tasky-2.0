@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { ToolEvent, ConfirmState, ChatMessage } from '../types';
 
-export const useMcpTools = (chatId: string | null) => {
+export const useMcpTools = (_chatId: string | null) => {
   const [toolEvents, setToolEvents] = useState<ToolEvent[]>([]);
   const [pendingConfirm, setPendingConfirm] = useState<ConfirmState>(null);
   const [pendingResult, setPendingResult] = useState<{ id: string; name: string; args?: any; output?: string } | null>(null);

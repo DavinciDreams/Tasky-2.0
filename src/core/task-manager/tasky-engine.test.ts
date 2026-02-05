@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { TaskyEngine } from './tasky-engine';
 import { ITaskStorage } from '../storage/ITaskStorage';
-import { TaskStatus, TaskyTask, ToolResult } from '../../types/task';
+import { TaskStatus, TaskyTask } from '../../types/task';
 
 // --- Helper to create a mock ITaskStorage ---
 function createMockStorage(initialTasks: TaskyTask[] = []): ITaskStorage {

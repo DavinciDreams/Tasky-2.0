@@ -18,7 +18,7 @@ interface ToolHeaderProps {
   onClick?: () => void;
 }
 
-interface ToolContentProps extends React.ComponentProps<typeof CollapsibleContent> {}
+type ToolContentProps = React.ComponentProps<typeof CollapsibleContent>;
 
 interface ToolInputProps extends React.HTMLAttributes<HTMLDivElement> {
   input: any;

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Task, TaskTrigger, TaskContent, TaskItem, TaskItemFile } from '@/components/ai-elements';
-import { Clock, Calendar, Tag, CheckCircle, Clock as ClockIcon, AlertCircle, Users, FolderOpen, Link, Bell, BellOff, User, FileText, CheckSquare } from 'lucide-react';
+import { Clock, Calendar, Tag, CheckCircle, Clock as ClockIcon, FolderOpen, Link, Bell, BellOff, User, FileText } from 'lucide-react';
 
 interface TaskDisplayProps {
   tasks: any[];
@@ -9,19 +9,6 @@ interface TaskDisplayProps {
 interface ReminderDisplayProps {
   reminders: any[];
 }
-
-const getTaskStatusIcon = (status: string) => {
-  switch (status?.toUpperCase()) {
-    case 'COMPLETED':
-      return <CheckCircle className="h-4 w-4 text-green-500" />;
-    case 'IN_PROGRESS':
-      return <ClockIcon className="h-4 w-4 text-yellow-500" />;
-    case 'PENDING':
-      return <AlertCircle className="h-4 w-4 text-muted-foreground" />;
-    default:
-      return <AlertCircle className="h-4 w-4 text-muted-foreground" />;
-  }
-};
 
 const getTaskStatus = (status: string): 'pending' | 'in_progress' | 'completed' | 'error' => {
   switch (status?.toUpperCase()) {

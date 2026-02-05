@@ -5,7 +5,7 @@ import { TaskForm } from './TaskForm';
 import { TaskList } from './TaskList';
 import { Button } from '../ui/button';
 import { Upload, Plus } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
+import { Card, CardContent } from '../ui/card';
 import { Modal } from '../ui/modal';
 
 // Simplified UI: filters removed

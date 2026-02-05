@@ -12,7 +12,7 @@ interface InlineConfirmationProps {
 }
 
 export const InlineConfirmation: React.FC<InlineConfirmationProps> = ({
-  id,
+  id: _id,
   name,
   args,
   onConfirm,

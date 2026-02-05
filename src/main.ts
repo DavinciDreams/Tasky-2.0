@@ -8,9 +8,8 @@
  * - Orchestrates app lifecycle and applies persisted settings at startup
  */
 
-import { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, dialog, shell, OpenDialogReturnValue, globalShortcut } from 'electron';
+import { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, dialog, globalShortcut } from 'electron';
 import * as path from 'path';
-import * as os from 'os';
 import * as fs from 'fs';
 import { spawn, ChildProcess } from 'child_process';
 import * as http from 'http';
@@ -23,11 +22,10 @@ import TaskyAssistant from './electron/assistant';
 import { ElectronTaskManager } from './electron/task-manager';
 import { notificationUtility } from './electron/notification-utility';
 import { PomodoroService } from './electron/pomodoro-service';
-import type { Reminder, Settings } from './types/index';
+import type { Reminder } from './types/index';
 
 // Vite globals for Electron
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string | undefined;
-declare const MAIN_WINDOW_VITE_NAME: string;
 
 // Extend app object with custom properties
 (app as any).isQuiting = false;
@@ -303,7 +301,7 @@ const createWindow = () => {
             indexPath = testPath;
             break;
           }
-        } catch (err) {
+        } catch (_err) {
           // Continue to next path
         }
       }
@@ -781,7 +779,7 @@ const createTray = () => {
     } else {
       throw new Error('No icon file found');
     }
-  } catch (error) {
+  } catch (_error) {
     logger.debug('Using fallback icon data URL');
     // Use fallback data URL icon
     trayIcon = nativeImage.createFromDataURL(iconDataURL);
@@ -1223,6 +1221,21 @@ ipcMain.on('hide-assistant', () => {
   }
 });
 
+// Open main window and navigate to chat when avatar is clicked
+ipcMain.on('assistant:open-chat', () => {
+  if (mainWindow) {
+    mainWindow.show();
+    mainWindow.focus();
+    mainWindow.webContents.send('navigate-to-chat');
+  } else {
+    createWindow();
+    // Wait for window to be ready, then navigate
+    mainWindow?.webContents.once('did-finish-load', () => {
+      mainWindow?.webContents.send('navigate-to-chat');
+    });
+  }
+});
+
 ipcMain.on('set-bubble-side', (event, side) => {
   logger.debug('Set bubble side called with:', side);
   if (assistant) {
@@ -1457,7 +1470,7 @@ ipcMain.handle('open-terminal', async (_e, directory: string, agent: string) => 
   }
 });
 
-ipcMain.on('get-upcoming-notifications', (event) => {
+ipcMain.on('get-upcoming-notifications', (_event) => {
   logger.debug('Getting upcoming notifications...');
   if (store) {
     const reminders = store.getReminders();

@@ -5,8 +5,6 @@
  * using Tasky's built-in notification system with desktop notifications.
  */
 
-import { app } from 'electron';
-import * as path from 'path';
 import logger from '../lib/logger';
 
 export interface NotificationOptions {
@@ -130,7 +128,7 @@ export class NotificationUtility {
     try {
       // Console fallback for all platforms
       console.log(`[${options.type.toUpperCase()}] ${options.title}: ${options.body}`);
-    } catch (error) {
+    } catch (_error) {
       // Final fallback to console
       console.log(`[${options.type.toUpperCase()}] ${options.title}: ${options.body}`);
     }

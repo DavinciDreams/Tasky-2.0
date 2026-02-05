@@ -85,6 +85,8 @@ const electronAPI: ElectronAPI = {
   // Push update listeners
   onTasksUpdated: (callback: () => void) => ipcRenderer.on('tasky:tasks-updated', callback as any),
   onRemindersUpdated: (callback: () => void) => ipcRenderer.on('tasky:reminders-updated', callback as any),
+  // Navigation from assistant avatar click
+  onNavigateToChat: (callback: () => void) => ipcRenderer.on('navigate-to-chat', callback as any),
   
   // Remove listeners
   removeAllListeners: (channel) => ipcRenderer.removeAllListeners(channel),
