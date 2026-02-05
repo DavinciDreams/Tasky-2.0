@@ -9,7 +9,7 @@ import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
-import { GOOGLE_AI_MODELS } from '../ai/providers';
+import { GOOGLE_AI_MODELS, ZAI_MODELS, OPENROUTER_POPULAR_MODELS } from '../ai/providers';
 import { Checkbox } from '../components/ui/checkbox';
 import CustomSwitch from '../components/ui/CustomSwitch';
 import { Bell, Settings, Smile, X, Plus, Edit2, Edit3, Trash2, Clock, Calendar, Minus, CheckSquare } from 'lucide-react';
@@ -213,13 +213,66 @@ const RemindersTab: React.FC<RemindersTabProps> = ({ reminders, onAddReminder, o
 const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, onTestNotification }) => {
   const [llmTesting, setLlmTesting] = useState(false);
   const [llmTestStatus, setLlmTestStatus] = useState<null | { ok: boolean; message: string }>(null);
+  const [openRouterModels, setOpenRouterModels] = useState<Array<{ id: string; name: string; pricing: { prompt: string; completion: string }; context_length: number; supported_parameters?: string[] }>>([]);
+  const [openRouterLoading, setOpenRouterLoading] = useState(false);
+  const [showFreeOnly, setShowFreeOnly] = useState(false);
+  const [showToolCapableOnly, setShowToolCapableOnly] = useState(true);
+  const [savedKey, setSavedKey] = useState<string | null>(null);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const fetchOpenRouterModels = async () => {
+    setOpenRouterLoading(true);
+    try {
+      const res = await fetch('https://openrouter.ai/api/v1/models');
+      if (res.ok) {
+        const data = await res.json();
+        const models = (data.data || []).map((m: any) => ({
+          id: m.id,
+          name: m.name,
+          pricing: m.pricing,
+          context_length: m.context_length,
+          supported_parameters: m.supported_parameters,
+        })) as Array<{ id: string; name: string; pricing: { prompt: string; completion: string }; context_length: number; supported_parameters?: string[] }>;
+        models.sort((a, b) => a.name.localeCompare(b.name));
+        setOpenRouterModels(models);
+      } else {
+        console.warn('Failed to fetch OpenRouter models:', res.status);
+      }
+    } catch (err) {
+      console.warn('Failed to fetch OpenRouter models:', err);
+    } finally {
+      setOpenRouterLoading(false);
+    }
+  };
+
+  // Fetch OpenRouter models when provider is openrouter
+  useEffect(() => {
+    if (String(settings.llmProvider || '').toLowerCase() === 'openrouter' && openRouterModels.length === 0) {
+      fetchOpenRouterModels();
+    }
+  }, [settings.llmProvider]);
+
+  // Auto-select first model when filters change and current model is excluded
+  useEffect(() => {
+    if (String(settings.llmProvider || '').toLowerCase() !== 'openrouter' || openRouterModels.length === 0) return;
+    let filtered = openRouterModels;
+    if (showFreeOnly) {
+      filtered = filtered.filter(m => m.pricing?.prompt === '0' && m.pricing?.completion === '0');
+    }
+    if (showToolCapableOnly) {
+      filtered = filtered.filter(m => Array.isArray(m.supported_parameters) && m.supported_parameters.includes('tools'));
+    }
+    const currentModel = settings.llmModel || '';
+    if (filtered.length > 0 && !filtered.some(m => m.id === currentModel)) {
+      onSettingChange('llmModel', filtered[0].id);
+    }
+  }, [showFreeOnly, showToolCapableOnly]);
 
   // Get available models for the current provider (only used for Google now)
   const getAvailableModels = (provider: string) => {
     const normalizedProvider = provider.toLowerCase();
-    
+
     if (normalizedProvider === 'google') {
-      // Get models from exported constant
       return GOOGLE_AI_MODELS.map(model => ({
         value: model,
         label: model
@@ -228,7 +281,48 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
           .replace(/\b\w/g, l => l.toUpperCase())
       }));
     }
-    
+
+    if (normalizedProvider === 'zai') {
+      return ZAI_MODELS.map(model => ({
+        value: model,
+        label: model
+          .replace('glm-', 'GLM-')
+          .replace('-plus', ' Plus')
+          .replace('-long', ' Long')
+          .replace('-flash', ' Flash')
+      }));
+    }
+
+    if (normalizedProvider === 'openrouter') {
+      if (openRouterModels.length > 0) {
+        let filtered = openRouterModels;
+        if (showFreeOnly) {
+          filtered = filtered.filter(m => m.pricing?.prompt === '0' && m.pricing?.completion === '0');
+        }
+        if (showToolCapableOnly) {
+          filtered = filtered.filter(m => Array.isArray(m.supported_parameters) && m.supported_parameters.includes('tools'));
+        }
+        return filtered.map(m => ({ value: m.id, label: m.name }));
+      }
+      // Fallback to static list
+      const orgLabels: Record<string, string> = {
+        'anthropic': 'Anthropic',
+        'openai': 'OpenAI',
+        'google': 'Google',
+        'meta-llama': 'Meta',
+        'deepseek': 'DeepSeek',
+        'mistralai': 'Mistral',
+      };
+      return OPENROUTER_POPULAR_MODELS.map(model => {
+        const [org, name] = model.split('/');
+        const prettyName = (name || model)
+          .replace(/-/g, ' ')
+          .replace(/\b\w/g, l => l.toUpperCase());
+        const prettyOrg = orgLabels[org] || org;
+        return { value: model, label: `${prettyName} (${prettyOrg})` };
+      });
+    }
+
     return [];
   };
 
@@ -289,6 +383,43 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
           const err = (j && j.error && j.error.message) ? j.error.message : `${res.status} ${res.statusText}`;
           setLlmTestStatus({ ok: false, message: `Google AI - ${err}` });
         }
+      } else if (provider === 'zai') {
+        const key = (settings.llmApiKey || '').trim();
+        if (!key) {
+          throw new Error('Enter a Z.AI API key first.');
+        }
+        const res = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${key}`
+          },
+          body: JSON.stringify({
+            model: settings.llmModel || 'glm-4-flash',
+            messages: [{ role: 'user', content: 'Hello' }],
+            max_tokens: 10
+          })
+        });
+        if (res.ok) {
+          setLlmTestStatus({ ok: true, message: 'Z.AI' });
+        } else {
+          const j = await res.json().catch(() => ({} as any));
+          const err = j?.error?.message || `${res.status} ${res.statusText}`;
+          setLlmTestStatus({ ok: false, message: `Z.AI - ${err}` });
+        }
+      } else if (provider === 'openrouter') {
+        const key = (settings.llmApiKey || '').trim();
+        if (!key) {
+          throw new Error('Enter an OpenRouter API key first.');
+        }
+        const res = await fetch('https://openrouter.ai/api/v1/models', {
+          headers: { 'Authorization': `Bearer ${key}` }
+        });
+        if (res.ok) {
+          setLlmTestStatus({ ok: true, message: 'OpenRouter' });
+        } else {
+          setLlmTestStatus({ ok: false, message: `OpenRouter - ${res.status} ${res.statusText}` });
+        }
       } else {
         const baseURL = (settings.llmBaseUrl || 'http://localhost:1234/v1').trim();
         const url = baseURL.replace(/\/$/, '') + '/models';
@@ -306,7 +437,8 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
       }
     } catch (e: any) {
       console.error('AI Provider test error:', e);
-      setLlmTestStatus({ ok: false, message: `${provider === 'google' ? 'Google AI' : 'LM Studio'} - ${e.message}` });
+      const providerLabel = provider === 'google' ? 'Google AI' : provider === 'zai' ? 'Z.AI' : provider === 'openrouter' ? 'OpenRouter' : 'LM Studio';
+      setLlmTestStatus({ ok: false, message: `${providerLabel} - ${e.message}` });
     } finally {
       setLlmTesting(false);
     }
@@ -423,6 +555,8 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
                 options={[
                   { value: 'google', label: 'Google AI' },
                   { value: 'lmstudio', label: 'LM Studio' },
+                  { value: 'zai', label: 'Z.AI' },
+                  { value: 'openrouter', label: 'OpenRouter' },
                 ]}
                 onChange={(val) => {
                   onSettingChange('llmProvider', val);
@@ -431,36 +565,61 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
                     onSettingChange('llmModel', 'gemini-1.5-flash');
                   } else if (val === 'lmstudio') {
                     onSettingChange('llmModel', 'llama-3.2-1b-instruct');
+                  } else if (val === 'zai') {
+                    onSettingChange('llmModel', 'glm-4-flash');
+                  } else if (val === 'openrouter') {
+                    onSettingChange('llmModel', 'openai/gpt-4o-mini');
                   }
                 }}
               />
 
-              {/* Model selector: use select for Google; show LM Studio models for LM Studio */}
-              {['google'].includes(String(settings.llmProvider || 'google').toLowerCase()) ? (
+              {/* Model selector: use select for Google, Z.AI, OpenRouter; show text input for LM Studio */}
+              {['google', 'zai', 'openrouter'].includes(String(settings.llmProvider || 'google').toLowerCase()) ? (
                 <div className="md:col-span-2">
                   <SettingItem
                     icon="🧠"
                     title="Model"
                     description="Choose a suggested model for the selected provider"
                     type="select"
-                    value={settings.llmModel || 'gemini-1.5-flash'}
-                    options={(() => {
-                      // Get models dynamically from AI providers
-                      const availableModels = getAvailableModels(settings.llmProvider || 'google');
-                      if (availableModels.length > 0) {
-                        return availableModels;
-                      }
-                      
-                      // Fallback for Google AI models
-                      return [
-                        { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash' },
-                        { value: 'gemini-2.0-flash-exp', label: 'Gemini 2.0 Flash (Experimental)' },
-                        { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
-                        { value: 'gemini-1.5-flash-latest', label: 'Gemini 1.5 Flash Latest' },
-                      ];
+                    value={settings.llmModel || (() => {
+                      const p = (settings.llmProvider || 'google').toLowerCase();
+                      if (p === 'zai') return 'glm-4-flash';
+                      if (p === 'openrouter') return 'openai/gpt-4o-mini';
+                      return 'gemini-1.5-flash';
                     })()}
+                    options={getAvailableModels(settings.llmProvider || 'google')}
                     onChange={(val) => onSettingChange('llmModel', val)}
                   />
+                  {String(settings.llmProvider || '').toLowerCase() === 'openrouter' && (
+                    <div className="flex items-center gap-4 px-4 pt-2">
+                      {openRouterLoading ? (
+                        <span className="text-xs text-muted-foreground">Loading models...</span>
+                      ) : (
+                        <>
+                          <div className="flex items-center gap-2">
+                            <Checkbox
+                              id="tool-capable-only"
+                              checked={showToolCapableOnly}
+                              onCheckedChange={(checked) => setShowToolCapableOnly(checked === true)}
+                            />
+                            <Label htmlFor="tool-capable-only" className="text-sm cursor-pointer">
+                              Tool-capable only
+                            </Label>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Checkbox
+                              id="free-models-only"
+                              checked={showFreeOnly}
+                              onCheckedChange={(checked) => setShowFreeOnly(checked === true)}
+                            />
+                            <Label htmlFor="free-models-only" className="text-sm cursor-pointer">
+                              Free models only
+                            </Label>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
               ) : settings.llmProvider === 'lmstudio' ? (
                 <div className="md:col-span-2 space-y-4">
@@ -494,18 +653,34 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
                 null
               )}
 
-              {/* API Key for Google only */}
-              {settings.llmProvider === 'google' && (
+              {/* API Key for providers that need it */}
+              {['google', 'zai', 'openrouter'].includes(settings.llmProvider || 'google') && (
                 <div className="flex flex-col gap-2 py-2 px-4 rounded-xl hover:bg-muted/30 transition-colors duration-200">
-                  <Label className="text-sm">API Key</Label>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-sm">API Key</Label>
+                    {savedKey === 'llmApiKey' && (
+                      <span className="text-[11px] text-green-500 font-medium animate-in fade-in duration-300">Saved</span>
+                    )}
+                  </div>
                   <Input
                     type="password"
-                    placeholder="Enter API key"
+                    placeholder={
+                      settings.llmProvider === 'zai' ? 'Enter Z.AI API key'
+                        : settings.llmProvider === 'openrouter' ? 'Enter OpenRouter API key'
+                        : 'Enter API key'
+                    }
                     value={settings.llmApiKey || ''}
-                    onChange={(e) => onSettingChange('llmApiKey', e.target.value)}
+                    onChange={(e) => {
+                      onSettingChange('llmApiKey', e.target.value);
+                      setSavedKey('llmApiKey');
+                      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+                      saveTimerRef.current = setTimeout(() => setSavedKey(null), 2000);
+                    }}
                   />
                   <span className="text-[11px] text-muted-foreground">
-                    Stored locally.
+                    {settings.llmProvider === 'zai' ? 'Get your key at open.bigmodel.cn'
+                      : settings.llmProvider === 'openrouter' ? <>Get your key at <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 underline">openrouter.ai/keys</a></>
+                      : 'Stored locally. Auto-saves as you type.'}
                   </span>
                 </div>
               )}

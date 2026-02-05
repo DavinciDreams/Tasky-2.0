@@ -1,5 +1,7 @@
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
+import { createZhipu } from 'zhipu-ai-provider';
+import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import type { AIProvider } from '../types';
 
 // Export Google AI models for UI consumption
@@ -77,5 +79,81 @@ export class LMStudioProvider implements AIProvider {
 
   validateModel(modelId: string): string {
     return modelId; // Pass through as-is for LM Studio
+  }
+}
+
+// Export Z.AI models for UI consumption
+export const ZAI_MODELS = [
+  'glm-4.7',
+  'glm-4.6',
+  'glm-4.5',
+  'glm-4-plus',
+  'glm-4-long',
+  'glm-4-flash'
+];
+
+export class ZAIProvider implements AIProvider {
+  name = 'zai';
+  client: any;
+  models = ZAI_MODELS;
+  supportsStreaming = true;
+  supportsTools = true;
+
+  constructor(apiKey?: string) {
+    if (!apiKey) {
+      throw new Error('Z.AI API key is required');
+    }
+    this.client = createZhipu({
+      apiKey: apiKey
+    });
+  }
+
+  getModel(modelId: string) {
+    return this.client(modelId);
+  }
+
+  validateModel(modelId: string): string {
+    const requested = modelId.toLowerCase();
+    if (requested.includes('4.7')) return 'glm-4.7';
+    if (requested.includes('4.6')) return 'glm-4.6';
+    if (requested.includes('4.5')) return 'glm-4.5';
+    if (requested.includes('4-plus') || requested.includes('plus')) return 'glm-4-plus';
+    if (requested.includes('4-long') || requested.includes('long')) return 'glm-4-long';
+    if (requested.includes('4-flash') || requested.includes('flash')) return 'glm-4-flash';
+    return modelId;
+  }
+}
+
+// Export OpenRouter popular models for UI consumption
+export const OPENROUTER_POPULAR_MODELS = [
+  'anthropic/claude-sonnet-4',
+  'openai/gpt-4o',
+  'openai/gpt-4o-mini',
+  'google/gemini-2.5-flash',
+  'mistralai/mistral-large'
+];
+
+export class OpenRouterProvider implements AIProvider {
+  name = 'openrouter';
+  client: any;
+  models = OPENROUTER_POPULAR_MODELS;
+  supportsStreaming = true;
+  supportsTools = true;
+
+  constructor(apiKey?: string) {
+    if (!apiKey) {
+      throw new Error('OpenRouter API key is required');
+    }
+    this.client = createOpenRouter({
+      apiKey: apiKey
+    });
+  }
+
+  getModel(modelId: string) {
+    return this.client(modelId);
+  }
+
+  validateModel(modelId: string): string {
+    return modelId; // OpenRouter supports 300+ models, pass through as-is
   }
 }

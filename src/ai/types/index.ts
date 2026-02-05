@@ -7,7 +7,7 @@ export interface AIProvider {
 }
 
 export interface AIConfig {
-  provider: 'google' | 'lmstudio';
+  provider: 'google' | 'lmstudio' | 'zai' | 'openrouter';
   apiKey?: string;
   baseUrl?: string;
   model: string;

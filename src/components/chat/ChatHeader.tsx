@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Button } from '../ui/button';
 import { Modal } from '../ui/modal';
-import { GOOGLE_AI_MODELS } from '../../ai/providers';
+import { GOOGLE_AI_MODELS, ZAI_MODELS, OPENROUTER_POPULAR_MODELS } from '../../ai/providers';
 import type { Settings } from '../../types';
 
 interface ChatHeaderProps {
@@ -85,6 +85,36 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
       }));
     }
     
+    if (normalizedProvider === 'zai') {
+      return ZAI_MODELS.map(model => ({
+        value: model,
+        label: model
+          .replace('glm-', 'GLM-')
+          .replace('-plus', ' Plus')
+          .replace('-long', ' Long')
+          .replace('-flash', ' Flash')
+      }));
+    }
+
+    if (normalizedProvider === 'openrouter') {
+      const orgLabels: Record<string, string> = {
+        'anthropic': 'Anthropic',
+        'openai': 'OpenAI',
+        'google': 'Google',
+        'meta-llama': 'Meta',
+        'deepseek': 'DeepSeek',
+        'mistralai': 'Mistral',
+      };
+      return OPENROUTER_POPULAR_MODELS.map(model => {
+        const [org, name] = model.split('/');
+        const prettyName = (name || model)
+          .replace(/-/g, ' ')
+          .replace(/\b\w/g, l => l.toUpperCase());
+        const prettyOrg = orgLabels[org] || org;
+        return { value: model, label: `${prettyName} (${prettyOrg})` };
+      });
+    }
+
     // For LM Studio providers, provide common models
     return [
       { value: 'llama-3.3-70b-instruct', label: 'Llama 3.3 70B Instruct' },
@@ -295,7 +325,12 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
         <div className="flex items-center gap-2">
           {/* Model selector */}
           <select
-            value={String(settings.llmModel || 'gemini-2.5-flash')}
+            value={String(settings.llmModel || (() => {
+              const p = (settings.llmProvider || 'google').toLowerCase();
+              if (p === 'zai') return 'glm-4-flash';
+              if (p === 'openrouter') return 'openai/gpt-4o-mini';
+              return 'gemini-2.5-flash';
+            })())}
             onChange={(e) => onSettingChange && onSettingChange('llmModel', e.target.value)}
             className="bg-card text-foreground border border-border rounded-xl text-xs h-8 w-[140px] pl-2 pr-6 hover:border-border focus:border-primary/50 focus:outline-none transition-colors cursor-pointer flex-shrink-0"
           >
