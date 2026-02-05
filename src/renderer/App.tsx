@@ -213,9 +213,10 @@ const RemindersTab: React.FC<RemindersTabProps> = ({ reminders, onAddReminder, o
 const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, onTestNotification }) => {
   const [llmTesting, setLlmTesting] = useState(false);
   const [llmTestStatus, setLlmTestStatus] = useState<null | { ok: boolean; message: string }>(null);
-  const [openRouterModels, setOpenRouterModels] = useState<Array<{ id: string; name: string; pricing: { prompt: string; completion: string }; context_length: number }>>([]);
+  const [openRouterModels, setOpenRouterModels] = useState<Array<{ id: string; name: string; pricing: { prompt: string; completion: string }; context_length: number; supported_parameters?: string[] }>>([]);
   const [openRouterLoading, setOpenRouterLoading] = useState(false);
   const [showFreeOnly, setShowFreeOnly] = useState(false);
+  const [showToolCapableOnly, setShowToolCapableOnly] = useState(true);
   const [savedKey, setSavedKey] = useState<string | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -225,7 +226,13 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
       const res = await fetch('https://openrouter.ai/api/v1/models');
       if (res.ok) {
         const data = await res.json();
-        const models = (data.data || []) as Array<{ id: string; name: string; pricing: { prompt: string; completion: string }; context_length: number }>;
+        const models = (data.data || []).map((m: any) => ({
+          id: m.id,
+          name: m.name,
+          pricing: m.pricing,
+          context_length: m.context_length,
+          supported_parameters: m.supported_parameters,
+        })) as Array<{ id: string; name: string; pricing: { prompt: string; completion: string }; context_length: number; supported_parameters?: string[] }>;
         models.sort((a, b) => a.name.localeCompare(b.name));
         setOpenRouterModels(models);
       } else {
@@ -245,17 +252,21 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
     }
   }, [settings.llmProvider]);
 
-  // Auto-select first model when free filter changes and current model is excluded
+  // Auto-select first model when filters change and current model is excluded
   useEffect(() => {
     if (String(settings.llmProvider || '').toLowerCase() !== 'openrouter' || openRouterModels.length === 0) return;
-    const filtered = showFreeOnly
-      ? openRouterModels.filter(m => m.pricing?.prompt === '0' && m.pricing?.completion === '0')
-      : openRouterModels;
+    let filtered = openRouterModels;
+    if (showFreeOnly) {
+      filtered = filtered.filter(m => m.pricing?.prompt === '0' && m.pricing?.completion === '0');
+    }
+    if (showToolCapableOnly) {
+      filtered = filtered.filter(m => Array.isArray(m.supported_parameters) && m.supported_parameters.includes('tools'));
+    }
     const currentModel = settings.llmModel || '';
     if (filtered.length > 0 && !filtered.some(m => m.id === currentModel)) {
       onSettingChange('llmModel', filtered[0].id);
     }
-  }, [showFreeOnly]);
+  }, [showFreeOnly, showToolCapableOnly]);
 
   // Get available models for the current provider (only used for Google now)
   const getAvailableModels = (provider: string) => {
@@ -284,9 +295,13 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
 
     if (normalizedProvider === 'openrouter') {
       if (openRouterModels.length > 0) {
-        const filtered = showFreeOnly
-          ? openRouterModels.filter(m => m.pricing?.prompt === '0' && m.pricing?.completion === '0')
-          : openRouterModels;
+        let filtered = openRouterModels;
+        if (showFreeOnly) {
+          filtered = filtered.filter(m => m.pricing?.prompt === '0' && m.pricing?.completion === '0');
+        }
+        if (showToolCapableOnly) {
+          filtered = filtered.filter(m => Array.isArray(m.supported_parameters) && m.supported_parameters.includes('tools'));
+        }
         return filtered.map(m => ({ value: m.id, label: m.name }));
       }
       // Fallback to static list
@@ -576,19 +591,31 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
                     onChange={(val) => onSettingChange('llmModel', val)}
                   />
                   {String(settings.llmProvider || '').toLowerCase() === 'openrouter' && (
-                    <div className="flex items-center gap-2 px-4 pt-2">
+                    <div className="flex items-center gap-4 px-4 pt-2">
                       {openRouterLoading ? (
                         <span className="text-xs text-muted-foreground">Loading models...</span>
                       ) : (
                         <>
-                          <Checkbox
-                            id="free-models-only"
-                            checked={showFreeOnly}
-                            onCheckedChange={(checked) => setShowFreeOnly(checked === true)}
-                          />
-                          <Label htmlFor="free-models-only" className="text-sm cursor-pointer">
-                            Free models only
-                          </Label>
+                          <div className="flex items-center gap-2">
+                            <Checkbox
+                              id="tool-capable-only"
+                              checked={showToolCapableOnly}
+                              onCheckedChange={(checked) => setShowToolCapableOnly(checked === true)}
+                            />
+                            <Label htmlFor="tool-capable-only" className="text-sm cursor-pointer">
+                              Tool-capable only
+                            </Label>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Checkbox
+                              id="free-models-only"
+                              checked={showFreeOnly}
+                              onCheckedChange={(checked) => setShowFreeOnly(checked === true)}
+                            />
+                            <Label htmlFor="free-models-only" className="text-sm cursor-pointer">
+                              Free models only
+                            </Label>
+                          </div>
                         </>
                       )}
                     </div>

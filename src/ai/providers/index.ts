@@ -130,8 +130,6 @@ export const OPENROUTER_POPULAR_MODELS = [
   'openai/gpt-4o',
   'openai/gpt-4o-mini',
   'google/gemini-2.5-flash',
-  'meta-llama/llama-4-maverick',
-  'deepseek/deepseek-r1',
   'mistralai/mistral-large'
 ];
 
