@@ -121,7 +121,7 @@ export const ToolEventTimeline: React.FC<ToolEventTimelineProps> = ({ events, lo
                                 e.preventDefault();
                                 e.stopPropagation();
                                 try {
-                                  window.electronAPI.updateReminder && window.electronAPI.updateReminder(r.id, { enabled: !r.enabled });
+                                  if (window.electronAPI.updateReminder) { window.electronAPI.updateReminder(r.id, { enabled: !r.enabled }); }
                                 } catch {}
                               }}
                               title={r.enabled ? 'Disable reminder' : 'Enable reminder'}

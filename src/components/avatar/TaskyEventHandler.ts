@@ -59,7 +59,7 @@ export class TaskyEventHandler {
       this.playSequence('reminderCreated', event.detail);
     });
     
-    window.addEventListener('reminder:snoozed', (event: CustomEvent) => {
+    window.addEventListener('reminder:snoozed', (_event: CustomEvent) => {
       this.avatar.setEmotion('sleeping');
       setTimeout(() => this.avatar.setEmotion('idle'), 3000);
     });
@@ -93,7 +93,7 @@ export class TaskyEventHandler {
     });
   }
   
-  private handleToolStart(toolName: string, args: any) {
+  private handleToolStart(toolName: string, _args: any) {
     const toolMappings: Record<string, AvatarEmotion> = {
       'tasky_create_task': 'focused',
       'tasky_update_task': 'focused', 
@@ -109,7 +109,7 @@ export class TaskyEventHandler {
     this.avatar.setEmotion(emotion);
   }
   
-  private handleToolSuccess(toolName: string, args: any, output: string) {
+  private handleToolSuccess(toolName: string, args: any, _output: string) {
     const successMappings: Record<string, () => void> = {
       'tasky_create_task': () => this.playSequence('taskCreated', args),
       'tasky_update_task': () => this.playSequence('taskUpdated', args),
@@ -141,7 +141,7 @@ export class TaskyEventHandler {
   }
   
   private handleNotification(notification: any) {
-    const { type, priority } = notification;
+    const { priority } = notification;
     
     if (priority === 'urgent') {
       this.avatar.setEmotion('excited');
@@ -181,7 +181,7 @@ export class TaskyEventHandler {
     }
   }
   
-  private taskCreatedSequence(task: any): gsap.core.Timeline {
+  private taskCreatedSequence(_task: any): gsap.core.Timeline {
     const tl = gsap.timeline();
     
     // Excited → Happy sequence
@@ -194,7 +194,7 @@ export class TaskyEventHandler {
     return tl;
   }
   
-  private taskCompletedSequence(task: any): gsap.core.Timeline {
+  private taskCompletedSequence(_task: any): gsap.core.Timeline {
     const tl = gsap.timeline();
     
     // Celebration with confetti
@@ -213,7 +213,7 @@ export class TaskyEventHandler {
     return tl;
   }
   
-  private taskUpdatedSequence(task: any): gsap.core.Timeline {
+  private taskUpdatedSequence(_task: any): gsap.core.Timeline {
     const tl = gsap.timeline();
     
     tl.call(() => this.avatar.setEmotion('focused'))
@@ -223,7 +223,7 @@ export class TaskyEventHandler {
     return tl;
   }
   
-  private taskDeletedSequence(task: any): gsap.core.Timeline {
+  private taskDeletedSequence(_task: any): gsap.core.Timeline {
     const tl = gsap.timeline();
     
     tl.call(() => this.avatar.setEmotion('confused'))
@@ -233,7 +233,7 @@ export class TaskyEventHandler {
     return tl;
   }
   
-  private taskOverdueSequence(task: any): gsap.core.Timeline {
+  private taskOverdueSequence(_task: any): gsap.core.Timeline {
     const tl = gsap.timeline();
     
     // Confused → Error sequence for overdue
@@ -246,7 +246,7 @@ export class TaskyEventHandler {
     return tl;
   }
   
-  private taskExecutedSequence(task: any): gsap.core.Timeline {
+  private taskExecutedSequence(_task: any): gsap.core.Timeline {
     const tl = gsap.timeline();
     
     tl.call(() => this.avatar.setEmotion('focused'))
@@ -260,7 +260,7 @@ export class TaskyEventHandler {
     return tl;
   }
   
-  private reminderTriggeredSequence(reminder: any): gsap.core.Timeline {
+  private reminderTriggeredSequence(_reminder: any): gsap.core.Timeline {
     const tl = gsap.timeline();
     
     // Excited → Speaking for reminder
@@ -273,7 +273,7 @@ export class TaskyEventHandler {
     return tl;
   }
   
-  private reminderCreatedSequence(reminder: any): gsap.core.Timeline {
+  private reminderCreatedSequence(_reminder: any): gsap.core.Timeline {
     const tl = gsap.timeline();
     
     tl.call(() => this.avatar.setEmotion('happy'))
@@ -283,7 +283,7 @@ export class TaskyEventHandler {
     return tl;
   }
   
-  private toolErrorSequence(error: any): gsap.core.Timeline {
+  private toolErrorSequence(_error: any): gsap.core.Timeline {
     const tl = gsap.timeline();
     
     // Error → Confused sequence

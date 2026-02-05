@@ -19,9 +19,9 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   onSettingChange,
   chatId,
   onChatSwitch,
-  onNewChat,
+  onNewChat: _onNewChat,
   busy,
-  rootRef,
+  rootRef: _rootRef,
 }) => {
   const [showHistory, setShowHistory] = useState(false);
   const [allChats, setAllChats] = useState<Array<{ id: string; title: string; preview: string; timestamp: string }>>([]);

@@ -233,12 +233,31 @@ export class MiddlewareEventBus<TEventMap extends Record<string, any> = Record<s
   }
 
   /**
-   * Emit async event through middleware chain
+   * Emit async event through middleware chain.
+   * After middleware passes, we call the grandparent's emit (TypedEventBus.emit)
+   * directly to fire sync handlers, then run async handlers. This avoids the
+   * double-emit bug where super.emitAsync would call this.emit (the overridden
+   * version) which would run middleware a second time.
    */
   override async emitAsync<K extends keyof TEventMap>(event: K, data: TEventMap[K]): Promise<void> {
     return new Promise((resolve) => {
       this.runMiddleware(String(event), data, async () => {
-        await super.emitAsync(event, data);
+        // Call grandparent's emit directly to fire sync listeners once
+        TypedEventBus.prototype.emit.call(this, event, data);
+        // Then run async listeners from AsyncEventBus
+        // Access the private asyncListeners via the parent class pattern
+        const asyncListeners = (this as any).asyncListeners as Map<keyof TEventMap, Set<AsyncEventHandler<any>>>;
+        const eventListeners = asyncListeners?.get(event);
+        if (eventListeners) {
+          const promises = Array.from(eventListeners).map(async handler => {
+            try {
+              await handler(data);
+            } catch (error) {
+              console.error(`Error in async event handler for ${String(event)}:`, error);
+            }
+          });
+          await Promise.all(promises);
+        }
         resolve();
       });
     });

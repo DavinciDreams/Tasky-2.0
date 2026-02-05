@@ -5,7 +5,6 @@ import type { AIConfig } from '../../ai';
 // UI Components
 import { Button } from '../ui/button';
 import { Trash } from 'lucide-react';
-import { Modal } from '../ui/modal';
 
 // Chat Components
 import {
@@ -19,7 +18,7 @@ import {
 
 // Types and Tools
 import type { Settings as AppSettings } from '../../types';
-import type { ChatMessage, ToolEvent } from '../chat/types';
+import type { ChatMessage } from '../chat/types';
 import { mcpCall, callMcpTool } from '../../ai/mcp-tools';
 
 interface ChatModuleProps {
@@ -115,10 +114,10 @@ For listing reminders, call mcpCall with name="tasky_list_reminders" and args={}
   // Other state
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [_error, setError] = useState<string | null>(null);
   const [systemPrompt, setSystemPrompt] = useState<string>(String(settings.llmSystemPrompt || ''));
-  const [useCustomPrompt, setUseCustomPrompt] = useState<boolean>(!!settings.llmUseCustomPrompt);
-  const [temperature, setTemperature] = useState<number>(1.0);
+  const [useCustomPrompt, _setUseCustomPrompt] = useState<boolean>(!!settings.llmUseCustomPrompt);
+  const [temperature, _setTemperature] = useState<number>(1.0);
   const [mcpReady, setMcpReady] = useState<boolean>(false);
   const [checkedMcp, setCheckedMcp] = useState<boolean>(false);
   const [streamingAssistantMessage, setStreamingAssistantMessage] = useState<string>('');
@@ -155,7 +154,7 @@ For listing reminders, call mcpCall with name="tasky_list_reminders" and args={}
     toolEvents,
     pendingConfirm,
     pendingResult,
-    loadingTools,
+    loadingTools: _loadingTools,
     handleConfirm,
     createConfirmSnapshot,
     createResultSnapshot,
@@ -295,13 +294,13 @@ For listing reminders, call mcpCall with name="tasky_list_reminders" and args={}
     ensureMcp();
   }, []);
 
-  // Build AI service
-  const aiService = useMemo(() => {
+  // Build AI service (returns null if provider can't be initialized)
+  const aiService = useMemo((): AIService | null => {
     const adapter = new AISettingsAdapter();
     const aiSettings = adapter.fromAppSettings(settings);
     const settingsManager = AISettingsManager.getInstance();
     const normalizedSettings = settingsManager.normalizeSettings(aiSettings);
-    
+
     const config: AIConfig = {
       provider: normalizedSettings.provider,
       apiKey: normalizedSettings.apiKey,
@@ -310,18 +309,12 @@ For listing reminders, call mcpCall with name="tasky_list_reminders" and args={}
       maxTokens: normalizedSettings.maxTokens,
       baseUrl: normalizedSettings.baseUrl
     };
-    
+
     try {
       return new AIService(config);
     } catch (error) {
-      console.error('[Chat] Failed to create AI service:', error);
-      // Fallback to Google with user's preferred model or 1.5-flash
-      return new AIService({
-        provider: 'google',
-        apiKey: settings.llmApiKey || '',
-        model: settings.llmModel || 'gemini-1.5-flash', // Respect user choice
-        temperature: temperature
-      });
+      console.warn('[Chat] AI service not available:', (error as Error).message);
+      return null;
     }
   }, [settings.llmProvider, settings.llmApiKey, settings.llmModel, settings.llmBaseUrl, temperature]);
 
@@ -452,6 +445,14 @@ For listing reminders, call mcpCall with name="tasky_list_reminders" and args={}
     console.log('[Chat] Validating settings...');
     if (!validateSettings()) {
       console.log('[Chat] Validation failed, not sending message');
+      return;
+    }
+    if (!aiService) {
+      setMessages(prev => [...prev,
+        { role: 'user', content: trimmed } as ChatMessage,
+        { role: 'assistant', content: 'Please configure your API key in Settings to use the chat.' } as ChatMessage
+      ]);
+      setInput('');
       return;
     }
     console.log('[Chat] Validation passed, proceeding with send');

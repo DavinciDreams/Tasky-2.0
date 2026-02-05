@@ -340,10 +340,10 @@ For listing tasks, call mcpCall with name="tasky_list_tasks" and args={}. Do NOT
       if (response.ok) {
         return { success: true, message: 'Google AI connection successful' };
       } else {
-        const error = await response.text();
+        await response.text();
         return { success: false, message: `Google AI error: ${response.status}` };
       }
-    } catch (error) {
+    } catch (_error) {
       return { success: false, message: 'Google AI connection failed' };
     }
   }

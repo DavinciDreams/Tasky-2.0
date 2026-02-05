@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Play, Edit2, Trash2, CheckCircle, Circle, Target, ChevronUp, ChevronDown } from 'lucide-react';
+import { Plus, Play, Edit2, Trash2, CheckCircle, Target, ChevronUp, ChevronDown } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Card, CardContent } from '../ui/card';
 import { Modal } from '../ui/modal';

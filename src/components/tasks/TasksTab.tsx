@@ -5,7 +5,7 @@ import { TaskForm } from './TaskForm';
 import { TaskList } from './TaskList';
 import { Button } from '../ui/button';
 import { Upload, Plus } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
+import { Card, CardContent } from '../ui/card';
 import { Modal } from '../ui/modal';
 
 // Simplified UI: filters removed
@@ -37,10 +37,10 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 
   const handleImport = async () => {
     try {
-      const filePath = await (window as any).electronAPI.invoke('select-import-file');
+      const filePath = await (window as any).electronAPI.selectImportFile();
       if (!filePath) return;
       // Delegate parsing to main to avoid duplication
-      const created = await (window as any).electronAPI.invoke('task:import', { filePath });
+      const created = await (window as any).electronAPI.importTasks({ filePath });
       if (Array.isArray(created)) {
         // Notify app shell to refresh tasks from main storage
         const evt = new Event('tasky:reload-tasks');

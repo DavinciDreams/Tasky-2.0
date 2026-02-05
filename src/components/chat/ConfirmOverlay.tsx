@@ -56,7 +56,10 @@ export const ConfirmOverlay: React.FC<ConfirmOverlayProps> = ({
       } catch {}
     };
     try { (window as any)?.electronAPI?.onSettingsUpdate?.(onUpdate); } catch {}
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+      try { (window as any)?.electronAPI?.removeAllListeners?.('settings-update'); } catch {}
+    };
   }, []);
 
   const formatTimeString = (time: string) => {

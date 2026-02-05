@@ -1,11 +1,11 @@
 // Use require to avoid TS module resolution issues with electron types in lint
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const { ipcMain, app, BrowserWindow } = require('electron');
+const { ipcMain, BrowserWindow } = require('electron');
 import * as path from 'path';
 import * as fs from 'fs';
 import { TaskyEngine } from '../core/task-manager/tasky-engine';
 import { SqliteTaskStorage } from '../core/storage/SqliteTaskStorage';
-import { TaskyTask, TaskyTaskSchema, TaskStatus, CreateTaskInput, UpdateTaskInput } from '../types/task';
+import { TaskyTask, TaskStatus, CreateTaskInput, UpdateTaskInput } from '../types/task';
 import logger from '../lib/logger';
 import { notificationUtility } from './notification-utility';
 
@@ -197,7 +197,7 @@ export class ElectronTaskManager {
       }
     });
 
-    ipcMain.handle('task:stats', async (event: any) => {
+    ipcMain.handle('task:stats', async (_event: any) => {
       try {
         const result = await this.engine.getTaskAnalytics();
         
@@ -224,7 +224,7 @@ export class ElectronTaskManager {
     });
 
     // Task analysis and insights
-    ipcMain.handle('task:analyze', async (event: any) => {
+    ipcMain.handle('task:analyze', async (_event: any) => {
       try {
         const observation = await this.engine.observe();
         const strategy = await this.engine.orient(observation);
@@ -261,7 +261,7 @@ export class ElectronTaskManager {
     });
 
     // Archive completed tasks
-    ipcMain.handle('task:archive-completed', async (event: any) => {
+    ipcMain.handle('task:archive-completed', async (_event: any) => {
       try {
         const tasksResult = await this.engine.getTasks();
         
@@ -291,7 +291,7 @@ export class ElectronTaskManager {
     });
 
     // Import/Export functionality
-    ipcMain.handle('task:export', async (event: any) => {
+    ipcMain.handle('task:export', async (_event: any) => {
       try {
         const tasks = await this.engine.getTasks();
         return {
@@ -309,7 +309,7 @@ export class ElectronTaskManager {
       try {
         validateImportPayload(importPayload);
         const createdTasks: TaskyTask[] = [];
-        let failedCount = 0;
+        let _failedCount = 0;
 
         // Helper: create a task safely and push to createdTasks on success
         const tryCreate = async (input: any) => {
@@ -318,10 +318,10 @@ export class ElectronTaskManager {
             if (result.success && result.data) {
               createdTasks.push(result.data);
             } else {
-              failedCount++;
+              _failedCount++;
             }
           } catch {
-            failedCount++;
+            _failedCount++;
           }
         };
 

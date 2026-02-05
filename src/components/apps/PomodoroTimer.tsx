@@ -1,9 +1,7 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Play, Pause, RotateCcw, RefreshCw, ListTodo } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Card, CardContent } from '../ui/card';
-import { Input } from '../ui/input';
-import { Label } from '../ui/label';
 import { Modal } from '../ui/modal';
 import { PomodoroTaskList } from './PomodoroTaskList';
 import { PomodoroTask } from '../../types/pomodoro';
@@ -110,12 +108,12 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
       }
     };
 
-    const handleStarted = (event: any, state: any) => {
+    const handleStarted = (_event: any, _state: any) => {
       setTimerState(prev => ({ ...prev, isRunning: true }));
       onTimerStart?.();
     };
 
-    const handlePaused = (event: any, state: any) => {
+    const handlePaused = (_event: any, _state: any) => {
       setTimerState(prev => ({ ...prev, isRunning: false }));
       onTimerPause?.();
     };
@@ -143,10 +141,16 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
 
     }
 
-    // Cleanup function
+    // Cleanup: remove all listeners for these channels to prevent memory leaks
     return () => {
-      // Note: We can't easily remove specific listeners with the current API
-      // This is acceptable since the component lifecycle matches the app lifecycle
+      if (window.electronAPI) {
+        window.electronAPI.removeAllListeners('pomodoro:tick');
+        window.electronAPI.removeAllListeners('pomodoro:session-complete');
+        window.electronAPI.removeAllListeners('pomodoro:started');
+        window.electronAPI.removeAllListeners('pomodoro:paused');
+        window.electronAPI.removeAllListeners('pomodoro:reset');
+        window.electronAPI.removeAllListeners('pomodoro:reset-all');
+      }
     };
   }, [onSessionComplete, onTimerStart, onTimerPause, onTimerReset]);
 

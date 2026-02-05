@@ -21,13 +21,6 @@ interface PomodoroState {
   pausedTime?: number; // remaining time when paused (in seconds)
 }
 
-interface StoreSchema {
-  reminders: Reminder[];
-  settings: Settings;
-  pomodoroState: PomodoroState;
-  pomodoroTasks: PomodoroTask[];
-}
-
 export class Storage {
   private store: any;
   private reminderDb?: ReminderSqliteStorage;
@@ -100,7 +93,7 @@ export class Storage {
       }
       const reminders = this.store.get('reminders', []);
       return reminders;
-    } catch (error) {
+    } catch (_error) {
       
       return [];
     }
@@ -114,7 +107,7 @@ export class Storage {
       this.store.set('reminders', reminders);
       
       return true;
-    } catch (error) {
+    } catch (_error) {
       
       return false;
     }
@@ -135,7 +128,7 @@ export class Storage {
       this.store.set('reminders', reminders);
       
       return true;
-    } catch (error) {
+    } catch (_error) {
       
       return false;
     }
@@ -155,7 +148,7 @@ export class Storage {
       this.store.set('reminders', filteredReminders);
       
       return true;
-    } catch (error) {
+    } catch (_error) {
       
       return false;
     }
@@ -173,7 +166,7 @@ export class Storage {
       const reminder = reminders.find(r => r.id === id);
       
       return reminder || null;
-    } catch (error) {
+    } catch (_error) {
       
       return null;
     }
@@ -185,7 +178,7 @@ export class Storage {
       const reminders = this.getReminders();
       const activeReminders = reminders.filter(r => r.enabled);
       return activeReminders;
-    } catch (error) {
+    } catch (_error) {
       
       return [];
     }
@@ -196,7 +189,7 @@ export class Storage {
       if (this.reminderDb) return this.reminderDb.getLastUpdated();
       // For electron-store, we don't have timestamps, so return current time
       return Date.now();
-    } catch (error) {
+    } catch (_error) {
       
       return Date.now();
     }
@@ -207,7 +200,7 @@ export class Storage {
     try {
       const value = this.store.get(`settings.${key}` as any);
       return value;
-    } catch (error) {
+    } catch (_error) {
       
       return undefined;
     }
@@ -217,7 +210,7 @@ export class Storage {
     try {
       this.store.set(`settings.${key}` as any, value);
       return true;
-    } catch (error) {
+    } catch (_error) {
       
       return false;
     }
@@ -243,7 +236,7 @@ export class Storage {
       }
       
       return settings;
-    } catch (error) {
+    } catch (_error) {
       
       // Return default settings
       return {
@@ -294,7 +287,7 @@ export class Storage {
       const updatedSettings = { ...currentSettings, ...newSettings };
       this.store.set('settings', updatedSettings);
       return true;
-    } catch (error) {
+    } catch (_error) {
       
       return false;
     }
@@ -305,7 +298,7 @@ export class Storage {
     try {
       this.store.clear();
       return true;
-    } catch (error) {
+    } catch (_error) {
       
       return false;
     }
@@ -314,7 +307,7 @@ export class Storage {
   getCacheSize(): number {
     try {
       return JSON.stringify(this.store.store).length;
-    } catch (error) {
+    } catch (_error) {
       
       return 0;
     }
@@ -328,7 +321,7 @@ export class Storage {
         settings: this.getAllSettings()
       };
       return JSON.stringify(data, null, 2);
-    } catch (error) {
+    } catch (_error) {
       
       return null;
     }
@@ -348,7 +341,7 @@ export class Storage {
       
       
       return true;
-    } catch (error) {
+    } catch (_error) {
       
       return false;
     }
@@ -364,7 +357,7 @@ export class Storage {
         sessionCount: 0,
         cycleCount: 0
       };
-    } catch (error) {
+    } catch (_error) {
       return {
         isRunning: false,
         sessionType: 'work',
@@ -380,7 +373,7 @@ export class Storage {
       const updatedState = { ...currentState, ...state };
       this.store.set('pomodoroState', updatedState);
       return true;
-    } catch (error) {
+    } catch (_error) {
       return false;
     }
   }
@@ -395,7 +388,7 @@ export class Storage {
       };
       this.store.set('pomodoroState', defaultState);
       return true;
-    } catch (error) {
+    } catch (_error) {
       return false;
     }
   }
@@ -417,7 +410,7 @@ export class Storage {
       
       // Sort by order (ascending - lower numbers first)
       return migratedTasks.sort((a: PomodoroTask, b: PomodoroTask) => a.order - b.order);
-    } catch (error) {
+    } catch (_error) {
       return [];
     }
   }
@@ -446,7 +439,7 @@ export class Storage {
       tasks.push(newTask);
       this.store.set('pomodoroTasks', tasks);
       return newTask;
-    } catch (error) {
+    } catch (_error) {
       return null;
     }
   }
@@ -469,7 +462,7 @@ export class Storage {
 
       this.store.set('pomodoroTasks', tasks);
       return true;
-    } catch (error) {
+    } catch (_error) {
       return false;
     }
   }
@@ -485,7 +478,7 @@ export class Storage {
 
       this.store.set('pomodoroTasks', filteredTasks);
       return true;
-    } catch (error) {
+    } catch (_error) {
       return false;
     }
   }
@@ -494,7 +487,7 @@ export class Storage {
     try {
       const tasks = this.getPomodoroTasks();
       return tasks.find(task => task.isActive && !task.isCompleted) || null;
-    } catch (error) {
+    } catch (_error) {
       return null;
     }
   }
@@ -526,7 +519,7 @@ export class Storage {
 
       this.store.set('pomodoroTasks', tasks);
       return true;
-    } catch (error) {
+    } catch (_error) {
       return false;
     }
   }
@@ -552,7 +545,7 @@ export class Storage {
 
       this.store.set('pomodoroTasks', tasks);
       return true;
-    } catch (error) {
+    } catch (_error) {
       return false;
     }
   }
@@ -590,7 +583,7 @@ export class Storage {
 
       this.store.set('pomodoroTasks', tasks);
       return true;
-    } catch (error) {
+    } catch (_error) {
       return false;
     }
   }
@@ -600,7 +593,7 @@ export class Storage {
       const tasks = this.getPomodoroTasks();
       // Find the first incomplete task in order
       return tasks.find(task => !task.isCompleted) || null;
-    } catch (error) {
+    } catch (_error) {
       return null;
     }
   }
@@ -608,14 +601,14 @@ export class Storage {
   // Migration helper
   migrate(): boolean {
     try {
-      const version = this.store.get('version', '1.0.0');
+      this.store.get('version', '1.0.0');
       
       // Add migration logic here if needed
       
       
       this.store.set('version', '2.0.0');
       return true;
-    } catch (error) {
+    } catch (_error) {
       
       return false;
     }

@@ -1,5 +1,5 @@
 import Database from 'better-sqlite3';
-import type { Reminder, Settings } from '../../types';
+import type { Reminder } from '../../types';
 
 export class ReminderSqliteStorage {
   private dbPath: string;

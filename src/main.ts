@@ -8,10 +8,10 @@
  * - Orchestrates app lifecycle and applies persisted settings at startup
  */
 
-import { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, dialog, shell, OpenDialogReturnValue, globalShortcut } from 'electron';
+import { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, dialog, globalShortcut } from 'electron';
 import * as path from 'path';
-import * as os from 'os';
 import * as fs from 'fs';
+import * as os from 'os';
 import { spawn, ChildProcess } from 'child_process';
 import * as http from 'http';
 import logger from './lib/logger';
@@ -23,11 +23,10 @@ import TaskyAssistant from './electron/assistant';
 import { ElectronTaskManager } from './electron/task-manager';
 import { notificationUtility } from './electron/notification-utility';
 import { PomodoroService } from './electron/pomodoro-service';
-import type { Reminder, Settings } from './types/index';
+import type { Reminder } from './types/index';
 
 // Vite globals for Electron
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string | undefined;
-declare const MAIN_WINDOW_VITE_NAME: string;
 
 // Extend app object with custom properties
 (app as any).isQuiting = false;
@@ -52,22 +51,44 @@ let mcpServerProcess: ChildProcess | null = null; // MCP server subprocess
 // The MCP tool functionality will be handled via IPC to the MCP subprocess
 
 // Lightweight HTTP bridge so external processes (like MCP agent) can request execution
+// Uses a random per-session token to prevent unauthorized access from other local processes
+import { randomBytes } from 'crypto';
 let httpServer: http.Server | null = null;
+let httpBridgeToken: string | null = null;
 function startHttpBridge(port = 7844): void {
   try {
     if (httpServer) return;
+    httpBridgeToken = randomBytes(32).toString('hex');
     httpServer = http.createServer(async (req, res) => {
       try {
-        // Enable basic CORS for local tools
-        res.setHeader('Access-Control-Allow-Origin', '*');
+        // Only allow localhost (already bound to 127.0.0.1)
+        res.setHeader('Access-Control-Allow-Origin', 'http://localhost');
         res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-        res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
         if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
+
+        // Require bearer token authentication
+        const authHeader = req.headers['authorization'] || '';
+        if (authHeader !== `Bearer ${httpBridgeToken}`) {
+          res.writeHead(401, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: 'Unauthorized' }));
+          return;
+        }
 
         if (req.method === 'POST' && req.url === '/execute-task') {
           let body = '';
-          req.on('data', chunk => { body += chunk; });
+          const MAX_BODY = 64 * 1024; // 64KB limit
+          let oversize = false;
+          req.on('data', chunk => {
+            body += chunk;
+            if (body.length > MAX_BODY) { oversize = true; req.destroy(); }
+          });
           req.on('end', async () => {
+            if (oversize) {
+              res.writeHead(413, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ success: false, error: 'Request body too large' }));
+              return;
+            }
             try {
               const payload = JSON.parse(body || '{}');
               const id = String(payload.taskId || payload.id || '').trim();
@@ -108,6 +129,14 @@ function startHttpBridge(port = 7844): void {
     });
     httpServer.listen(port, '127.0.0.1', () => {
       logger.info(`HTTP bridge listening on http://localhost:${port}`);
+      // Write token to a file only readable by current user for MCP agent to use
+      try {
+        const tokenPath = path.join(process.cwd(), 'data', '.http-bridge-token');
+        fs.mkdirSync(path.dirname(tokenPath), { recursive: true });
+        fs.writeFileSync(tokenPath, httpBridgeToken!, { mode: 0o600 });
+      } catch (e) {
+        logger.warn('Could not write HTTP bridge token file:', e);
+      }
     });
     httpServer.on('error', (err) => {
       logger.error('HTTP bridge failed to start:', err);
@@ -265,6 +294,7 @@ const createWindow = () => {
       nodeIntegration: false,
       contextIsolation: true,
     },
+    backgroundColor: '#8291f7', // Perano-400 to match theme while React mounts
     icon: path.join(__dirname, '../assets/icon.ico'),
     show: false, // Don't show initially as this is a tray app
     skipTaskbar: false, // Show in taskbar when minimized
@@ -303,7 +333,7 @@ const createWindow = () => {
             indexPath = testPath;
             break;
           }
-        } catch (err) {
+        } catch (_err) {
           // Continue to next path
         }
       }
@@ -350,10 +380,27 @@ const createWindow = () => {
     });
   }
 
-  // Open DevTools only in development
+  // Log ALL renderer messages to terminal for debugging
+  mainWindow.webContents.on('did-finish-load', () => {
+    logger.info('[Renderer] did-finish-load — URL: ' + mainWindow?.webContents.getURL());
+  });
+  mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
+    logger.error(`Renderer failed to load: ${errorCode} ${errorDescription} URL: ${validatedURL}`);
+  });
+  mainWindow.webContents.on('render-process-gone', (_event, details) => {
+    logger.error('Renderer process gone:', details);
+  });
+  mainWindow.webContents.on('console-message', (_event, level, message, line, sourceId) => {
+    const tag = level === 0 ? 'DEBUG' : level === 1 ? 'INFO' : level === 2 ? 'WARN' : 'ERROR';
+    logger.info(`[Renderer ${tag}] ${message} (${sourceId}:${line})`);
+  });
+
+  // Always open DevTools in development for debugging
   const WANT_DEVTOOLS = process.env.NODE_ENV === 'development' || process.env.TASKY_DEVTOOLS === '1';
   if (WANT_DEVTOOLS) {
-    try { mainWindow.webContents.openDevTools({ mode: 'detach' }); } catch {}
+    mainWindow.webContents.once('did-finish-load', () => {
+      try { mainWindow?.webContents.openDevTools({ mode: 'detach' }); } catch {}
+    });
   }
 
   // Hide window instead of closing
@@ -445,9 +492,6 @@ app.whenReady().then(async () => {
     logger.error('Failed to start MCP server:', error);
     // Don't fail startup if MCP server fails - the app can still work without it
   }
-  
-  // MCP server integration ready - using stdio protocol
-  logger.info('MCP server integration ready');
   
   // Initialize scheduler
   scheduler = new ReminderScheduler();
@@ -781,7 +825,7 @@ const createTray = () => {
     } else {
       throw new Error('No icon file found');
     }
-  } catch (error) {
+  } catch (_error) {
     logger.debug('Using fallback icon data URL');
     // Use fallback data URL icon
     trayIcon = nativeImage.createFromDataURL(iconDataURL);
@@ -1223,6 +1267,21 @@ ipcMain.on('hide-assistant', () => {
   }
 });
 
+// Open main window and navigate to chat when avatar is clicked
+ipcMain.on('assistant:open-chat', () => {
+  if (mainWindow) {
+    mainWindow.show();
+    mainWindow.focus();
+    mainWindow.webContents.send('navigate-to-chat');
+  } else {
+    createWindow();
+    // Wait for window to be ready, then navigate
+    mainWindow?.webContents.once('did-finish-load', () => {
+      mainWindow?.webContents.send('navigate-to-chat');
+    });
+  }
+});
+
 ipcMain.on('set-bubble-side', (event, side) => {
   logger.debug('Set bubble side called with:', side);
   if (assistant) {
@@ -1320,16 +1379,32 @@ ipcMain.handle('select-avatar-file', async () => {
 
 ipcMain.handle('get-avatar-data-url', async (event, filePath) => {
   try {
-    const fs = require('fs');
-    const path = require('path');
-    
-    if (!fs.existsSync(filePath)) {
+    if (typeof filePath !== 'string' || !filePath.trim()) {
+      throw new Error('Invalid file path');
+    }
+
+    // Validate file extension is an allowed image type
+    const extname = path.extname(filePath).toLowerCase();
+    const ALLOWED_IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'];
+    if (!ALLOWED_IMAGE_EXTENSIONS.includes(extname)) {
+      throw new Error('File type not allowed');
+    }
+
+    // Resolve to real path to prevent symlink traversal
+    const resolvedPath = fs.realpathSync(filePath);
+
+    // Size limit: reject files over 10MB to prevent abuse
+    const stats = fs.statSync(resolvedPath);
+    if (stats.size > 10 * 1024 * 1024) {
+      throw new Error('File too large');
+    }
+
+    if (!fs.existsSync(resolvedPath)) {
       throw new Error('File does not exist');
     }
-    
-    const imageBuffer = fs.readFileSync(filePath);
-    const extname = path.extname(filePath).toLowerCase();
-    
+
+    const imageBuffer = fs.readFileSync(resolvedPath);
+
     // Determine MIME type
     let mimeType = 'image/png'; // default
     switch (extname) {
@@ -1350,7 +1425,7 @@ ipcMain.handle('get-avatar-data-url', async (event, filePath) => {
         mimeType = 'image/webp';
         break;
     }
-    
+
     const base64Image = imageBuffer.toString('base64');
     return `data:${mimeType};base64,${base64Image}`;
   } catch (error) {
@@ -1441,10 +1516,18 @@ ipcMain.handle('select-files', async () => {
 // Open terminal at a path with agent context (best-effort)
 ipcMain.handle('open-terminal', async (_e, directory: string, agent: string) => {
   try {
-    const cwd = directory && typeof directory === 'string' ? directory : process.cwd();
+    // Validate directory exists and is actually a directory
+    const cwd = directory && typeof directory === 'string' && fs.existsSync(directory) && fs.statSync(directory).isDirectory()
+      ? directory
+      : process.cwd();
+    // Sanitize agent name to prevent injection (alphanumeric + basic punctuation only)
+    const safeAgent = typeof agent === 'string' ? agent.replace(/[^a-zA-Z0-9 _-]/g, '') : '';
     if (process.platform === 'win32') {
-      // Open PowerShell in directory and print agent name
-      spawn('cmd.exe', ['/c', 'start', 'powershell', '-NoExit', '-Command', `Set-Location -Path \"${cwd}\"; Write-Host \"Agent: ${agent || ''}\"`], { windowsHide: false });
+      // Use -File with a temp script instead of -Command to avoid shell injection
+      const scriptContent = `Set-Location -LiteralPath '${cwd.replace(/'/g, "''")}'\nWrite-Host "Agent: ${safeAgent}"`;
+      const scriptPath = path.join(os.tmpdir(), `tasky-terminal-${Date.now()}.ps1`);
+      fs.writeFileSync(scriptPath, scriptContent, 'utf-8');
+      spawn('cmd.exe', ['/c', 'start', 'powershell', '-NoExit', '-ExecutionPolicy', 'Bypass', '-File', scriptPath], { windowsHide: false });
     } else if (process.platform === 'darwin') {
       spawn('open', ['-a', 'Terminal', cwd]);
     } else {
@@ -1457,7 +1540,7 @@ ipcMain.handle('open-terminal', async (_e, directory: string, agent: string) => 
   }
 });
 
-ipcMain.on('get-upcoming-notifications', (event) => {
+ipcMain.on('get-upcoming-notifications', (_event) => {
   logger.debug('Getting upcoming notifications...');
   if (store) {
     const reminders = store.getReminders();

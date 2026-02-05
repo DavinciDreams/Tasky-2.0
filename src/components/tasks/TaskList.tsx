@@ -3,7 +3,6 @@ import { TaskyTask, TaskStatus } from '../../types/task';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { Checkbox } from '../ui/checkbox';
-import { TaskForm } from './TaskForm';
 import { Badge } from '../ui/badge';
 import { 
   CheckCircle2, 
@@ -34,7 +33,7 @@ interface TaskItemProps {
 
 const TaskItem: React.FC<TaskItemProps> = ({ task, onUpdateTask, onDeleteTask, timeFormat }) => {
 
-  const getStatusIcon = (status: TaskStatus) => {
+  const _getStatusIcon = (status: TaskStatus) => {
     switch (status) {
       case TaskStatus.COMPLETED:
         return <CheckCircle2 className="h-5 w-5" style={{ color: 'hsl(var(--success))' }} />;
@@ -64,7 +63,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onUpdateTask, onDeleteTask, t
     }
   };
 
-  const formatDueDate = (date: Date) => {
+  const _formatDueDate = (date: Date) => {
     const now = new Date();
     const isToday = date.toDateString() === now.toDateString();
     const isTomorrow = date.toDateString() === new Date(now.getTime() + 24 * 60 * 60 * 1000).toDateString();
@@ -99,7 +98,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onUpdateTask, onDeleteTask, t
     onUpdateTask(task.schema.id, updates);
   };
 
-  const handleToggleComplete = () => {
+  const _handleToggleComplete = () => {
     const newStatus = task.status === TaskStatus.COMPLETED 
       ? TaskStatus.PENDING 
       : TaskStatus.COMPLETED;

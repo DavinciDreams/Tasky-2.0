@@ -5,17 +5,16 @@ const EmojiPicker = React.lazy(() => import('@emoji-mart/react'));
 import { SettingSection } from '../components/SettingSection';
 import { SettingItem } from '../components/SettingItem';
 import { ThemeSettings } from '../components/theme/ThemeSettings';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
-import { GoogleAIProvider, GOOGLE_AI_MODELS } from '../ai/providers';
+import { GOOGLE_AI_MODELS } from '../ai/providers';
 import { Checkbox } from '../components/ui/checkbox';
 import CustomSwitch from '../components/ui/CustomSwitch';
-import { Bell, Settings, Smile, X, Plus, Edit2, Edit3, Trash2, Clock, Calendar, Minus, Paperclip, CheckSquare, Upload } from 'lucide-react';
+import { Bell, Settings, Smile, X, Plus, Edit2, Edit3, Trash2, Clock, Calendar, Minus, CheckSquare } from 'lucide-react';
 import type { Reminder, Settings as AppSettings, CustomAvatar, DefaultAvatar } from '../types';
-import type { TaskyTask, TaskyTaskSchema } from '../types/task';
-import { TasksTab } from '../components/tasks/TasksTab';
+import type { TaskyTask } from '../types/task';
 import { ApplicationsTab } from '../components/apps/ApplicationsTab';
 import LocationDateTime from '../components/ui/LocationDateTime';
 import '../types/css.d.ts';
@@ -39,10 +38,10 @@ function getSystemTimezone(): string {
 
 function getAllTimezones(): string[] {
   // Some environments expose supportedValuesOf
-  // @ts-ignore
+  // @ts-expect-error - supportedValuesOf may not exist in all environments
   if (Intl.supportedValuesOf) {
     try {
-      // @ts-ignore
+      // @ts-expect-error - supportedValuesOf may not exist in all environments
       const list = Intl.supportedValuesOf('timeZone');
       if (Array.isArray(list) && list.length) return list as string[];
     } catch {}
@@ -95,7 +94,7 @@ const TaskyAvatarImage = () => {
   useEffect(() => {
     const loadTaskyImage = async () => {
       try {
-        const dataUrl = await window.electronAPI.invoke('get-tasky-avatar-data-url');
+        const dataUrl = await window.electronAPI.getTaskyAvatarDataUrl();
         if (dataUrl) {
           setImageSrc(dataUrl);
         } else {
@@ -297,9 +296,9 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
         if (res.ok) {
           const j = await res.json().catch(() => ({} as any));
           const models = (j && (j.data || j.models)) || j;
-          let count = 0;
-          if (Array.isArray(models)) count = models.length;
-          else if (models && Array.isArray(models.data)) count = models.data.length;
+          let _count = 0;
+          if (Array.isArray(models)) _count = models.length;
+          else if (models && Array.isArray(models.data)) _count = models.data.length;
           setLlmTestStatus({ ok: true, message: 'Custom' });
         } else {
           setLlmTestStatus({ ok: false, message: 'Custom' });
@@ -682,7 +681,7 @@ const AvatarTab: React.FC<AvatarTabProps> = ({ selectedAvatar, onAvatarChange })
   };
 
   // Combine default and custom avatars
-  const allAvatars = [...defaultAvatars, ...customAvatars];
+  const _allAvatars = [...defaultAvatars, ...customAvatars];
 
   return (
     <div className="space-y-8 h-full">
@@ -1522,6 +1521,19 @@ const App: React.FC = () => {
     };
   }, []);
 
+  // Navigate to chat when avatar is clicked in the desktop assistant
+  useEffect(() => {
+    try {
+      (window as any).electronAPI.onNavigateToChat(() => {
+        setActiveTab('applications');
+        setActiveAppView('chat');
+      });
+    } catch {}
+    return () => {
+      try { (window as any).electronAPI.removeAllListeners('navigate-to-chat'); } catch {}
+    };
+  }, []);
+
   const loadReminders = async () => {
     try {
       
@@ -1718,7 +1730,7 @@ const App: React.FC = () => {
           
           // Force a style recalculation
           document.body.style.display = 'none';
-          document.body.offsetHeight; // trigger reflow
+          void document.body.offsetHeight; // trigger reflow
           document.body.style.display = '';
           
           root.style.setProperty('--secondary', borderHsl);
@@ -1918,11 +1930,11 @@ const App: React.FC = () => {
   };
 
   // Import tasks handler: delegate to main via a unified IPC
-  const handleImportTasks = async () => {
+  const _handleImportTasks = async () => {
     try {
-      const filePath = await window.electronAPI.invoke('select-import-file');
+      const filePath = await window.electronAPI.selectImportFile();
       if (!filePath) return;
-      const created = await window.electronAPI.invoke('task:import', { filePath });
+      const created = await window.electronAPI.importTasks({ filePath });
       if (Array.isArray(created) && created.length) {
         await loadTasks();
       }

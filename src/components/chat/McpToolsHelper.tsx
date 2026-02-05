@@ -9,7 +9,6 @@ import {
   Play, 
   Clock, 
   Bell,
-  ChevronDown,
   Info,
   X
 } from 'lucide-react';

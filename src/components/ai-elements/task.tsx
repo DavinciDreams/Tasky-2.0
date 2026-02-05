@@ -13,11 +13,11 @@ interface TaskTriggerProps extends React.ComponentProps<typeof CollapsibleTrigge
   status?: 'pending' | 'in_progress' | 'completed' | 'error';
 }
 
-interface TaskContentProps extends React.ComponentProps<typeof CollapsibleContent> {}
+type TaskContentProps = React.ComponentProps<typeof CollapsibleContent>;
 
-interface TaskItemProps extends React.HTMLAttributes<HTMLDivElement> {}
+type TaskItemProps = React.HTMLAttributes<HTMLDivElement>;
 
-interface TaskItemFileProps extends React.HTMLAttributes<HTMLDivElement> {}
+type TaskItemFileProps = React.HTMLAttributes<HTMLDivElement>;
 
 const getStatusIcon = (status: TaskTriggerProps['status']) => {
   switch (status) {

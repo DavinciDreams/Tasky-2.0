@@ -1,7 +1,6 @@
 import React from 'react';
 import { Tool, ToolHeader, ToolContent, ToolOutput } from '@/components/ai-elements';
 import { TaskDisplay, ReminderDisplay } from './TaskDisplay';
-import { InlineConfirmation } from './InlineConfirmation';
 import type { AdaptiveCard } from './types';
 
 interface AdaptiveCardRendererProps {
@@ -9,7 +8,7 @@ interface AdaptiveCardRendererProps {
 }
 
 export const AdaptiveCardRenderer: React.FC<AdaptiveCardRendererProps> = ({ card }) => {
-  const { kind, name, args, output } = card;
+  const { kind, name, output } = card;
   
   // Helper to extract JSON from output
   const extractJsonFromOutput = (raw: string | undefined | null): any | null => {

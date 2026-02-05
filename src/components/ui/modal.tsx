@@ -17,7 +17,7 @@ interface ModalProps {
 export function Modal({ open, title, onClose, maxWidth = 560, maxHeight, tone = 'card', backdropClass, fullHeight, children }: ModalProps) {
   if (!open) return null;
   const maxWidthStyle = typeof maxWidth === 'number' ? `${maxWidth}px` : maxWidth;
-  const bgClass = tone === 'background' ? 'bg-background' : 'bg-card';
+  const _bgClass = tone === 'background' ? 'bg-background' : 'bg-card';
   const contentMaxHeight = typeof maxHeight === 'number' ? `${maxHeight}px` : (maxHeight || '70vh');
   return createPortal(
     <div className={`fixed inset-0 z-[2000] flex justify-center p-0 ${fullHeight ? 'items-stretch' : 'items-center'}`}>

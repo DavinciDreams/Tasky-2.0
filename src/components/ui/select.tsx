@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 
 interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   value?: string;
