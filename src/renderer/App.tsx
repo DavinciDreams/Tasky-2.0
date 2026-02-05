@@ -213,6 +213,49 @@ const RemindersTab: React.FC<RemindersTabProps> = ({ reminders, onAddReminder, o
 const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, onTestNotification }) => {
   const [llmTesting, setLlmTesting] = useState(false);
   const [llmTestStatus, setLlmTestStatus] = useState<null | { ok: boolean; message: string }>(null);
+  const [openRouterModels, setOpenRouterModels] = useState<Array<{ id: string; name: string; pricing: { prompt: string; completion: string }; context_length: number }>>([]);
+  const [openRouterLoading, setOpenRouterLoading] = useState(false);
+  const [showFreeOnly, setShowFreeOnly] = useState(false);
+  const [savedKey, setSavedKey] = useState<string | null>(null);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const fetchOpenRouterModels = async () => {
+    setOpenRouterLoading(true);
+    try {
+      const res = await fetch('https://openrouter.ai/api/v1/models');
+      if (res.ok) {
+        const data = await res.json();
+        const models = (data.data || []) as Array<{ id: string; name: string; pricing: { prompt: string; completion: string }; context_length: number }>;
+        models.sort((a, b) => a.name.localeCompare(b.name));
+        setOpenRouterModels(models);
+      } else {
+        console.warn('Failed to fetch OpenRouter models:', res.status);
+      }
+    } catch (err) {
+      console.warn('Failed to fetch OpenRouter models:', err);
+    } finally {
+      setOpenRouterLoading(false);
+    }
+  };
+
+  // Fetch OpenRouter models when provider is openrouter
+  useEffect(() => {
+    if (String(settings.llmProvider || '').toLowerCase() === 'openrouter' && openRouterModels.length === 0) {
+      fetchOpenRouterModels();
+    }
+  }, [settings.llmProvider]);
+
+  // Auto-select first model when free filter changes and current model is excluded
+  useEffect(() => {
+    if (String(settings.llmProvider || '').toLowerCase() !== 'openrouter' || openRouterModels.length === 0) return;
+    const filtered = showFreeOnly
+      ? openRouterModels.filter(m => m.pricing?.prompt === '0' && m.pricing?.completion === '0')
+      : openRouterModels;
+    const currentModel = settings.llmModel || '';
+    if (filtered.length > 0 && !filtered.some(m => m.id === currentModel)) {
+      onSettingChange('llmModel', filtered[0].id);
+    }
+  }, [showFreeOnly]);
 
   // Get available models for the current provider (only used for Google now)
   const getAvailableModels = (provider: string) => {
@@ -231,15 +274,38 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
     if (normalizedProvider === 'zai') {
       return ZAI_MODELS.map(model => ({
         value: model,
-        label: model.toUpperCase().replace('GLM-', 'GLM-')
+        label: model
+          .replace('glm-', 'GLM-')
+          .replace('-plus', ' Plus')
+          .replace('-long', ' Long')
+          .replace('-flash', ' Flash')
       }));
     }
 
     if (normalizedProvider === 'openrouter') {
-      return OPENROUTER_POPULAR_MODELS.map(model => ({
-        value: model,
-        label: model.split('/').pop()?.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || model
-      }));
+      if (openRouterModels.length > 0) {
+        const filtered = showFreeOnly
+          ? openRouterModels.filter(m => m.pricing?.prompt === '0' && m.pricing?.completion === '0')
+          : openRouterModels;
+        return filtered.map(m => ({ value: m.id, label: m.name }));
+      }
+      // Fallback to static list
+      const orgLabels: Record<string, string> = {
+        'anthropic': 'Anthropic',
+        'openai': 'OpenAI',
+        'google': 'Google',
+        'meta-llama': 'Meta',
+        'deepseek': 'DeepSeek',
+        'mistralai': 'Mistral',
+      };
+      return OPENROUTER_POPULAR_MODELS.map(model => {
+        const [org, name] = model.split('/');
+        const prettyName = (name || model)
+          .replace(/-/g, ' ')
+          .replace(/\b\w/g, l => l.toUpperCase());
+        const prettyOrg = orgLabels[org] || org;
+        return { value: model, label: `${prettyName} (${prettyOrg})` };
+      });
     }
 
     return [];
@@ -500,24 +566,33 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
                     title="Model"
                     description="Choose a suggested model for the selected provider"
                     type="select"
-                    value={settings.llmModel || 'gemini-1.5-flash'}
-                    options={(() => {
-                      // Get models dynamically from AI providers
-                      const availableModels = getAvailableModels(settings.llmProvider || 'google');
-                      if (availableModels.length > 0) {
-                        return availableModels;
-                      }
-                      
-                      // Fallback for Google AI models
-                      return [
-                        { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash' },
-                        { value: 'gemini-2.0-flash-exp', label: 'Gemini 2.0 Flash (Experimental)' },
-                        { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
-                        { value: 'gemini-1.5-flash-latest', label: 'Gemini 1.5 Flash Latest' },
-                      ];
+                    value={settings.llmModel || (() => {
+                      const p = (settings.llmProvider || 'google').toLowerCase();
+                      if (p === 'zai') return 'glm-4-flash';
+                      if (p === 'openrouter') return 'openai/gpt-4o-mini';
+                      return 'gemini-1.5-flash';
                     })()}
+                    options={getAvailableModels(settings.llmProvider || 'google')}
                     onChange={(val) => onSettingChange('llmModel', val)}
                   />
+                  {String(settings.llmProvider || '').toLowerCase() === 'openrouter' && (
+                    <div className="flex items-center gap-2 px-4 pt-2">
+                      {openRouterLoading ? (
+                        <span className="text-xs text-muted-foreground">Loading models...</span>
+                      ) : (
+                        <>
+                          <Checkbox
+                            id="free-models-only"
+                            checked={showFreeOnly}
+                            onCheckedChange={(checked) => setShowFreeOnly(checked === true)}
+                          />
+                          <Label htmlFor="free-models-only" className="text-sm cursor-pointer">
+                            Free models only
+                          </Label>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
               ) : settings.llmProvider === 'lmstudio' ? (
                 <div className="md:col-span-2 space-y-4">
@@ -554,7 +629,12 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
               {/* API Key for providers that need it */}
               {['google', 'zai', 'openrouter'].includes(settings.llmProvider || 'google') && (
                 <div className="flex flex-col gap-2 py-2 px-4 rounded-xl hover:bg-muted/30 transition-colors duration-200">
-                  <Label className="text-sm">API Key</Label>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-sm">API Key</Label>
+                    {savedKey === 'llmApiKey' && (
+                      <span className="text-[11px] text-green-500 font-medium animate-in fade-in duration-300">Saved</span>
+                    )}
+                  </div>
                   <Input
                     type="password"
                     placeholder={
@@ -563,12 +643,17 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onSettingChange, on
                         : 'Enter API key'
                     }
                     value={settings.llmApiKey || ''}
-                    onChange={(e) => onSettingChange('llmApiKey', e.target.value)}
+                    onChange={(e) => {
+                      onSettingChange('llmApiKey', e.target.value);
+                      setSavedKey('llmApiKey');
+                      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+                      saveTimerRef.current = setTimeout(() => setSavedKey(null), 2000);
+                    }}
                   />
                   <span className="text-[11px] text-muted-foreground">
                     {settings.llmProvider === 'zai' ? 'Get your key at open.bigmodel.cn'
-                      : settings.llmProvider === 'openrouter' ? 'Get your key at openrouter.ai/keys'
-                      : 'Stored locally.'}
+                      : settings.llmProvider === 'openrouter' ? <>Get your key at <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 underline">openrouter.ai/keys</a></>
+                      : 'Stored locally. Auto-saves as you type.'}
                   </span>
                 </div>
               )}

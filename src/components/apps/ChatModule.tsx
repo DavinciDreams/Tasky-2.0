@@ -114,7 +114,7 @@ For listing reminders, call mcpCall with name="tasky_list_reminders" and args={}
   // Other state
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
-  const [_error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [systemPrompt, setSystemPrompt] = useState<string>(String(settings.llmSystemPrompt || ''));
   const [useCustomPrompt, _setUseCustomPrompt] = useState<boolean>(!!settings.llmUseCustomPrompt);
   const [temperature, _setTemperature] = useState<number>(1.0);
@@ -569,7 +569,13 @@ For listing reminders, call mcpCall with name="tasky_list_reminders" and args={}
             return copy;
           });
           autoScrollIfNeeded();
-          
+
+          // Notify the desktop avatar so it visually reacts to the response
+          try {
+            const preview = assistantMessage.slice(0, 80).replace(/\n/g, ' ');
+            window.electronAPI.showAssistant(preview || 'Done!');
+          } catch {}
+
         } catch (streamError: any) {
           console.warn('[Chat] Stream interrupted:', streamError.message);
           setStreamingAssistantMessage(''); // Clear streaming state on error
@@ -750,6 +756,19 @@ For listing reminders, call mcpCall with name="tasky_list_reminders" and args={}
           onConfirm={handleConfirmSimplified}
           rootRef={rootRef}
         />
+      )}
+
+      {/* Error banner */}
+      {error && (
+        <div className="flex-shrink-0 mx-5 md:mx-6 mb-1 px-3 py-2 rounded-lg bg-destructive/10 border border-destructive/30 text-destructive text-sm flex items-center justify-between gap-2">
+          <span>{error}</span>
+          <button
+            onClick={() => setError(null)}
+            className="text-destructive/70 hover:text-destructive text-xs font-medium shrink-0"
+          >
+            Dismiss
+          </button>
+        </div>
       )}
 
       {/* Composer anchored below message list with Reset action */}
