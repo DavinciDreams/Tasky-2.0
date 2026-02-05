@@ -104,9 +104,12 @@ export interface ElectronAPI {
   selectAvatarFile: () => Promise<string>;
   getAvatarDataUrl: (filePath: string) => Promise<string>;
   
-  // IPC invoke method for general purpose calls
-  invoke: (channel: string, ...args: any[]) => Promise<any>;
-  
+  // Named invoke methods (no generic invoke — enforces channel allowlist)
+  getTaskyAvatarDataUrl: () => Promise<string | null>;
+  selectImportFile: () => Promise<string | null>;
+  selectDirectory: () => Promise<string | null>;
+  selectFiles: () => Promise<string[]>;
+
   // Task management methods
   createTask: (task: any) => Promise<any>;
   updateTask: (id: string, updates: any) => Promise<any>;

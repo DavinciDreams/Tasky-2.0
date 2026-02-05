@@ -204,7 +204,10 @@ export const ReminderDisplay: React.FC<ReminderDisplayProps> = ({ reminders }) =
       } catch {}
     };
     try { (window as any)?.electronAPI?.onSettingsUpdate?.(handler); } catch {}
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+      try { (window as any)?.electronAPI?.removeAllListeners?.('settings-update'); } catch {}
+    };
   }, []);
   if (!Array.isArray(reminders) || reminders.length === 0) {
     return (

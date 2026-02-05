@@ -167,7 +167,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ onCreateTask, initial, submi
               />
               <div>
                 <Button type="button" size="sm" className="bg-button text-button-foreground hover:bg-button/90 rounded-xl border border-border" onClick={async () => {
-                  const dir = await window.electronAPI.invoke('select-directory');
+                  const dir = await window.electronAPI.selectDirectory();
                   if (dir) setFormData(prev => ({ ...prev, executionPath: dir }));
                 }}>
                   <Upload className="h-4 w-4 mr-2" /> Browse folder
@@ -193,7 +193,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ onCreateTask, initial, submi
               />
               <div>
                 <Button type="button" size="sm" className="bg-button text-button-foreground hover:bg-button/90 rounded-xl border border-border" onClick={async () => {
-                  const files: string[] = await window.electronAPI.invoke('select-files');
+                  const files: string[] = await window.electronAPI.selectFiles();
                   if (files && files.length) {
                     const merged = [formData.affectedFiles, ...files].filter(Boolean).join('\n');
                     setFormData(prev => ({ ...prev, affectedFiles: merged }));

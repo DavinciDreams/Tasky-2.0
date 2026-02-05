@@ -141,10 +141,16 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
 
     }
 
-    // Cleanup function
+    // Cleanup: remove all listeners for these channels to prevent memory leaks
     return () => {
-      // Note: We can't easily remove specific listeners with the current API
-      // This is acceptable since the component lifecycle matches the app lifecycle
+      if (window.electronAPI) {
+        window.electronAPI.removeAllListeners('pomodoro:tick');
+        window.electronAPI.removeAllListeners('pomodoro:session-complete');
+        window.electronAPI.removeAllListeners('pomodoro:started');
+        window.electronAPI.removeAllListeners('pomodoro:paused');
+        window.electronAPI.removeAllListeners('pomodoro:reset');
+        window.electronAPI.removeAllListeners('pomodoro:reset-all');
+      }
     };
   }, [onSessionComplete, onTimerStart, onTimerPause, onTimerReset]);
 

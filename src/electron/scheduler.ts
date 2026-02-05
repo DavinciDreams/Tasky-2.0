@@ -340,9 +340,9 @@ class ReminderScheduler {
         const soundWindow = new BrowserWindow({
           show: false,
           webPreferences: {
-            nodeIntegration: true,
-            contextIsolation: false,
-            webSecurity: false // Allow file:// URLs to work properly
+            nodeIntegration: false,
+            contextIsolation: true,
+            webSecurity: true
           }
         });
 
@@ -458,9 +458,9 @@ class ReminderScheduler {
         const soundWindow = new BrowserWindow({
           show: false,
           webPreferences: {
-            nodeIntegration: true,
-            contextIsolation: false,
-            webSecurity: false
+            nodeIntegration: false,
+            contextIsolation: true,
+            webSecurity: true
           }
         });
 
@@ -552,8 +552,9 @@ class ReminderScheduler {
       const beepWindow = new BrowserWindow({
         show: false,
         webPreferences: {
-          nodeIntegration: true,
-          contextIsolation: false
+          nodeIntegration: false,
+          contextIsolation: true,
+          webSecurity: true
         }
       });
 

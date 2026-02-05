@@ -52,7 +52,10 @@ export const InlineConfirmation: React.FC<InlineConfirmationProps> = ({
       } catch {}
     };
     try { (window as any)?.electronAPI?.onSettingsUpdate?.(onUpdate); } catch {}
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+      try { (window as any)?.electronAPI?.removeAllListeners?.('settings-update'); } catch {}
+    };
   }, []);
 
   const nameLower = String(name || '').toLowerCase();

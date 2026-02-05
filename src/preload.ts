@@ -38,8 +38,11 @@ const electronAPI: ElectronAPI = {
   selectAvatarFile: () => ipcRenderer.invoke('select-avatar-file'),
   getAvatarDataUrl: (filePath) => ipcRenderer.invoke('get-avatar-data-url', filePath),
   
-  // IPC invoke method for general purpose calls
-  invoke: (channel, ...args) => ipcRenderer.invoke(channel, ...args),
+  // Named invoke methods (no generic invoke — enforces channel allowlist)
+  getTaskyAvatarDataUrl: () => ipcRenderer.invoke('get-tasky-avatar-data-url'),
+  selectImportFile: () => ipcRenderer.invoke('select-import-file'),
+  selectDirectory: () => ipcRenderer.invoke('select-directory'),
+  selectFiles: () => ipcRenderer.invoke('select-files'),
   
   // Task management methods
   createTask: (task) => ipcRenderer.invoke('task:create', task),
@@ -88,8 +91,18 @@ const electronAPI: ElectronAPI = {
   // Navigation from assistant avatar click
   onNavigateToChat: (callback: () => void) => ipcRenderer.on('navigate-to-chat', callback as any),
   
-  // Remove listeners
-  removeAllListeners: (channel) => ipcRenderer.removeAllListeners(channel),
+  // Remove listeners (restricted to known event channels)
+  removeAllListeners: (channel) => {
+    const ALLOWED_LISTENER_CHANNELS = [
+      'reminder-notification', 'assistant-message', 'settings-update',
+      'tasky:tasks-updated', 'tasky:reminders-updated', 'navigate-to-chat',
+      'pomodoro:tick', 'pomodoro:session-complete', 'pomodoro:started',
+      'pomodoro:paused', 'pomodoro:reset', 'pomodoro:reset-all',
+    ];
+    if (ALLOWED_LISTENER_CHANNELS.includes(channel)) {
+      ipcRenderer.removeAllListeners(channel);
+    }
+  },
 
   // Pomodoro timer methods
   pomodoroGetState: () => ipcRenderer.invoke('pomodoro:get-state'),

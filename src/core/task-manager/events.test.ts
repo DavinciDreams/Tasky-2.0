@@ -253,9 +253,8 @@ describe('MiddlewareEventBus', () => {
       order.push('async');
     });
     await bus.emitAsync('count', 1);
-    // Middleware runs twice: once for the outer emitAsync override,
-    // and once internally when super.emitAsync calls this.emit (which is also overridden)
-    expect(order).toEqual(['mw', 'mw', 'async']);
+    // Middleware runs once, then both sync and async handlers fire
+    expect(order).toEqual(['mw', 'async']);
   });
 });
 

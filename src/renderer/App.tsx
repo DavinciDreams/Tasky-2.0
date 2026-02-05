@@ -94,7 +94,7 @@ const TaskyAvatarImage = () => {
   useEffect(() => {
     const loadTaskyImage = async () => {
       try {
-        const dataUrl = await window.electronAPI.invoke('get-tasky-avatar-data-url');
+        const dataUrl = await window.electronAPI.getTaskyAvatarDataUrl();
         if (dataUrl) {
           setImageSrc(dataUrl);
         } else {
@@ -1932,9 +1932,9 @@ const App: React.FC = () => {
   // Import tasks handler: delegate to main via a unified IPC
   const _handleImportTasks = async () => {
     try {
-      const filePath = await window.electronAPI.invoke('select-import-file');
+      const filePath = await window.electronAPI.selectImportFile();
       if (!filePath) return;
-      const created = await window.electronAPI.invoke('task:import', { filePath });
+      const created = await window.electronAPI.importTasks({ filePath });
       if (Array.isArray(created) && created.length) {
         await loadTasks();
       }
