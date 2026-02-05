@@ -13,7 +13,7 @@ const developmentCSP = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: file: blob: http://localhost:*",
   "font-src 'self' data:",
-  "connect-src 'self' http://localhost:* https://*.googleapis.com https://generativelanguage.googleapis.com ws://localhost:*",
+  "connect-src 'self' http://localhost:* https://*.googleapis.com https://generativelanguage.googleapis.com https://open.bigmodel.cn https://api.z.ai https://openrouter.ai ws://localhost:*",
   "media-src 'self' blob:",
   "object-src 'none'",
   "child-src 'none'"
@@ -25,7 +25,7 @@ const productionCSP = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: file: blob:",
   "font-src 'self' data:",
-  "connect-src 'self' https://*.googleapis.com https://generativelanguage.googleapis.com",
+  "connect-src 'self' https://*.googleapis.com https://generativelanguage.googleapis.com https://open.bigmodel.cn https://api.z.ai https://openrouter.ai",
   "media-src 'self' blob:",
   "object-src 'none'",
   "child-src 'none'"
