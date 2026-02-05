@@ -3,8 +3,22 @@ import react from '@vitejs/plugin-react';
 import { resolve } from 'path';
 
 // https://vitejs.dev/config
+/**
+ * Strip `crossorigin` attributes from built HTML.
+ * Vite adds these by default for module scripts and preloads, but they break
+ * Electron's file:// protocol loading (CORS checks fail on file:// URLs),
+ * causing stylesheets and module preloads to silently fail.
+ */
+const removeCrossOrigin = () => ({
+  name: 'remove-crossorigin',
+  enforce: 'post',
+  transformIndexHtml(html) {
+    return html.replace(/ crossorigin/g, '');
+  }
+});
+
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), removeCrossOrigin()],
   root: resolve('src/renderer'),
   base: './',
   css: {

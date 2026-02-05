@@ -32,7 +32,8 @@ export default defineConfig({
         'fs/promises',
         'os',
         'util',
-        'http'
+        'http',
+        'crypto'
       ],
       output: {
         dir: '.vite/build',
