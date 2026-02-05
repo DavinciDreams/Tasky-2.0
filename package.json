@@ -118,6 +118,10 @@
     "zhipu-ai-provider": "^0.2.2",
     "zod": "^3.23.8"
   },
+  "overrides": {
+    "tar": "7.5.7",
+    "tmp": "0.2.5"
+  },
   "build": {
     "appId": "com.tasky2.taskapp",
     "productName": "Tasky 2.0 - Task Management",
